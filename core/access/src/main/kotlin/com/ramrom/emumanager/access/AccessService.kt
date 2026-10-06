@@ -65,6 +65,20 @@ class AccessService : IAccessService.Stub() {
         }
     }
 
+    override fun installApk(apk: android.os.ParcelFileDescriptor, size: Long): String {
+        return try {
+            val process = ProcessBuilder("pm", "install", "-r", "-S", size.toString()).redirectErrorStream(true).start()
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(apk).use { input ->
+                process.outputStream.use { out -> input.copyTo(out, 256 * 1024) }
+            }
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+            output
+        } catch (e: Exception) {
+            "Failure [${e.message}]"
+        }
+    }
+
     override fun probeCapabilities(probeDir: String): Array<String> {
         if (!AllowList.isPathAllowed(probeDir)) {
             throw SecurityException("Probe dir not allowed: $probeDir")

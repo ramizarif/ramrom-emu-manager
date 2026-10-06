@@ -21,6 +21,12 @@ enum class SourceType {
     GITHUB_RELEASE,
     @SerialName("direct_url")
     DIRECT_URL,
+    /** A Forgejo/Gitea host (same release API shape as GitHub); `url` is the host, `repo` owner/name. */
+    @SerialName("forgejo_release")
+    FORGEJO_RELEASE,
+    /** The official download is a web page, not a stable APK link: the user downloads it there. */
+    @SerialName("official_page")
+    OFFICIAL_PAGE,
     @SerialName("play_store")
     PLAY_STORE,
     @SerialName("user_obtains")

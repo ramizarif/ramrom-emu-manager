@@ -33,10 +33,19 @@ data class BiosSummary(
 
 /**
  * Current device inventory: what's already installed/configured.
+ * Supports incremental updates via mtime cache and lazy computation.
  */
 data class Inventory(
-    val installedPackages: Set<String> = emptySet(),
-    val grantedFolderTrees: Set<String> = emptySet(), // e.g., "switch", "wii"
-    val existingFolders: Set<String> = emptySet(),
-    val esdeConfigured: Boolean = false
+    val installedPackages: Set<String> = emptySet(),  // package IDs like "com.github.yuzu.emu.ea"
+    val grantedFolderTrees: Set<String> = emptySet(), // system IDs with folder grants, e.g., "switch", "wii"
+    val existingFolders: Set<String> = emptySet(),    // system IDs with ROM folders that exist
+    val esdeConfigured: Boolean = false,
+    // Extended fields for full inventory data
+    val installedApps: List<com.ramrom.emumanager.engine.inventory.InstalledApp> = emptyList(),
+    val romFolders: List<com.ramrom.emumanager.engine.inventory.RomFolder> = emptyList(),
+    val folderGrants: List<com.ramrom.emumanager.engine.inventory.FolderGrant> = emptyList(),
+    val biosFiles: List<com.ramrom.emumanager.engine.inventory.BiosFile> = emptyList(),
+    val appPermissions: List<com.ramrom.emumanager.engine.inventory.AppPermissionState> = emptyList(),
+    val esdeConfig: com.ramrom.emumanager.engine.inventory.EsdeConfig = com.ramrom.emumanager.engine.inventory.EsdeConfig(),
+    val orphanedMedia: List<com.ramrom.emumanager.engine.inventory.OrphanedMedia> = emptyList()
 )

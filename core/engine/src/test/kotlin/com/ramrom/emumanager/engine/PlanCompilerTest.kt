@@ -316,9 +316,10 @@ class PlanCompilerTest {
         val plan = Plan("ayn-thor", "sd8gen2", "es-de",
             listOf(Plan.PlanSystem("gc", "dolphin"), Plan.PlanSystem("wii", "dolphin"), Plan.PlanSystem("gba", "retroarch"), Plan.PlanSystem("snes", "retroarch")), null)
         val compiled = PlanCompiler().compile(plan, bundle, Inventory(), Capability.entries.toSet())
-        assertEquals(1, compiled.steps.count { it.type is StepType.InstallApp && it.subject == "dolphin" })
+        val appStep = { t: StepType -> t is StepType.InstallApp || t is StepType.GuidedObtainApp }
+        assertEquals(1, compiled.steps.count { appStep(it.type) && it.subject == "dolphin" })
         assertEquals(1, compiled.steps.count { it.type is StepType.GuidedFolderPick && it.subject == "dolphin" })
-        assertEquals(1, compiled.steps.count { it.type is StepType.InstallApp && it.subject == "retroarch" })
+        assertEquals(1, compiled.steps.count { appStep(it.type) && it.subject == "retroarch" })
         assertEquals(1, compiled.steps.count { it.type is StepType.WriteEmulatorConfig && it.subject == "dolphin" })
     }
 
@@ -326,9 +327,17 @@ class PlanCompilerTest {
     fun appStepsDependOnTheirInstall() {
         val plan = Plan("ayn-thor", "sd8gen2", "es-de", listOf(Plan.PlanSystem("wii", "dolphin")), null)
         val compiled = PlanCompiler().compile(plan, bundle, Inventory(), Capability.entries.toSet())
-        val install = compiled.steps.single { it.type is StepType.InstallApp && it.subject == "dolphin" }
+        val install = compiled.steps.single { (it.type is StepType.InstallApp || it.type is StepType.GuidedObtainApp) && it.subject == "dolphin" }
         val config = compiled.steps.single { it.type is StepType.WriteEmulatorConfig && it.subject == "dolphin" }
         assertTrue(install.id in config.dependsOn)
+    }
+
+    @Test
+    fun officialPagesAreGuidedAndReleasesAreAuto() {
+        val plan = Plan(null, "sd8gen2", null, listOf(Plan.PlanSystem("gc", "dolphin"), Plan.PlanSystem("switch", "eden")), null)
+        val steps = PlanCompiler().compile(plan, bundle, Inventory(), Capability.entries.toSet()).steps
+        assertTrue(steps.any { it.type is StepType.GuidedObtainApp && it.subject == "dolphin" })
+        assertTrue(steps.any { it.type is StepType.InstallApp && it.subject == "eden" && it.executor == Executor.Auto })
     }
 
     @Test

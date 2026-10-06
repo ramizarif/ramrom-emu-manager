@@ -303,11 +303,11 @@
         "dev.eden.eden_emulator.nightly"
       ],
       "source": {
-        "type": "direct_url",
-        "repo": "",
-        "assetRegex": "",
-        "url": "https://github.com/yuzu-emu/yuzu-android/releases",
-        "note": "Official releases only; verify against github.com"
+        "type": "forgejo_release",
+        "repo": "eden-emu/eden",
+        "assetRegex": ".*-standard\\.apk$",
+        "url": "https://git.eden-emu.dev",
+        "note": "Official host only. Unofficial Eden mirrors have shipped malware."
       },
       "minAndroid": 33,
       "supportLevel": "L1",
@@ -325,7 +325,7 @@
       "permissions": [
         "android.permission.POST_NOTIFICATIONS"
       ],
-      "declaresAllFilesAccess": false,
+      "declaresAllFilesAccess": true,
       "folderPick": {
         "needed": true,
         "inAppSteps": [
@@ -383,10 +383,10 @@
         "com.retroarch"
       ],
       "source": {
-        "type": "direct_url",
+        "type": "official_page",
         "repo": "",
         "assetRegex": "",
-        "url": "https://buildbot.libretro.com/stable/android/aarch64/",
+        "url": "https://www.retroarch.com/?page=platforms",
         "note": ""
       },
       "minAndroid": 33,
@@ -443,10 +443,10 @@
         "com.github.stenzek.duckstation"
       ],
       "source": {
-        "type": "direct_url",
+        "type": "official_page",
         "repo": "",
         "assetRegex": "",
-        "url": "https://duckstation.org/android/",
+        "url": "https://www.duckstation.org/android/",
         "note": ""
       },
       "minAndroid": 33,
@@ -463,7 +463,7 @@
       "configFormat": "none",
       "enumMaps": {},
       "permissions": [],
-      "declaresAllFilesAccess": true,
+      "declaresAllFilesAccess": false,
       "folderPick": {
         "needed": true,
         "inAppSteps": [
@@ -500,10 +500,10 @@
         "org.ppsspp.ppsspp"
       ],
       "source": {
-        "type": "direct_url",
+        "type": "official_page",
         "repo": "",
         "assetRegex": "",
-        "url": "https://ppsspp.org/",
+        "url": "https://www.ppsspp.org/download/",
         "note": ""
       },
       "minAndroid": 33,
@@ -557,7 +557,7 @@
         "org.dolphinemu.dolphinemu"
       ],
       "source": {
-        "type": "direct_url",
+        "type": "official_page",
         "repo": "",
         "assetRegex": "",
         "url": "https://dolphin-emu.org/download/",
@@ -579,7 +579,7 @@
       "permissions": [
         "android.permission.POST_NOTIFICATIONS"
       ],
-      "declaresAllFilesAccess": true,
+      "declaresAllFilesAccess": false,
       "folderPick": {
         "needed": true,
         "inAppSteps": [
@@ -618,7 +618,7 @@
       "source": {
         "type": "github_release",
         "repo": "azahar-emu/azahar",
-        "assetRegex": ".*\\.apk$",
+        "assetRegex": "azahar-android-vanilla-.*\\.apk$",
         "url": "",
         "note": "Also on Google Play. Package changed to org.azahar_emu.azahar in 2125."
       },
@@ -676,7 +676,7 @@
         "repo": "",
         "assetRegex": "",
         "url": "",
-        "note": "Community patched build; obtain from known sources"
+        "note": "Patched build of a closed-source app. We never download, host or link it."
       },
       "minAndroid": 33,
       "supportLevel": "L1",
@@ -692,7 +692,7 @@
       "configFormat": "none",
       "enumMaps": {},
       "permissions": [],
-      "declaresAllFilesAccess": true,
+      "declaresAllFilesAccess": false,
       "folderPick": {
         "needed": true,
         "inAppSteps": [
@@ -730,7 +730,7 @@
       "source": {
         "type": "github_release",
         "repo": "rafaelvcaetano/melonDS-android",
-        "assetRegex": ".*android.*\\.apk$",
+        "assetRegex": "app-gitHub-prod-release\\.apk$",
         "url": "",
         "note": ""
       },
@@ -898,9 +898,9 @@
       "source": {
         "type": "github_release",
         "repo": "utkarshdalal/GameNative",
-        "assetRegex": ".*release.*\\.apk$",
+        "assetRegex": "gamenative-v[0-9.]+\\.apk$",
         "url": "",
-        "note": "GPL-3.0; releases tagged prerelease"
+        "note": "GPL-3.0. Stable releases exist since v1.2.1; prereleases are skipped."
       },
       "minAndroid": 33,
       "supportLevel": "L1",
@@ -916,7 +916,7 @@
       "configFormat": "none",
       "enumMaps": {},
       "permissions": [],
-      "declaresAllFilesAccess": false,
+      "declaresAllFilesAccess": true,
       "folderPick": {
         "needed": false,
         "inAppSteps": [],

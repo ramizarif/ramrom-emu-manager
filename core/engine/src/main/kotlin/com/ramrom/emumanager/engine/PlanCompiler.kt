@@ -28,6 +28,11 @@ object TimeConstants {
  * Pure function, fully unit-testable.
  */
 class PlanCompiler {
+    companion object {
+        /** Sources with a stable, machine-readable APK link we may download ourselves. */
+        val AUTO_SOURCES = setOf(SourceType.GITHUB_RELEASE, SourceType.FORGEJO_RELEASE, SourceType.DIRECT_URL)
+    }
+
     fun compile(
         plan: Plan,
         bundle: KnowledgeBundle,
@@ -56,8 +61,9 @@ class PlanCompiler {
         fun appStep(subject: String, packages: List<String>, source: SourceType) {
             ready[subject] = when {
                 isInstalled(packages) -> add(Step(id("install", subject), StepType.InstallApp, subject, executor = Executor.Auto, status = StepStatus.AlreadyDone))
-                // Paid or community builds: we never fetch these, the user gets them.
-                source == SourceType.USER_OBTAINS || source == SourceType.COMMUNITY_PORT ->
+                // We only fetch from release APIs. Paid apps, store listings and official download
+                // pages are the user's to get; we open the right place and wait for the install.
+                source !in AUTO_SOURCES ->
                     add(Step(id("obtain", subject), StepType.GuidedObtainApp, subject, executor = Executor.Guided,
                         handsOnSeconds = TimeConstants.GUIDED_OBTAIN_APP_HANDS_ON, verify = VerifySpec("appInstalled", packages.firstOrNull().orEmpty())))
                 canInstall -> add(Step(id("install", subject), StepType.InstallApp, subject, executor = Executor.Auto,

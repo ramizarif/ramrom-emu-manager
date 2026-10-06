@@ -1,4 +1,4 @@
-plugins { id("com.android.library"); kotlin("android") }
+plugins { id("com.android.library"); kotlin("android"); kotlin("plugin.serialization") }
 
 android {
     namespace = "com.ramrom.emumanager.engine"
@@ -7,6 +7,8 @@ android {
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
     kotlinOptions { jvmTarget = "11" }
     testOptions { unitTests.isReturnDefaultValues = true }
+    // Tests read the real knowledge bundle, never a copy that drifts out of date.
+    sourceSets["test"].resources.srcDir("../knowledge/src/main/assets")
 }
 
 dependencies {

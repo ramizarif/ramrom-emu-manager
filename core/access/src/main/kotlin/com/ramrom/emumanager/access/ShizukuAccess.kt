@@ -194,8 +194,13 @@ class ShizukuAccess(
         }
         val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
         return@withContext try {
-            svc.exec(arrayOf("pm", "install", "-r", "-t", file))
-            AccessResult.Ok(Unit)
+            val f = java.io.File(file)
+            val output = android.os.ParcelFileDescriptor.open(f, android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+                svc.installApk(fd, f.length())
+            }
+            // pm prints "Success" or "Failure [INSTALL_FAILED_...]"; anything else is a failure too.
+            if (output.lines().any { it.trim() == "Success" }) AccessResult.Ok(Unit)
+            else AccessResult.Failed(output.trim().ifEmpty { "Install failed" })
         } catch (e: Exception) {
             AccessResult.Failed(e.message ?: "Install failed")
         }

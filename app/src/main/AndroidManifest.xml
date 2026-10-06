@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- P06: fetch release lists and APKs from the hosts named in knowledge data. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Limited mode installs through Android's installer; the user confirms each app. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <application
         android:name=".EmuApplication"
         android:label="Emu Manager"
