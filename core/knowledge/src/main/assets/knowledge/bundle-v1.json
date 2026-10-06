@@ -317,7 +317,7 @@
         "perGameFileName": "{titleId}.ini",
         "biosDir": "",
         "keysDir": "{appData}/files/keys",
-        "logFile": "{appData}/files/eden_log.txt"
+        "logFile": "{appData}/files/log/eden_log.txt"
       },
       "pathsNeedElevated": true,
       "configFormat": "qt_ini",
@@ -350,7 +350,8 @@
         "nsz"
       ],
       "companionExtensions": [],
-      "caveats": []
+      "caveats": [],
+      "marksNonDefault": true
     },
     {
       "id": "retroarch",
@@ -1731,7 +1732,348 @@
       ]
     }
   ],
-  "settingsProfiles": [],
+  "settingsProfiles": [
+    {
+      "gameKey": {
+        "system": "",
+        "titleId": "",
+        "name": ""
+      },
+      "emulatorId": "eden",
+      "chipFamily": "sd8gen2",
+      "device": "",
+      "name": "Thor defaults",
+      "settings": [
+        {
+          "key": "Overlay/show_input_overlay",
+          "value": "false",
+          "label": "Hide the on-screen controller (the device has buttons)"
+        },
+        {
+          "key": "Renderer/use_asynchronous_shaders",
+          "value": "true",
+          "label": "Asynchronous shaders: on"
+        },
+        {
+          "key": "Renderer/use_disk_shader_cache",
+          "value": "true",
+          "label": "Keep built shaders between sessions"
+        }
+      ],
+      "tradeoff": "Fewer stutters while shaders build; an effect can be missing for a moment the first time it appears.",
+      "verdict": "",
+      "verifiedOn": [
+        "ayn-thor"
+      ],
+      "notes": "",
+      "updated": "2026-10-06"
+    },
+    {
+      "gameKey": {
+        "system": "",
+        "titleId": "",
+        "name": ""
+      },
+      "emulatorId": "azahar",
+      "chipFamily": "sd8gen2",
+      "device": "ayn-thor",
+      "name": "Thor dual screens",
+      "settings": [
+        {
+          "key": "Layout/layout_option",
+          "value": "1",
+          "label": "Main display: Single Screen (top screen)"
+        },
+        {
+          "key": "Layout/secondary_display_layout",
+          "value": "2",
+          "label": "Second display: Bottom Screen"
+        }
+      ],
+      "tradeoff": "",
+      "verdict": "",
+      "verifiedOn": [
+        "ayn-thor"
+      ],
+      "notes": "Puts the 3DS top screen on the main display and the touch screen on the Thor's lower display.",
+      "updated": "2026-10-06"
+    },
+    {
+      "gameKey": {
+        "system": "",
+        "titleId": "",
+        "name": ""
+      },
+      "emulatorId": "azahar",
+      "chipFamily": "sd8gen2",
+      "device": "",
+      "name": "Thor defaults",
+      "settings": [
+        {
+          "key": "Renderer/async_shader_compilation",
+          "value": "true",
+          "label": "Asynchronous shaders: on"
+        },
+        {
+          "key": "Renderer/use_disk_shader_cache",
+          "value": "true",
+          "label": "Keep built shaders between sessions"
+        },
+        {
+          "key": "Renderer/resolution_factor",
+          "value": "0",
+          "label": "Resolution: Auto (Screen Size)"
+        },
+        {
+          "key": "Renderer/disable_right_eye_render",
+          "value": "true",
+          "label": "Skip the 3D right-eye image (no 3D screen here)"
+        }
+      ],
+      "tradeoff": "Fewer stutters while shaders build; a rare effect can be missing for a moment.",
+      "verdict": "",
+      "verifiedOn": [
+        "ayn-thor"
+      ],
+      "notes": "",
+      "updated": "2026-10-06"
+    },
+    {
+      "gameKey": {
+        "system": "",
+        "titleId": "",
+        "name": ""
+      },
+      "emulatorId": "dolphin",
+      "chipFamily": "sd8gen2",
+      "device": "",
+      "name": "Thor defaults",
+      "settings": [
+        {
+          "key": "DSP.DSPThread",
+          "value": "True",
+          "label": "Audio (DSP) on its own thread"
+        }
+      ],
+      "tradeoff": "Faster on 8 cores; a rare game has audio timing glitches.",
+      "verdict": "",
+      "verifiedOn": [
+        "ayn-thor"
+      ],
+      "notes": "",
+      "updated": "2026-10-06"
+    },
+    {
+      "gameKey": {
+        "system": "switch",
+        "titleId": "01007EF00011E000",
+        "name": "The Legend of Zelda: Breath of the Wild"
+      },
+      "emulatorId": "eden",
+      "chipFamily": "sd8gen2",
+      "device": "",
+      "name": "The Legend of Zelda: Breath of the Wild",
+      "settings": [
+        {
+          "key": "Core/use_speed_limit",
+          "value": "true",
+          "label": "Speed limit: on"
+        },
+        {
+          "key": "Core/memory_layout_mode",
+          "value": "2",
+          "label": "Memory: 8GB"
+        },
+        {
+          "key": "Cpu/cpu_accuracy",
+          "value": "2",
+          "label": "CPU accuracy: Unsafe"
+        },
+        {
+          "key": "Cpu/fast_cpu_time",
+          "value": "1",
+          "label": "CPU Overclock: Boost (1700MHz)"
+        },
+        {
+          "key": "Renderer/resolution_setup",
+          "value": "3",
+          "label": "Resolution: 1X (720p/1080p)"
+        },
+        {
+          "key": "Renderer/gpu_accuracy",
+          "value": "2",
+          "label": "GPU mode: Accurate"
+        },
+        {
+          "key": "Renderer/use_asynchronous_shaders",
+          "value": "true",
+          "label": "Asynchronous shaders: on"
+        },
+        {
+          "key": "Renderer/frame_pacing_mode",
+          "value": "1",
+          "label": "Frame pacing: Target 30"
+        },
+        {
+          "key": "Renderer/use_vsync",
+          "value": "1",
+          "label": "VSync: Mailbox"
+        },
+        {
+          "key": "Renderer/use_disk_shader_cache",
+          "value": "true",
+          "label": "Keep built shaders between sessions"
+        },
+        {
+          "key": "Renderer/force_max_clock",
+          "value": "false",
+          "label": "Force maximum clocks: off"
+        },
+        {
+          "key": "Renderer/use_reactive_flushing",
+          "value": "false",
+          "label": "Reactive flushing: off"
+        },
+        {
+          "key": "Renderer/anti_aliasing",
+          "value": "0",
+          "label": "Anti-aliasing: none"
+        },
+        {
+          "key": "Renderer/max_anisotropy",
+          "value": "3",
+          "label": "Anisotropic filtering: 4x"
+        },
+        {
+          "key": "Renderer/scaling_filter",
+          "value": "6",
+          "label": "Upscaling: FSR"
+        },
+        {
+          "key": "Renderer/fsr_sharpening_slider",
+          "value": "20",
+          "label": "FSR sharpness: 20"
+        }
+      ],
+      "tradeoff": "Accurate GPU mode keeps particles and effects right at a small cost in speed.",
+      "verdict": "playable",
+      "verifiedOn": [
+        "ayn-thor"
+      ],
+      "notes": "Holds a near-locked 30 fps on the Thor with a dynamic frame rate mod; without one it steps between 20 and 30. The camera can clip into shrine walls, a known emulator limit.",
+      "updated": "2026-10-06"
+    },
+    {
+      "gameKey": {
+        "system": "switch",
+        "titleId": "0100A00019DE0000",
+        "name": "Hades II"
+      },
+      "emulatorId": "eden",
+      "chipFamily": "sd8gen2",
+      "device": "",
+      "name": "Hades II",
+      "settings": [
+        {
+          "key": "Renderer/resolution_setup",
+          "value": "2",
+          "label": "Resolution: 0.75X (540p/810p)"
+        },
+        {
+          "key": "Renderer/use_asynchronous_gpu_emulation",
+          "value": "true",
+          "label": "Asynchronous GPU: on"
+        },
+        {
+          "key": "Renderer/gpu_accuracy",
+          "value": "0",
+          "label": "GPU mode: Fast"
+        },
+        {
+          "key": "Renderer/frame_pacing_mode",
+          "value": "1",
+          "label": "Frame pacing: Target 30"
+        },
+        {
+          "key": "Renderer/fast_gpu_time",
+          "value": "1",
+          "label": "Fast GPU Time: Medium (256)"
+        },
+        {
+          "key": "Renderer/use_asynchronous_shaders",
+          "value": "true",
+          "label": "Asynchronous shaders: on"
+        },
+        {
+          "key": "Renderer/gpu_unswizzle_enabled",
+          "value": "true",
+          "label": "GPU unswizzle: on"
+        }
+      ],
+      "tradeoff": "Lower resolution and Fast GPU mode for a steadier frame rate.",
+      "verdict": "",
+      "verifiedOn": [
+        "ayn-thor"
+      ],
+      "notes": "The owner's tuned settings; not rated yet.",
+      "updated": "2026-10-06"
+    },
+    {
+      "gameKey": {
+        "system": "switch",
+        "titleId": "0100A83022A22000",
+        "name": "Absolum"
+      },
+      "emulatorId": "eden",
+      "chipFamily": "sd8gen2",
+      "device": "",
+      "name": "Absolum",
+      "settings": [
+        {
+          "key": "Renderer/gpu_accuracy",
+          "value": "2",
+          "label": "GPU mode: Accurate"
+        }
+      ],
+      "tradeoff": "",
+      "verdict": "playable",
+      "verifiedOn": [
+        "ayn-thor"
+      ],
+      "notes": "Plays on Eden builds from 2026-09-08 onward. Older builds crash after the opening video with the NCE CPU backend; there, set CPU backend to Dynarmic for this game.",
+      "updated": "2026-10-06"
+    },
+    {
+      "gameKey": {
+        "system": "switch",
+        "titleId": "0100FF500E34A000",
+        "name": "Xenoblade Chronicles: Definitive Edition"
+      },
+      "emulatorId": "eden",
+      "chipFamily": "sd8gen2",
+      "device": "",
+      "name": "Xenoblade Chronicles: Definitive Edition",
+      "settings": [
+        {
+          "key": "Cpu/cpu_backend",
+          "value": "1",
+          "label": "CPU backend: NCE"
+        },
+        {
+          "key": "Cpu/cpu_accuracy",
+          "value": "2",
+          "label": "CPU accuracy: Unsafe"
+        }
+      ],
+      "tradeoff": "Unsafe CPU accuracy trades exactness for speed.",
+      "verdict": "",
+      "verifiedOn": [
+        "ayn-thor"
+      ],
+      "notes": "The owner's settings; not rated yet.",
+      "updated": "2026-10-06"
+    }
+  ],
   "guidedSteps": [
     {
       "id": "eden-folder-pick",

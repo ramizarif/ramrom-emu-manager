@@ -243,4 +243,15 @@ class QtIniCodecTest {
         val text = "; c\r\n[A]\r\n  x = 1\r\ny=2\r\n\r\n[B]\r\nz=3"
         assertEquals(text, codec.render(codec.parse(text)))
     }
+
+    @Test
+    fun spacedFilesKeepTheirSpacing() {
+        // Azahar writes `key = value`, and an empty value means "use the default".
+        val config = codec.parse("[Renderer]\nuse_vsync = \nlayout_option = 1\n")
+        assertEquals("", config.values["Renderer/use_vsync"])
+        assertEquals("1", config.values["Renderer/layout_option"])
+        config.values["Renderer/use_vsync"] = "true"
+        config.values["Renderer/factor_3d"] = "0"
+        assertEquals("[Renderer]\nuse_vsync = true\nlayout_option = 1\nfactor_3d = 0\n", codec.render(config))
+    }
 }

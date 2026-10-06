@@ -193,7 +193,12 @@ data class EmulatorProfile(
     val esdeLaunch: EsdeLaunchConfig? = null,
     val romExtensions: List<String> = emptyList(),
     val companionExtensions: List<String> = emptyList(),
-    val caveats: List<String> = emptyList()
+    val caveats: List<String> = emptyList(),
+    /**
+     * Eden-style INI: a setting only sticks with `key\default=false` beside it, and a per-game
+     * file also needs `key\use_global=false`.
+     */
+    val marksNonDefault: Boolean = false,
 )
 
 @Serializable
@@ -329,10 +334,13 @@ data class BiosTarget(
 
 @Serializable
 data class GameSettingsProfile(
+    /** No title ID: the emulator's defaults for this chip family (L2), written to its main config. */
     val gameKey: GameIdentity = GameIdentity(),
     val emulatorId: String = "",
     val emulatorVersionRange: String = "",
     val chipFamily: String = "",
+    /** Only on this device (a dual-screen layout); empty means any device of the chip family. */
+    val device: String = "",
     val name: String = "",
     val settings: List<GameSetting> = emptyList(),
     val tradeoff: String = "",

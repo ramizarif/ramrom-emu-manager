@@ -243,4 +243,13 @@ class DolphinIniCodecTest {
 
         assertEquals("", output)
     }
+
+    @Test
+    fun newKeyJoinsItsExistingSection() {
+        // The Thor's Dolphin.ini: an empty [Core] at the end, [DSP] before it.
+        val config = codec.parse("[DSP]\nDSPThread = True\n[Core]\n")
+        config.values["Core.CPUThread"] = "True"
+        config.values["DSP.DSPThread"] = "False"
+        assertEquals("[DSP]\nDSPThread = False\n[Core]\nCPUThread = True\n", codec.render(config))
+    }
 }

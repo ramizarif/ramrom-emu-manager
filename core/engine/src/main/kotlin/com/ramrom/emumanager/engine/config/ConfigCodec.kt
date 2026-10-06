@@ -35,33 +35,30 @@ data class ConfigMetadata(
 )
 
 /**
- * Qt INI format (used by Eden, Citron, Azahar). Keys inside a section are `Section/key`
- * (`Renderer/resolution_setup`, `Renderer/resolution_setup\use_global`); keys before any section
- * stay bare. New keys go at the end of their own section, which is created when missing, and a
- * removed key's line is dropped. Everything else is kept byte for byte.
- * ```
- * [Renderer]
- * resolution_setup\use_global=false
- * resolution_setup\default=false
- * resolution_setup=3
- * ```
+ * Sectioned INI, shared by every emulator format we write. Keys inside a section are
+ * `Section<sep>key` (`Renderer/resolution_setup`, `Core.CPUThread`); keys before any section stay
+ * bare. New keys go at the end of their own section, which is created when missing, and a removed
+ * key's line is dropped. Everything else is kept byte for byte. Files written as `key = value`
+ * (Azahar, Dolphin) keep that spacing: values are read without it and written back with it.
  */
-class QtIniCodec : ConfigCodec {
+open class IniCodec(private val separator: Char, private val name: String) : ConfigCodec {
     private fun sectionOf(line: String) = line.trim().takeIf { it.startsWith("[") && it.endsWith("]") }?.removeSurrounding("[", "]")
-    private fun qualify(section: String?, key: String) = if (section.isNullOrEmpty()) key else "$section/$key"
+    private fun qualify(section: String?, key: String) = if (section.isNullOrEmpty()) key else "$section$separator$key"
+    private fun isComment(trimmed: String) = trimmed.startsWith(";") || trimmed.startsWith("#")
+    /** Index of the `=` on a key line, or -1. */
+    private fun eqOf(line: String) = line.indexOf('=').takeIf { it > 0 && !isComment(line.trim()) } ?: -1
+    private fun valueOf(line: String, eq: Int) = line.substring(eq + 1).let { if (line.getOrNull(eq - 1) == ' ') it.removePrefix(" ") else it }
 
     override fun parse(text: String): ParsedConfig {
         val values = linkedMapOf<String, String>()
         var section: String? = null
         for (line in text.split(Regex("\r\n|\n"))) {
-            val trimmed = line.trim()
             val sec = sectionOf(line)
             if (sec != null) { section = sec; continue }
-            if (trimmed.isEmpty() || trimmed.startsWith(";") || trimmed.startsWith("#")) continue
-            val eq = line.indexOf('=')
-            if (eq > 0) values[qualify(section, line.substring(0, eq).trim())] = line.substring(eq + 1)
+            val eq = eqOf(line)
+            if (eq > 0) values[qualify(section, line.substring(0, eq).trim())] = valueOf(line, eq)
         }
-        return ParsedConfig(text, values, ConfigMetadata(detectLineEnding(text), text.isNotEmpty() && text.endsWith("\n"), "qt_ini"))
+        return ParsedConfig(text, values, ConfigMetadata(detectLineEnding(text), text.isNotEmpty() && text.endsWith("\n"), name))
     }
 
     override fun render(config: ParsedConfig): String {
@@ -72,14 +69,17 @@ class QtIniCodec : ConfigCodec {
         // Keys not yet in the file, grouped by section, in the order they were given.
         val seen = mutableSetOf<String>()
         var section: String? = null
+        var spaced = false
         for (line in lines) {
             val sec = sectionOf(line)
             if (sec != null) { section = sec; continue }
-            val eq = line.indexOf('=')
-            if (eq > 0 && !line.trim().startsWith(";") && !line.trim().startsWith("#")) seen += qualify(section, line.substring(0, eq).trim())
+            val eq = eqOf(line)
+            if (eq > 0) { seen += qualify(section, line.substring(0, eq).trim()); if (line.getOrNull(eq - 1) == ' ') spaced = true }
         }
-        val pending = config.values.keys.filter { it !in seen }.groupBy({ if ('/' in it) it.substringBefore('/') else "" }, { it }).toMutableMap()
-        fun newLines(sec: String?) = pending.remove(sec ?: "").orEmpty().map { k -> "${k.substringAfter('/', k)}=${config.values[k]}" }
+        val join = if (spaced) " = " else "="
+        val pending = config.values.keys.filter { it !in seen }.groupBy({ if (separator in it) it.substringBefore(separator) else "" }, { it }).toMutableMap()
+        fun newLine(k: String) = "${k.substringAfter(separator, k)}$join${config.values[k]}"
+        fun newLines(sec: String?) = pending.remove(sec ?: "").orEmpty().map(::newLine)
 
         val out = mutableListOf<String>()
         section = null
@@ -88,19 +88,18 @@ class QtIniCodec : ConfigCodec {
         for (line in lines) {
             val sec = sectionOf(line)
             if (sec != null) { closeSection(); section = sec; out += line; sectionEnd = out.size; continue }
-            val trimmed = line.trim()
-            val eq = line.indexOf('=')
-            if (eq > 0 && !trimmed.startsWith(";") && !trimmed.startsWith("#")) {
+            val eq = eqOf(line)
+            if (eq > 0) {
                 val key = qualify(section, line.substring(0, eq).trim())
                 when (val v = config.values[key]) {
                     null -> continue // removed
-                    line.substring(eq + 1) -> out += line // unchanged: keep it exactly
-                    else -> { val indent = line.takeWhile { it.isWhitespace() }; out += "$indent${line.substring(0, eq).trim()}=$v" }
+                    valueOf(line, eq) -> out += line // unchanged: keep it exactly
+                    else -> out += line.substring(0, eq + 1) + (if (line.getOrNull(eq - 1) == ' ') " " else "") + v
                 }
                 sectionEnd = out.size
             } else {
                 out += line
-                if (trimmed.isNotEmpty()) sectionEnd = out.size
+                if (line.isNotBlank()) sectionEnd = out.size
             }
         }
         closeSection()
@@ -108,7 +107,7 @@ class QtIniCodec : ConfigCodec {
         for ((sec, keys) in pending.toList()) {
             if (out.isNotEmpty() && out.last().isNotBlank()) out += ""
             if (sec.isNotEmpty()) out += "[$sec]"
-            keys.forEach { k -> out += "${k.substringAfter('/', k)}=${config.values[k]}" }
+            keys.forEach { k -> out += newLine(k) }
         }
         if (out.isEmpty()) return ""
         val text = out.joinToString(config.metadata.lineEnding)
@@ -124,126 +123,15 @@ class QtIniCodec : ConfigCodec {
 }
 
 /**
- * Dolphin INI format (plain INI with sections).
- * Example:
+ * Qt INI (Eden, Citron, Azahar): `Section/key`, including Eden's `key\use_global` and `key\default`.
  * ```
- * [Core]
- * CPUThread=True
- * [Graphics]
- * Resolution=1
+ * [Renderer]
+ * resolution_setup\use_global=false
+ * resolution_setup\default=false
+ * resolution_setup=3
  * ```
  */
-class DolphinIniCodec : ConfigCodec {
-    override fun parse(text: String): ParsedConfig {
-        val lineEnding = detectLineEnding(text)
-        val hasTrailing = text.isNotEmpty() && (text.endsWith("\n") || text.endsWith("\r\n"))
-        val lines = text.split(Regex("\r\n|\n"))
-        val values = mutableMapOf<String, String>()
-        var currentSection = ""
+class QtIniCodec : IniCodec('/', "qt_ini")
 
-        for (line in lines) {
-            val trimmed = line.trim()
-
-            // Section header
-            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-                currentSection = trimmed.substring(1, trimmed.length - 1)
-                continue
-            }
-
-            if (trimmed.isEmpty() || trimmed.startsWith(";") || trimmed.startsWith("#")) {
-                continue
-            }
-
-            val eqIdx = line.indexOf("=")
-            if (eqIdx > 0) {
-                val key = line.substring(0, eqIdx).trim()
-                val value = line.substring(eqIdx + 1)
-                val fullKey = if (currentSection.isNotEmpty()) "$currentSection.$key" else key
-                values[fullKey] = value
-            }
-        }
-
-        return ParsedConfig(
-            originalText = text,
-            values = values,
-            metadata = ConfigMetadata(
-                lineEnding = lineEnding,
-                hasTrailingNewline = hasTrailing,
-                codec = "dolphin_ini"
-            )
-        )
-    }
-
-    override fun render(config: ParsedConfig): String {
-        val originalLines = config.originalText.split(Regex("\r\n|\n"))
-        val result = mutableListOf<String>()
-        val processed = mutableSetOf<String>()
-        var currentSection = ""
-
-        for (line in originalLines) {
-            val trimmed = line.trim()
-
-            // Section header
-            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-                currentSection = trimmed.substring(1, trimmed.length - 1)
-                result.add(line)
-                continue
-            }
-
-            // Preserve comments and blank lines
-            if (trimmed.isEmpty() || trimmed.startsWith(";") || trimmed.startsWith("#")) {
-                result.add(line)
-                continue
-            }
-
-            val eqIdx = line.indexOf("=")
-            if (eqIdx > 0) {
-                val key = line.substring(0, eqIdx).trim()
-                val fullKey = if (currentSection.isNotEmpty()) "$currentSection.$key" else key
-
-                if (fullKey in config.values) {
-                    val indent = line.takeWhile { it.isWhitespace() }
-                    result.add("$indent$key=${config.values[fullKey]}")
-                    processed.add(fullKey)
-                } else {
-                    result.add(line)
-                }
-            } else {
-                result.add(line)
-            }
-        }
-
-        // Append new keys grouped by section
-        val newBySection = mutableMapOf<String, MutableList<Pair<String, String>>>()
-        for ((key, value) in config.values) {
-            if (key !in processed) {
-                val (section, shortKey) = if ("." in key) {
-                    val parts = key.split(".", limit = 2)
-                    parts[0] to parts[1]
-                } else {
-                    "" to key
-                }
-                newBySection.getOrPut(section) { mutableListOf() }.add(shortKey to value)
-            }
-        }
-
-        for ((section, entries) in newBySection) {
-            if (section.isNotEmpty()) {
-                result.add("[$section]")
-            }
-            for ((key, value) in entries) {
-                result.add("$key=$value")
-            }
-        }
-
-        val text = result.joinToString(config.metadata.lineEnding)
-        return if (config.metadata.hasTrailingNewline) text + config.metadata.lineEnding else text
-    }
-
-    private fun detectLineEnding(text: String): String =
-        when {
-            text.contains("\r\n") -> "\r\n"
-            text.contains("\n") -> "\n"
-            else -> "\n"
-        }
-}
+/** Dolphin's INI: `Section.key`, written `Key = Value`. */
+class DolphinIniCodec : IniCodec('.', "dolphin_ini")
