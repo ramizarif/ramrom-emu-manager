@@ -68,6 +68,9 @@ sealed class FixAction {
     /**
      * No action available; info only.
      */
+    /** Turn Shizuku back on (F02). */
+    object ReconnectAccess : FixAction()
+
     object None : FixAction()
 }
 
@@ -80,5 +83,7 @@ data class HealthIssue(
     val title: String,                 // short user-facing title, plain language
     val detail: String,                // explanation of what's wrong and why it matters
     val evidence: List<String> = emptyList(), // detailed evidence (paths, versions, etc.)
-    val fix: FixAction = FixAction.None
+    val fix: FixAction = FixAction.None,
+    /** The system the issue is about, for S14's per-system rows; null for app-wide ones. */
+    val systemId: String? = null,
 )

@@ -175,6 +175,13 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     val runState by remember(activeRun) { activeRun?.runner?.state ?: kotlinx.coroutines.flow.MutableStateFlow(null) }.collectAsState()
     val runSummary = runState?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
 
+    /** Re-run the saved plan: the compiler only plans what's still missing. */
+    val fixWithSetup: () -> Unit = {
+        scope.launch {
+            if (app.runs.restartLast() != null) { nav.reset(Route.Main(Section.Home)); nav.push(Route.Wizard) }
+        }
+    }
+
     val openShizuku = {
         context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")?.let { context.startActivity(it) }
         Unit
@@ -336,10 +343,13 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                 )
                 Route.Wizard -> activeRun?.let { run -> WizardRoute(run, nav, onFinished = { complete ->
                     scope.launch {
-                        if (complete) { app.runs.stop(forget = true); toast = "Setup done" }
-                        nav.reset(Route.Main(Section.Home))
+                        if (complete) app.runs.stop(forget = true)
+                        // The run's end is the health check (S12 → S14), with Home underneath.
+                        nav.reset(Route.Main(Section.Home)); nav.push(Route.Health)
                     }
                 }) } ?: LaunchedEffect(Unit) { nav.pop() }
+                Route.Health -> HealthRoute(app, nav, onFixWithSetup = fixWithSetup, onDone = { nav.pop() })
+                is Route.Issue -> IssueRoute(app, r.issueId, nav, onFixWithSetup = fixWithSetup)
                 is Route.Guided -> activeRun?.let { run -> GuidedRoute(run, r.stepId, nav) } ?: LaunchedEffect(Unit) { nav.pop() }
                 Route.About -> AboutScreen("${BuildConfig.VERSION_NAME} · debug")
             }

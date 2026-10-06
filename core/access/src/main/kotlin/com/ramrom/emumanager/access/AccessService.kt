@@ -11,10 +11,13 @@ class AccessService : IAccessService.Stub() {
 
     override fun destroy() = exitProcess(0)
 
+    /** Absolute paths as given; relative ones are under shared storage (same rule as AllowList). */
+    private fun resolve(path: String) = if (path.startsWith("/")) File(path) else File("/storage/emulated/0/$path")
+
     override fun readFile(path: String): ByteArray? {
         if (!AllowList.isPathAllowed(path)) return null
         return try {
-            File("/storage/emulated/0/$path").readBytes()
+            resolve(path).readBytes()
         } catch (e: Exception) {
             null
         }
@@ -23,7 +26,7 @@ class AccessService : IAccessService.Stub() {
     override fun writeFile(path: String, bytes: ByteArray) {
         if (!AllowList.isPathAllowed(path)) throw SecurityException("Path not allowed: $path")
         try {
-            val f = File("/storage/emulated/0/$path")
+            val f = resolve(path)
             f.parentFile?.mkdirs()
             f.writeBytes(bytes)
         } catch (e: Exception) {
@@ -34,7 +37,7 @@ class AccessService : IAccessService.Stub() {
     override fun deleteFile(path: String) {
         if (!AllowList.isPathAllowed(path)) throw SecurityException("Path not allowed: $path")
         try {
-            File("/storage/emulated/0/$path").delete()
+            resolve(path).delete()
         } catch (e: Exception) {
             throw RuntimeException("Delete failed: ${e.message}", e)
         }
@@ -43,7 +46,7 @@ class AccessService : IAccessService.Stub() {
     override fun listDir(path: String): Array<String>? {
         if (!AllowList.isPathAllowed(path)) return null
         return try {
-            File("/storage/emulated/0/$path").listFiles()?.map { it.name }?.toTypedArray()
+            resolve(path).listFiles()?.map { it.name }?.toTypedArray()
         } catch (e: Exception) {
             null
         }

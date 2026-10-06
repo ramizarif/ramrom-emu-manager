@@ -70,7 +70,7 @@ fun WizardScreen(
     val focus = initialFocus(state.isComplete, nextYours?.stepId)
     val primary: Pair<String, () -> Unit> = when {
         state.isComplete -> "See how it went" to onFinished
-        nextYours != null -> "Next: ${nextYours.title}" to { onOpenStep(nextYours.stepId) }
+        nextYours != null -> "Next step" to { onOpenStep(nextYours.stepId) }
         state.isPaused -> "Carry on" to onResume
         // Nothing for the user and nothing moving: whatever's left was skipped or failed. Done for now.
         !state.isRunning -> "Finish for now" to onFinished
@@ -101,6 +101,8 @@ fun WizardScreen(
                 if (!state.isComplete && primary.second != onPause && primary.second != onResume && state.isRunning) {
                     EmuButton(if (state.isPaused) "Carry on" else "Pause", if (state.isPaused) onResume else onPause)
                 }
+                // Waiting on the user: they can look at what already works and come back later.
+                if (!state.isComplete && primary.second != onFinished) EmuButton("What works now", onFinished, kind = ButtonKind.Ghost)
             },
         ) {
             Eyebrow("Setup")

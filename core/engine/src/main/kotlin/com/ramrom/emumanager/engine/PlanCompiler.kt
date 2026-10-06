@@ -2,6 +2,7 @@ package com.ramrom.emumanager.engine
 
 import com.ramrom.emumanager.access.Capability
 import com.ramrom.emumanager.knowledge.ConfigFormat
+import com.ramrom.emumanager.knowledge.EmulatorProfile
 import com.ramrom.emumanager.knowledge.KnowledgeBundle
 import com.ramrom.emumanager.knowledge.SourceType
 
@@ -27,7 +28,13 @@ object TimeConstants {
  * Compiler that converts a Plan + Inventory + Capabilities into a CompiledPlan.
  * Pure function, fully unit-testable.
  */
-class PlanCompiler {
+class PlanCompiler(
+    /**
+     * Plan config-writing steps (P09/P10). Off in the app until the writers and L2 profiles land:
+     * a step that does nothing must never ask the user to do it.
+     */
+    private val writesConfigs: Boolean = true,
+) {
     companion object {
         /** Sources with a stable, machine-readable APK link we may download ourselves. */
         val AUTO_SOURCES = setOf(SourceType.GITHUB_RELEASE, SourceType.FORGEJO_RELEASE, SourceType.DIRECT_URL)
@@ -88,23 +95,30 @@ class PlanCompiler {
         }
 
         // Phase 3: permissions and all-files access.
+        // A scan that already saw the grant (P03) makes the step already done, so a re-run asks nothing twice.
+        fun permsOf(e: EmulatorProfile) = inventory.appPermissions.firstOrNull { it.packageId in e.packages }
         for (e in emulators) {
             val dep = listOf(ready.getValue(e.id))
+            val perms = permsOf(e)
             if (e.permissions.isNotEmpty()) {
                 val auto = Capability.GRANT_RUNTIME_PERMISSION in capabilities
+                val done = perms != null && perms.missingPermissions.isEmpty()
                 add(Step(id("perm", e.id), StepType.GrantRuntimePermission, e.id, dep,
                     if (auto) Executor.Auto else Executor.Guided,
                     capabilityNeeded = if (auto) Capability.GRANT_RUNTIME_PERMISSION else null,
-                    estimatedSeconds = if (auto) TimeConstants.CONFIG_WRITE_MACHINE else 0,
-                    handsOnSeconds = if (auto) 0 else TimeConstants.GUIDED_PERMISSION_HANDS_ON))
+                    estimatedSeconds = if (auto && !done) TimeConstants.CONFIG_WRITE_MACHINE else 0,
+                    handsOnSeconds = if (auto || done) 0 else TimeConstants.GUIDED_PERMISSION_HANDS_ON,
+                    status = if (done) StepStatus.AlreadyDone else StepStatus.Pending))
             }
             if (e.declaresAllFilesAccess) {
                 val auto = Capability.SET_APPOP in capabilities
+                val done = perms?.grantedManageExternalStorage == true
                 add(Step(id("allfiles", e.id), StepType.GrantAllFilesAccess, e.id, dep,
                     if (auto) Executor.Auto else Executor.Guided,
                     capabilityNeeded = if (auto) Capability.SET_APPOP else null,
-                    estimatedSeconds = if (auto) TimeConstants.CONFIG_WRITE_MACHINE else 0,
-                    handsOnSeconds = if (auto) 0 else TimeConstants.GUIDED_ALL_FILES_ACCESS_HANDS_ON))
+                    estimatedSeconds = if (auto && !done) TimeConstants.CONFIG_WRITE_MACHINE else 0,
+                    handsOnSeconds = if (auto || done) 0 else TimeConstants.GUIDED_ALL_FILES_ACCESS_HANDS_ON,
+                    status = if (done) StepStatus.AlreadyDone else StepStatus.Pending))
             }
         }
 
@@ -122,7 +136,7 @@ class PlanCompiler {
         }
 
         // Phase 5: frontend config. ES-DE keeps it in shared storage; it must be closed while we write.
-        if (frontend != null && !inventory.esdeConfigured) {
+        if (writesConfigs && frontend != null && !inventory.esdeConfigured) {
             add(Step(id("config", frontend.id), StepType.WriteFrontendConfig, frontend.id, folderIds + ready.getValue(frontend.id),
                 if (canWriteShared) Executor.Auto else Executor.Guided,
                 capabilityNeeded = Capability.WRITE_SHARED_STORAGE,
@@ -132,7 +146,7 @@ class PlanCompiler {
 
         // Phase 6: emulator configs. Some live in Android/data and need elevated access.
         for (e in emulators) {
-            if (e.configFormat == ConfigFormat.NONE) continue
+            if (!writesConfigs || e.configFormat == ConfigFormat.NONE) continue
             val auto = if (e.pathsNeedElevated) canWriteAppData else canWriteShared || canWriteAppData
             add(Step(id("config", e.id), StepType.WriteEmulatorConfig, e.id, listOf(ready.getValue(e.id)),
                 if (auto) Executor.Auto else Executor.Guided,

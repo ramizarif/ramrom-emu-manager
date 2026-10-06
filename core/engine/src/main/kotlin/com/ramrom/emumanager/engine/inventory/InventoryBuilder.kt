@@ -3,229 +3,163 @@ package com.ramrom.emumanager.engine.inventory
 import com.ramrom.emumanager.engine.Inventory
 import com.ramrom.emumanager.knowledge.KnowledgeBundle
 
+/** What the Android side read from the device; everything else comes from files via [FileLister]. */
+data class DeviceFacts(
+    /** Bundle apps that are installed, by package. */
+    val installed: Map<String, InstalledApp> = emptyMap(),
+    val allFilesAccess: Map<String, Boolean> = emptyMap(),
+    /** Granted runtime permissions per package (only the ones the bundle lists need be present). */
+    val grantedPermissions: Map<String, Set<String>> = emptyMap(),
+    /** Absolute folder paths each package holds a tree grant for; null when they can't be read. */
+    val folderGrants: Map<String, List<String>>? = null,
+    val romRoot: String = "/storage/emulated/0/ROMs",
+    val esdeRoot: String = "/storage/emulated/0/ES-DE",
+    val appDataRoot: String = "/storage/emulated/0/Android/data",
+    /** True when [FileLister] can see inside Android/data (elevated). */
+    val canReadAppData: Boolean = false,
+)
+
 /**
- * Builds an Inventory snapshot from raw facts.
- * Pure function: takes raw data, produces Inventory.
- * No ROM hashing is performed (for performance: < 30s for 1TB library).
+ * P03: turns device facts and a file listing into an [Inventory]. Read-only and pure; no ROM
+ * hashing, so a big library stays fast. Folder names come from the frontend profile (ES-DE's
+ * `ps1`, not our system id), extensions from every emulator that runs the system.
  */
 class InventoryBuilder(
     private val bundle: KnowledgeBundle,
-    private val fileLister: FileLister
+    private val files: FileLister,
 ) {
-    /**
-     * Build a complete inventory from raw facts.
-     * @param installedPackages set of package IDs like "com.github.yuzu.emu.ea"
-     * @param folderGrantsPerPackage map of package ID -> set of system folder names with grants
-     * @param allFilesAccessPerPackage map of package ID -> whether it has MANAGE_EXTERNAL_STORAGE granted
-     * @param romRootPath absolute path to ROM root, typically "/storage/emulated/0/ROMs"
-     * @param esdeBasePath absolute path to ES-DE folder, typically "/storage/emulated/0/ES-DE"
-     * @return complete Inventory snapshot
-     */
-    fun build(
-        installedPackages: Set<String>,
-        folderGrantsPerPackage: Map<String, Set<String>>,
-        allFilesAccessPerPackage: Map<String, Boolean>,
-        romRootPath: String = "/storage/emulated/0/ROMs",
-        esdeBasePath: String = "/storage/emulated/0/ES-DE"
-    ): Inventory {
-        val installedApps = buildInstalledApps(installedPackages)
-        val romFolders = buildRomFolders(romRootPath, installedApps)
-        val folderGrants = buildFolderGrants(folderGrantsPerPackage)
-        val grantedSystems = folderGrants.map { it.systemId }.toSet()
-        val existingFolders = romFolders.map { it.systemId }.toSet()
+    private val frontend = bundle.frontends.firstOrNull()
+    private fun folderOf(systemId: String) = frontend?.systemFolders?.get(systemId) ?: systemId
 
-        val appPermissions = buildAppPermissions(installedPackages, allFilesAccessPerPackage)
-        val esdeConfig = buildEsdeConfig(esdeBasePath)
-        val biosFiles = buildBiosFiles(bundle)
-        val orphanedMedia = buildOrphanedMedia(esdeBasePath, romFolders)
+    /** system → extensions any of its emulators open. */
+    private val extensions: Map<String, Set<String>> = bundle.systems.associate { s ->
+        s.id to bundle.emulators.filter { s.id in it.systems }.flatMap { e -> e.romExtensions.map { it.lowercase() } }.toSet()
+    }
 
+    /** extension → the one system it identifies, for extensions only one system uses. */
+    private val telltale: Map<String, String> = extensions.flatMap { (s, exts) -> exts.map { it to s } }
+        .groupBy({ it.first }, { it.second }).filterValues { it.size == 1 }.mapValues { it.value.single() }
+
+    fun build(facts: DeviceFacts): Inventory {
+        val romFolders = romFolders(facts.romRoot)
+        val grants = facts.folderGrants?.let { grants(it, facts.romRoot) }.orEmpty()
+        val bios = bios(facts)
+        val esde = esde(facts.esdeRoot)
         return Inventory(
-            installedPackages = installedPackages,
-            grantedFolderTrees = grantedSystems,
-            existingFolders = existingFolders,
-            esdeConfigured = esdeConfig.installed,
-            installedApps = installedApps,
+            installedPackages = facts.installed.keys,
+            grantedFolderTrees = grants.flatMap { g -> if (g.systemId.isEmpty()) bundle.systems.map { it.id } else listOf(g.systemId) }.toSet(),
+            existingFolders = romFolders.map { it.folderName }.toSet(),
+            esdeConfigured = esde.installed,
+            installedApps = facts.installed.values.sortedBy { it.packageId },
             romFolders = romFolders,
-            folderGrants = folderGrants,
-            biosFiles = biosFiles,
-            appPermissions = appPermissions,
-            esdeConfig = esdeConfig,
-            orphanedMedia = orphanedMedia
+            folderGrants = grants,
+            biosFiles = bios.first,
+            appPermissions = permissions(facts),
+            esdeConfig = esde,
+            orphanedMedia = orphans(facts.esdeRoot, romFolders),
+            grantsKnown = facts.folderGrants != null,
+            biosUnchecked = bios.second,
         )
     }
 
-    private fun buildInstalledApps(packageIds: Set<String>): List<InstalledApp> {
-        // In a real implementation, this would query PackageManager
-        // For now, return basic entries from the known packages
-        return packageIds.map { pkg ->
-            InstalledApp(packageId = pkg, versionName = "", versionCode = 0)
-        }.sortedBy { it.packageId }
-    }
-
-    private fun buildRomFolders(
-        romRootPath: String,
-        installedApps: List<InstalledApp>
-    ): List<RomFolder> {
-        if (!fileLister.exists(romRootPath) || !fileLister.isDirectory(romRootPath)) {
-            return emptyList()
-        }
-
-        val systemIds = bundle.systems.map { it.id }.toSet()
-        val systemExtensions = buildSystemExtensionsMap()
-
-        val folders = mutableListOf<RomFolder>()
-        for (systemId in systemIds) {
-            val systemFolderPath = "$romRootPath/$systemId"
-            if (!fileLister.exists(systemFolderPath)) continue
-
-            val files = fileLister.listFiles(systemFolderPath)
-            val gameCount = files.count { file ->
-                val extensions = systemExtensions[systemId] ?: emptyList()
-                isGameFile(file, extensions)
-            }
-
-            if (files.isNotEmpty()) {
-                folders.add(
-                    RomFolder(
-                        systemId = systemId,
-                        folderPath = systemFolderPath,
-                        gameCount = gameCount
-                    )
-                )
-            }
-        }
-
-        return folders
-    }
-
-    private fun buildSystemExtensionsMap(): Map<String, List<String>> {
-        val map = mutableMapOf<String, List<String>>()
-        for (emulator in bundle.emulators) {
-            for (systemId in emulator.systems) {
-                val extensions = emulator.romExtensions.map { it.lowercase() }
-                map[systemId] = extensions
-            }
-        }
-        return map
-    }
-
-    private fun isGameFile(filePath: String, extensions: List<String>): Boolean {
-        if (extensions.isEmpty()) return true
-        // Ignore hidden files (starting with dot)
-        if (filePath.startsWith(".")) return false
-
-        val lower = filePath.lowercase()
-        val companionExts = setOf(
-            ".sav", ".ml1", ".srm", ".state0", ".state1", ".state2", ".state3",
-            ".state4", ".state5", ".state6", ".state7", ".state8", ".state9",
-            ".state10", ".state11", ".state12", ".state13", ".state14", ".state15"
-        )
-        for (ext in companionExts) {
-            if (lower.endsWith(ext)) return false
-        }
-        return extensions.any { lower.endsWith(".$it") }
-    }
-
-    private fun buildFolderGrants(folderGrantsPerPackage: Map<String, Set<String>>): List<FolderGrant> {
-        val grants = mutableListOf<FolderGrant>()
-        for ((packageId, systemIds) in folderGrantsPerPackage) {
-            for (systemId in systemIds) {
-                grants.add(
-                    FolderGrant(
-                        packageId = packageId,
-                        systemId = systemId,
-                        granted = true
-                    )
-                )
-            }
-        }
-        return grants
-    }
-
-    private fun buildAppPermissions(
-        installedPackages: Set<String>,
-        allFilesAccessPerPackage: Map<String, Boolean>
-    ): List<AppPermissionState> {
-        return installedPackages.map { pkg ->
-            AppPermissionState(
-                packageId = pkg,
-                declaresManageExternalStorage = bundle.emulators
-                    .find { emulator -> pkg in emulator.packages }
-                    ?.declaresAllFilesAccess ?: false,
-                grantedManageExternalStorage = allFilesAccessPerPackage[pkg] ?: false
-            )
-        }
-    }
-
-    private fun buildEsdeConfig(esdeBasePath: String): EsdeConfig {
-        if (!fileLister.exists(esdeBasePath) || !fileLister.isDirectory(esdeBasePath)) {
-            return EsdeConfig(installed = false)
-        }
-
-        val settingsPath = "$esdeBasePath/settings/es_settings.xml"
-        val customSystemsPath = "$esdeBasePath/custom_systems"
-        val themesPath = "$esdeBasePath/downloaded_media"
-        val customThemesPath = "/storage/emulated/0/Android/data/org.es_de.frontend/files/themes"
-
-        // ES-DE is only "installed" if the settings file exists
-        val installed = fileLister.exists(settingsPath)
-
-        return EsdeConfig(
-            installed = installed,
-            configPath = settingsPath,
-            romDirectory = "/storage/emulated/0/ROMs",  // default, would be parsed from settings
-            mediaDirectory = themesPath,
-            customSystemsFolder = customSystemsPath,
-            themesFolder = customThemesPath
-        )
-    }
-
-    private fun buildBiosFiles(bundle: KnowledgeBundle): List<BiosFile> {
-        // In a real implementation, would scan emulator BIOS folders
-        // For now, return empty - health checker will verify what's needed
-        return emptyList()
-    }
-
-    private fun buildOrphanedMedia(
-        esdeBasePath: String,
-        romFolders: List<RomFolder>
-    ): List<OrphanedMedia> {
-        val mediaRootPath = "$esdeBasePath/downloaded_media"
-        if (!fileLister.exists(mediaRootPath)) return emptyList()
-
-        val romBasenames = romFolders.flatMap { folder ->
-            fileLister.listFiles(folder.folderPath)
-                .map { it.substringBeforeLast(".") }
-                .toSet()
-        }.toSet()
-
-        val orphans = mutableListOf<OrphanedMedia>()
-        for (systemId in bundle.systems.map { it.id }) {
-            val systemMediaPath = "$mediaRootPath/$systemId"
-            if (!fileLister.exists(systemMediaPath)) continue
-
-            val mediaTypes = bundle.frontends.find { it.id == "es-de" }?.mediaTypes?.map { it.folder } ?: emptyList()
-            for (mediaType in mediaTypes) {
-                val mediaTypePath = "$systemMediaPath/$mediaType"
-                if (!fileLister.exists(mediaTypePath)) continue
-
-                val files = fileLister.listFiles(mediaTypePath)
-                for (file in files) {
-                    val basename = file.substringBeforeLast(".")
-                    if (basename !in romBasenames) {
-                        orphans.add(
-                            OrphanedMedia(
-                                systemId = systemId,
-                                mediaType = mediaType,
-                                filePath = "$mediaTypePath/$file",
-                                matchedRomBasename = null
-                            )
-                        )
-                    }
+    private fun romFolders(root: String): List<RomFolder> {
+        if (!files.isDirectory(root)) return emptyList()
+        return bundle.systems.map { it.id to folderOf(it.id) }.distinctBy { it.second }.mapNotNull { (systemId, folder) ->
+            val path = "$root/$folder"
+            if (!files.isDirectory(path)) return@mapNotNull null
+            val own = extensions[systemId].orEmpty()
+            var games = 0
+            val strays = mutableListOf<StrayFile>()
+            val unplayable = mutableListOf<String>()
+            val kept = mutableListOf<String>()
+            for (f in files.listFiles(path)) {
+                val name = f.substringAfterLast('/')
+                if (name.startsWith('.') || isCompanion(name)) continue
+                kept += f
+                val ext = name.substringAfterLast('.', "").lowercase()
+                when {
+                    own.isEmpty() || ext in own -> games++
+                    telltale[ext] != null && telltale[ext] != systemId -> strays += StrayFile(f, telltale.getValue(ext))
+                    else -> unplayable += f
                 }
             }
+            RomFolder(systemId, folder, path, games, strays, unplayable, kept)
         }
+    }
 
-        return orphans
+    private fun isCompanion(name: String): Boolean {
+        val ext = name.substringAfterLast('.', "").lowercase()
+        return ext in COMPANIONS || ext.startsWith("state")
+    }
+
+    private fun grants(byPackage: Map<String, List<String>>, root: String): List<FolderGrant> =
+        byPackage.flatMap { (pkg, paths) ->
+            paths.map { it.trimEnd('/') }.flatMap { path ->
+                when {
+                    path == root || root.startsWith("$path/") -> listOf(FolderGrant(pkg, ""))
+                    path.startsWith("$root/") -> {
+                        val folder = path.removePrefix("$root/").substringBefore('/')
+                        bundle.systems.filter { folderOf(it.id) == folder }.map { FolderGrant(pkg, it.id) }
+                    }
+                    else -> emptyList()
+                }
+            }
+        }.distinct()
+
+    /** Known BIOS present where each target emulator looks. Returns (found, systems we couldn't look at). */
+    private fun bios(facts: DeviceFacts): Pair<List<BiosFile>, Set<String>> {
+        val found = mutableListOf<BiosFile>()
+        val unchecked = mutableSetOf<String>()
+        for (entry in bundle.bios) for (t in entry.targets) {
+            val emu = bundle.emulators.firstOrNull { it.id == t.emulatorId } ?: continue
+            val dir = if ("{appData}" in t.path) {
+                val pkg = emu.packages.firstOrNull { it in facts.installed } ?: continue
+                if (!facts.canReadAppData) { unchecked += entry.system; continue }
+                t.path.replace("{appData}", "${facts.appDataRoot}/$pkg")
+            } else t.path
+            val name = t.renameTo.ifEmpty { entry.fileName }
+            val path = "${dir.trimEnd('/')}/$name"
+            if (files.exists(path)) found += BiosFile(entry.system, emu.id, name, path)
+        }
+        return found.distinct() to (unchecked - found.map { it.systemId }.toSet())
+    }
+
+    private fun permissions(facts: DeviceFacts): List<AppPermissionState> = facts.installed.keys.map { pkg ->
+        val emu = bundle.emulators.firstOrNull { pkg in it.packages }
+        AppPermissionState(
+            packageId = pkg,
+            declaresManageExternalStorage = emu?.declaresAllFilesAccess ?: false,
+            grantedManageExternalStorage = facts.allFilesAccess[pkg] ?: false,
+            missingPermissions = emu?.permissions.orEmpty().filter { it !in facts.grantedPermissions[pkg].orEmpty() },
+        )
+    }
+
+    private fun esde(root: String): EsdeConfig {
+        val settings = "$root/settings/es_settings.xml"
+        return EsdeConfig(
+            installed = files.exists(settings),
+            configPath = settings,
+            mediaDirectory = "$root/downloaded_media",
+            customSystemsFolder = "$root/custom_systems",
+        )
+    }
+
+    private fun orphans(esdeRoot: String, romFolders: List<RomFolder>): List<OrphanedMedia> {
+        val types = frontend?.mediaTypes?.map { it.folder }.orEmpty()
+        return romFolders.flatMap { folder ->
+            val mediaDir = "$esdeRoot/downloaded_media/${folder.folderName}"
+            if (!files.isDirectory(mediaDir)) return@flatMap emptyList()
+            val games = files.listFiles(folder.folderPath).map { it.substringAfterLast('/').substringBeforeLast('.') }.toSet()
+            types.flatMap { type ->
+                val dir = "$mediaDir/$type"
+                if (!files.isDirectory(dir)) emptyList()
+                else files.listFiles(dir).filter { it.substringAfterLast('/').substringBeforeLast('.') !in games }
+                    .map { OrphanedMedia(folder.systemId, type, "$dir/$it") }
+            }
+        }
+    }
+
+    private companion object {
+        val COMPANIONS = setOf("sav", "ml1", "srm", "sta", "dsv", "txt", "nfo", "jpg", "png")
     }
 }

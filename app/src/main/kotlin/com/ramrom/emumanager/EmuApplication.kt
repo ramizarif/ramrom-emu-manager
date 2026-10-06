@@ -24,6 +24,8 @@ class EmuApplication : Application() {
     val titleSearch by lazy { com.ramrom.emumanager.knowledge.TitleSearch(com.ramrom.emumanager.knowledge.TitleIndex.load(this).getAllEntries()) }
     /** The one setup run (P05); outlives screens. */
     val runs by lazy { com.ramrom.emumanager.run.SetupRuns(this) }
+    /** P13's latest report. */
+    val health by lazy { com.ramrom.emumanager.run.HealthSession(this) }
     /** The real Lemon Squeezy client replaces this in M6. */
     val entitlements: Entitlements by lazy { FakeEntitlements() }
 

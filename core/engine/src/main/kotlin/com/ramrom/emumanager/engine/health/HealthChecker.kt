@@ -5,290 +5,127 @@ import com.ramrom.emumanager.engine.Plan
 import com.ramrom.emumanager.knowledge.KnowledgeBundle
 
 /**
- * Health checker: verifies device setup against a plan and current inventory.
- * Rules are pure functions; no side effects. Reports issues as HealthIssue list.
+ * P13: compares the plan with what's really on the device. Pure: rules read the [Inventory] and
+ * nothing else, so S14 can re-run them cheaply after every fix.
  *
- * Coverage per P13 spec:
- * - Emulator for a planned system missing → BLOCKER, install
- * - ROM folder missing / empty → WARNING, create / import
- * - BIOS missing or wrong hash → BLOCKER for system, F11
- * - Folder grant missing for emulator / ES-DE → BLOCKER, guided pick
- * - ES-DE system has no emulator mapping → BLOCKER, P10
- * - ROM in wrong system folder → WARNING, move
- * - Orphaned media → INFO, rename/delete
- * - Config we applied was changed by user → INFO, adopt or re-apply
- * - Emulator updated since we wrote config → INFO, re-verify keys
- * - Elevated access off → INFO, F02
+ * Rules that need facts we can't read yet stay silent rather than guess: folder grants only when
+ * [Inventory.grantsKnown], BIOS in Android/data only when elevated. "Config changed by the user"
+ * and "emulator updated since our write" arrive with P09's change history.
  */
-class HealthChecker(
-    private val bundle: KnowledgeBundle
-) {
-    /**
-     * Run all health checks against a plan and inventory.
-     * @param plan the setup plan (systems and emulators chosen)
-     * @param inventory current device state
-     * @param selectedSystems if checking only some systems, provide them here; else check all in plan
-     * @return list of HealthIssue
-     */
-    fun check(
-        plan: Plan,
-        inventory: Inventory,
-        selectedSystems: Set<String>? = null
-    ): List<HealthIssue> {
+class HealthChecker(private val bundle: KnowledgeBundle) {
+    private val systems = bundle.systems.associateBy { it.id }
+    private val emulators = bundle.emulators.associateBy { it.id }
+    private fun name(systemId: String) = systems[systemId]?.name ?: systemId
+
+    fun check(plan: Plan, inventory: Inventory, selectedSystems: Set<String>? = null, accessLost: Boolean = false): List<HealthIssue> {
+        val chosen = plan.systems.filter { selectedSystems == null || it.systemId in selectedSystems }
+        val installed = inventory.installedPackages
+        fun isInstalled(emuId: String) = emulators[emuId]?.packages?.any { it in installed } == true
         val issues = mutableListOf<HealthIssue>()
-        val toCheck = selectedSystems ?: plan.systems.map { it.systemId }.toSet()
+        val frontend = plan.frontendId?.let { id -> bundle.frontends.firstOrNull { it.id == id } }
 
-        val systemMap = bundle.systems.associateBy { it.id }
-        val emulatorMap = bundle.emulators.associateBy { it.id }
-
-        // Rule: Emulator for a planned system missing
-        for (planSystem in plan.systems) {
-            if (planSystem.systemId !in toCheck) continue
-            val emulator = emulatorMap[planSystem.emulatorId] ?: continue
-            if (emulator.packages.none { it in inventory.installedPackages }) {
-                issues.add(
-                    HealthIssue(
-                        id = "emulator_missing_${planSystem.systemId}",
-                        severity = IssueSeverity.BLOCKER,
-                        title = "Install ${emulator.name} for ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId}",
-                        detail = "${emulator.name} is not installed. You need it to play ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId} games.",
-                        evidence = listOf("Emulator: ${emulator.id}"),
-                        fix = FixAction.InstallApp(emulator.id)
-                    )
-                )
-            }
+        // Apps: one issue per missing emulator, naming every system that waits on it.
+        chosen.groupBy { it.emulatorId }.forEach { (emuId, list) ->
+            val emu = emulators[emuId] ?: return@forEach
+            if (isInstalled(emuId)) return@forEach
+            val names = list.joinToString(", ") { name(it.systemId) }
+            issues += HealthIssue("app_missing_$emuId", IssueSeverity.BLOCKER, "${emu.name} isn't installed",
+                "You need it to play $names.", listOf("App: ${emu.packages.joinToString(" or ")}"), FixAction.InstallApp(emuId),
+                list.singleOrNull()?.systemId)
         }
 
-        // Rule: ROM folder missing or empty
-        for (planSystem in plan.systems) {
-            if (planSystem.systemId !in toCheck) continue
-            val systemFolder = inventory.romFolders.find { it.systemId == planSystem.systemId }
-            when {
-                systemFolder == null -> {
-                    issues.add(
-                        HealthIssue(
-                            id = "rom_folder_missing_${planSystem.systemId}",
-                            severity = IssueSeverity.WARNING,
-                            title = "Create ROMs folder for ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId}",
-                            detail = "The folder for ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId} games doesn't exist. Create it before importing games.",
-                            evidence = listOf("Missing folder: /storage/emulated/0/ROMs/${planSystem.systemId}"),
-                            fix = FixAction.CreateFolder("/storage/emulated/0/ROMs/${planSystem.systemId}")
-                        )
-                    )
-                }
-                systemFolder.gameCount == 0 -> {
-                    issues.add(
-                        HealthIssue(
-                            id = "rom_folder_empty_${planSystem.systemId}",
-                            severity = IssueSeverity.WARNING,
-                            title = "Import games for ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId}",
-                            detail = "The ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId} folder exists but has no games yet.",
-                            evidence = listOf("Folder: ${systemFolder.folderPath}", "Files found: 0"),
-                            fix = FixAction.None
-                        )
-                    )
-                }
-            }
-        }
+        if (frontend != null) {
+            val esdeHere = frontend.packages.any { it in installed }
+            if (!esdeHere) issues += HealthIssue("frontend_missing", IssueSeverity.BLOCKER, "ES-DE isn't installed",
+                "It's the frontend in your plan: your games show up there.", emptyList(), FixAction.InstallApp(frontend.id))
+            else if (!inventory.esdeConfig.installed) issues += HealthIssue("frontend_first_run", IssueSeverity.WARNING, "Open ES-DE once",
+                "It finishes setting itself up the first time it runs.", listOf("Not found yet: ${inventory.esdeConfig.configPath}"), FixAction.OpenAppSetup(frontend.id))
 
-        // Rule: BIOS missing or wrong hash for a system that requires it
-        for (planSystem in plan.systems) {
-            if (planSystem.systemId !in toCheck) continue
-            val system = systemMap[planSystem.systemId] ?: continue
-            if (!system.biosRequired) continue
-
-            val biosForSystem = bundle.bios.filter { it.system == planSystem.systemId }
-            if (biosForSystem.isEmpty()) continue
-
-            val hasBios = biosForSystem.any { entry ->
-                inventory.biosFiles.any { found ->
-                    found.systemId == entry.system && found.fileName == entry.fileName
-                }
-            }
-
-            if (!hasBios) {
-                issues.add(
-                    HealthIssue(
-                        id = "bios_missing_${planSystem.systemId}",
-                        severity = IssueSeverity.BLOCKER,
-                        title = "Add BIOS for ${system.name}",
-                        detail = "${system.name} requires a BIOS file. ${emulatorMap[planSystem.emulatorId]?.name ?: "Your emulator"} will not run games without it.",
-                        evidence = biosForSystem.map { "Needed: ${it.fileName}" },
-                        fix = FixAction.StageBios(planSystem.systemId)
-                    )
-                )
-            }
-        }
-
-        // Rule: Folder grant missing for emulator (only if emulator is installed)
-        for (planSystem in plan.systems) {
-            if (planSystem.systemId !in toCheck) continue
-            val emulator = emulatorMap[planSystem.emulatorId] ?: continue
-            if (emulator.folderPick?.needed != true) continue
-
-            // Only check for missing grants if emulator is installed
-            if (emulator.packages.none { it in inventory.installedPackages }) continue
-
-            val hasGrant = inventory.folderGrants.any { grant ->
-                grant.packageId in emulator.packages && grant.systemId == planSystem.systemId && grant.granted
-            }
-
-            if (!hasGrant) {
-                val pkg = emulator.packages.firstOrNull() ?: continue
-                issues.add(
-                    HealthIssue(
-                        id = "folder_grant_missing_${pkg}_${planSystem.systemId}",
-                        severity = IssueSeverity.BLOCKER,
-                        title = "Grant folder access to ${emulator.name}",
-                        detail = "${emulator.name} needs permission to access your ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId} games folder.",
-                        evidence = listOf("Package: $pkg", "System folder: ${planSystem.systemId}"),
-                        fix = FixAction.GrantFolder(pkg, planSystem.systemId)
-                    )
-                )
-            }
-        }
-
-        // Rule: Folder grant missing for ES-DE (only if ES-DE is installed)
-        plan.frontendId?.let { frontendId ->
-            bundle.frontends.find { it.id == frontendId }?.let { frontend ->
-                if (frontend.packages.any { it in inventory.installedPackages }) {
-                    for (planSystem in plan.systems) {
-                        if (planSystem.systemId !in toCheck) continue
-
-                        val hasGrant = inventory.folderGrants.any { grant ->
-                            grant.packageId in frontend.packages && grant.systemId == planSystem.systemId && grant.granted
-                        }
-
-                        if (!hasGrant) {
-                            val pkg = frontend.packages.firstOrNull() ?: continue
-                            issues.add(
-                                HealthIssue(
-                                    id = "folder_grant_missing_esde_${planSystem.systemId}",
-                                    severity = IssueSeverity.BLOCKER,
-                                    title = "Grant folder access to ES-DE",
-                                    detail = "ES-DE needs permission to access your ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId} games folder.",
-                                    evidence = listOf("Frontend package: $pkg", "System folder: ${planSystem.systemId}"),
-                                    fix = FixAction.GrantFolder(pkg, planSystem.systemId)
-                                )
-                            )
-                        }
+            // ROM folders, named the frontend's way.
+            for (s in chosen) {
+                val folderName = frontend.systemFolders[s.systemId] ?: s.systemId
+                val folder = inventory.romFolders.firstOrNull { it.folderName == folderName }
+                val path = "${inventory.esdeConfig.romDirectory}/$folderName"
+                if (folder == null) issues += HealthIssue("folder_missing_${s.systemId}", IssueSeverity.WARNING, "No ${name(s.systemId)} folder",
+                    "ES-DE looks for ${name(s.systemId)} games in ROMs/$folderName.", listOf("Missing: $path"), FixAction.CreateFolder(path), s.systemId)
+                else {
+                    // Judged against the emulator chosen for this system, not every emulator that could run it.
+                    val emu = emulators[s.emulatorId]
+                    val emuName = emu?.name ?: "The emulator"
+                    val opens = emu?.romExtensions?.map { it.lowercase() }?.toSet().orEmpty()
+                    val strayNames = folder.strays.map { it.fileName }.toSet()
+                    val candidates = folder.files.filter { it !in strayNames }
+                    val games = if (opens.isEmpty()) candidates.size else candidates.count { it.substringAfterLast('.').lowercase() in opens }
+                    val unplayable = if (opens.isEmpty()) emptyList() else candidates.filter { it.substringAfterLast('.').lowercase() !in opens }
+                    if (unplayable.isNotEmpty()) {
+                        val archives = unplayable.any { it.substringAfterLast('.').lowercase() in ARCHIVES }
+                        issues += HealthIssue("folder_unplayable_${s.systemId}", if (games == 0) IssueSeverity.WARNING else IssueSeverity.INFO,
+                            "${unplayable.size} file${if (unplayable.size == 1) "" else "s"} in ROMs/$folderName $emuName can't open",
+                            if (archives) "Compressed files need unpacking first." else "$emuName opens ${opens.joinToString(", ") { ".$it" }} files.",
+                            unplayable.take(5) + listOfNotNull(if (unplayable.size > 5) "and ${unplayable.size - 5} more" else null), FixAction.None, s.systemId)
+                    } else if (games == 0) issues += HealthIssue("folder_empty_${s.systemId}", IssueSeverity.INFO, "No ${name(s.systemId)} games yet",
+                        "Put your ${name(s.systemId)} games in ROMs/$folderName and they'll show up.", listOf("Folder: ${folder.folderPath}"), FixAction.None, s.systemId)
+                    folder.strays.groupBy { it.belongsTo }.forEach { (other, files) ->
+                        val otherFolder = frontend.systemFolders[other] ?: other
+                        issues += HealthIssue("stray_${s.systemId}_$other", IssueSeverity.WARNING,
+                            "${files.size} ${name(other)} file${if (files.size == 1) "" else "s"} in ROMs/$folderName",
+                            "ES-DE won't find ${if (files.size == 1) "it" else "them"} there. Move ${if (files.size == 1) "it" else "them"} to ROMs/$otherFolder.",
+                            files.take(5).map { it.fileName } + listOfNotNull(if (files.size > 5) "and ${files.size - 5} more" else null), FixAction.None, s.systemId)
                     }
                 }
             }
         }
 
-        // Rule: ES-DE system has no emulator mapping (custom systems not configured)
-        if (plan.frontendId == "es-de" && inventory.esdeConfig.installed) {
-            // Note: full check would parse custom_systems/*.xml to verify mappings exist
-            // For now, just flag if custom systems folder missing for systems ES-DE doesn't know about
-            val knownEsdeSystems = setOf("switch", "wii", "gc", "n64", "snes", "nes", "gb")
-            for (planSystem in plan.systems) {
-                if (planSystem.systemId !in toCheck) continue
-                val hasCustomFolder = inventory.esdeConfig.customSystemsFolder.isNotEmpty()
-                if (planSystem.systemId !in knownEsdeSystems && !hasCustomFolder) {
-                    issues.add(
-                        HealthIssue(
-                            id = "esde_system_unmapped_${planSystem.systemId}",
-                            severity = IssueSeverity.BLOCKER,
-                            title = "Configure ${systemMap[planSystem.systemId]?.name ?: planSystem.systemId} in ES-DE",
-                            detail = "ES-DE doesn't know about this system. A custom system entry is needed so it can find your games.",
-                            evidence = listOf("System: ${planSystem.systemId}", "Emulator: ${planSystem.emulatorId}"),
-                            fix = FixAction.ConfigureInEsde(planSystem.systemId)
-                        )
-                    )
+        // BIOS: only what the system's chosen emulator needs, only the required files.
+        for (s in chosen) {
+            if (!isInstalled(s.emulatorId)) continue
+            val needed = bundle.bios.filter { it.system == s.systemId && it.required && it.targets.any { t -> t.emulatorId == s.emulatorId } }
+            if (needed.isEmpty()) continue
+            val have = inventory.biosFiles.any { it.systemId == s.systemId && it.emulatorId == s.emulatorId }
+            when {
+                have -> Unit
+                s.systemId in inventory.biosUnchecked -> issues += HealthIssue("bios_unchecked_${s.systemId}", IssueSeverity.INFO,
+                    "We can't check the ${name(s.systemId)} BIOS", "It lives in ${emulators[s.emulatorId]?.name}'s private folder. Connect Shizuku and we can look.",
+                    needed.map { it.fileName }.distinct(), FixAction.ReconnectAccess, s.systemId)
+                else -> issues += HealthIssue("bios_missing_${s.systemId}", IssueSeverity.BLOCKER, "${name(s.systemId)} needs a BIOS file",
+                    "${emulators[s.emulatorId]?.name} won't start ${name(s.systemId)} games without one. Any one of these works.",
+                    needed.map { it.fileName }.distinct(), FixAction.StageBios(s.systemId), s.systemId)
+            }
+        }
+
+        // Per-app access.
+        for (emuId in chosen.map { it.emulatorId }.distinct()) {
+            val emu = emulators[emuId] ?: continue
+            val pkg = emu.packages.firstOrNull { it in installed } ?: continue
+            val perms = inventory.appPermissions.firstOrNull { it.packageId == pkg } ?: continue
+            if (emu.declaresAllFilesAccess && !perms.grantedManageExternalStorage) issues += HealthIssue("all_files_$emuId", IssueSeverity.BLOCKER,
+                "${emu.name} can't read your games", "It needs \"Allow access to manage all files\".", listOf("App: $pkg"), FixAction.GrantAllFilesAccess(pkg))
+            perms.missingPermissions.forEach { p -> issues += HealthIssue("perm_${emuId}_${p.substringAfterLast('.')}", IssueSeverity.WARNING,
+                "${emu.name} is missing a permission", "It asks for ${com.ramrom.emumanager.engine.PermissionNames.of(p)}.", listOf(p), FixAction.GrantPermission(pkg, p)) }
+            // Folder picks: only when we could read the grants.
+            if (inventory.grantsKnown && emu.folderPick?.needed == true) {
+                val missing = chosen.filter { it.emulatorId == emuId }.filter { s ->
+                    inventory.folderGrants.none { g -> g.packageId == pkg && g.granted && (g.systemId == s.systemId || g.systemId.isEmpty()) }
                 }
+                if (missing.isNotEmpty()) issues += HealthIssue("folder_pick_$emuId", IssueSeverity.BLOCKER, "${emu.name} can't see your games folder",
+                    "Android only lets you choose it inside ${emu.name}.", missing.map { "ROMs/${frontend?.systemFolders?.get(it.systemId) ?: it.systemId}" },
+                    FixAction.GrantFolder(pkg, missing.first().systemId), missing.singleOrNull()?.systemId)
             }
         }
 
-        // Rule: ROM in wrong system folder (file extension mismatch)
-        for (systemId in toCheck) {
-            val folder = inventory.romFolders.find { it.systemId == systemId } ?: continue
-            val emulatorId = plan.systems.find { it.systemId == systemId }?.emulatorId ?: continue
-            val emulator = emulatorMap[emulatorId] ?: continue
-
-            val validExts = emulator.romExtensions.map { it.lowercase() }.toSet()
-            val companionExts = setOf(
-                "sav", "ml1", "srm", "state0", "state1", "state2", "state3",
-                "state4", "state5", "state6", "state7", "state8", "state9",
-                "state10", "state11", "state12", "state13", "state14", "state15"
-            )
-
-            // In a real implementation, would scan the folder for wrong-extension files
-            // For now, this is a placeholder for the concept
+        // Media ES-DE scraped for games that are gone: a tip, grouped per system.
+        inventory.orphanedMedia.filter { o -> chosen.any { it.systemId == o.systemId } }.groupBy { it.systemId }.forEach { (sys, list) ->
+            issues += HealthIssue("orphans_$sys", IssueSeverity.INFO, "${list.size} leftover ${name(sys)} image${if (list.size == 1) "" else "s"}",
+                "Art for games that aren't in your folder any more.", list.take(5).map { it.filePath.substringAfterLast('/') }, FixAction.None, sys)
         }
 
-        // Rule: Orphaned media (informational only)
-        for (orphan in inventory.orphanedMedia) {
-            if (orphan.systemId !in toCheck) continue
-            if (orphan.systemId !in bundle.systems.map { it.id }) continue
+        if (accessLost) issues += HealthIssue("access_off", IssueSeverity.INFO, "Shizuku is off",
+            "Fixes that need it wait until it's back on.", emptyList(), FixAction.ReconnectAccess)
 
-            issues.add(
-                HealthIssue(
-                    id = "orphaned_media_${orphan.systemId}_${orphan.mediaType}",
-                    severity = IssueSeverity.INFO,
-                    title = "Delete or rename: ${orphan.filePath.substringAfterLast("/")}",
-                    detail = "This file doesn't match any of your games and is cluttering the media folder.",
-                    evidence = listOf("File: ${orphan.filePath}"),
-                    fix = FixAction.None
-                )
-            )
-        }
-
-        // Rule: All-files access missing when emulator needs it
-        for (planSystem in plan.systems) {
-            if (planSystem.systemId !in toCheck) continue
-            val emulator = emulatorMap[planSystem.emulatorId] ?: continue
-            if (!emulator.declaresAllFilesAccess) continue
-
-            val pkg = emulator.packages.firstOrNull() ?: continue
-            val permission = inventory.appPermissions.find { it.packageId == pkg }
-            if (permission != null && !permission.grantedManageExternalStorage) {
-                issues.add(
-                    HealthIssue(
-                        id = "all_files_access_missing_${pkg}",
-                        severity = IssueSeverity.WARNING,
-                        title = "Grant all-files access to ${emulator.name}",
-                        detail = "${emulator.name} needs permission to access all folders on your device.",
-                        evidence = listOf("Package: $pkg"),
-                        fix = FixAction.GrantAllFilesAccess(pkg)
-                    )
-                )
-            }
-        }
-
-        // Rule: ES-DE not installed or not configured
-        if (plan.frontendId == "es-de") {
-            if (!inventory.esdeConfig.installed) {
-                issues.add(
-                    HealthIssue(
-                        id = "esde_not_installed",
-                        severity = IssueSeverity.WARNING,
-                        title = "Install ES-DE frontend",
-                        detail = "ES-DE is your chosen frontend but it's not installed. Get it from the Galaxy Store or directly.",
-                        evidence = listOf("Frontend: es-de"),
-                        fix = FixAction.None  // User must obtain it themselves
-                    )
-                )
-            } else if (!fileListerExists(inventory.esdeConfig.configPath)) {
-                issues.add(
-                    HealthIssue(
-                        id = "esde_not_configured",
-                        severity = IssueSeverity.INFO,
-                        title = "Configure ES-DE",
-                        detail = "ES-DE has been installed but not yet configured. Open it once to create its settings.",
-                        evidence = listOf("Config file not found: ${inventory.esdeConfig.configPath}"),
-                        fix = FixAction.OpenAppSetup("es-de")
-                    )
-                )
-            }
-        }
-
-        return issues
+        return issues.sortedBy { it.severity.ordinal }
     }
 
-    private fun fileListerExists(path: String): Boolean {
-        // Placeholder: in real code, would use actual file system check
-        // For tests, inventory would have this pre-computed
-        return path.isNotEmpty()
+    private companion object {
+        val ARCHIVES = setOf("7z", "zip", "rar", "gz", "tar")
     }
 }

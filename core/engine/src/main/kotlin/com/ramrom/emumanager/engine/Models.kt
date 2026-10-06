@@ -37,8 +37,8 @@ data class BiosSummary(
  */
 data class Inventory(
     val installedPackages: Set<String> = emptySet(),  // package IDs like "com.github.yuzu.emu.ea"
-    val grantedFolderTrees: Set<String> = emptySet(), // system IDs with folder grants, e.g., "switch", "wii"
-    val existingFolders: Set<String> = emptySet(),    // system IDs with ROM folders that exist
+    val grantedFolderTrees: Set<String> = emptySet(), // system IDs some app holds a folder grant for
+    val existingFolders: Set<String> = emptySet(),    // ROM folder names (frontend's) that exist
     val esdeConfigured: Boolean = false,
     // Extended fields for full inventory data
     val installedApps: List<com.ramrom.emumanager.engine.inventory.InstalledApp> = emptyList(),
@@ -47,5 +47,9 @@ data class Inventory(
     val biosFiles: List<com.ramrom.emumanager.engine.inventory.BiosFile> = emptyList(),
     val appPermissions: List<com.ramrom.emumanager.engine.inventory.AppPermissionState> = emptyList(),
     val esdeConfig: com.ramrom.emumanager.engine.inventory.EsdeConfig = com.ramrom.emumanager.engine.inventory.EsdeConfig(),
-    val orphanedMedia: List<com.ramrom.emumanager.engine.inventory.OrphanedMedia> = emptyList()
+    val orphanedMedia: List<com.ramrom.emumanager.engine.inventory.OrphanedMedia> = emptyList(),
+    /** False when folder grants couldn't be read (needs elevated dumpsys): grant rules stay quiet. */
+    val grantsKnown: Boolean = false,
+    /** Systems whose BIOS lives where we can't look (Android/data without Shizuku). */
+    val biosUnchecked: Set<String> = emptySet(),
 )

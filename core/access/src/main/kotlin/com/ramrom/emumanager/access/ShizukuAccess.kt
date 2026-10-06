@@ -166,11 +166,13 @@ class ShizukuAccess(
         }
     }
 
-    override suspend fun exists(path: String): AccessResult<Boolean> = withContext(Dispatchers.IO) {
-        val result = readFile(path)
-        return@withContext when (result) {
-            is AccessResult.Ok -> AccessResult.Ok(result.value != null)
-            is AccessResult.Denied -> AccessResult.Denied(result.reason)
+    override suspend fun exists(path: String): AccessResult<Boolean> {
+        // List the parent rather than read the file: BIOS images run to megabytes.
+        val parent = path.trimEnd('/').substringBeforeLast('/')
+        val name = path.trimEnd('/').substringAfterLast('/')
+        return when (val r = listDir(parent)) {
+            is AccessResult.Ok -> AccessResult.Ok(name in r.value)
+            is AccessResult.Denied -> r
             is AccessResult.Failed -> AccessResult.Ok(false)
         }
     }

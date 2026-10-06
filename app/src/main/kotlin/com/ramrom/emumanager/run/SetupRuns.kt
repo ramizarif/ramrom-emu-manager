@@ -43,6 +43,7 @@ class SetupRuns(private val app: EmuApplication) {
     val active: StateFlow<ActiveRun?> = _active.asStateFlow()
     private val dir get() = File(app.filesDir, "runs")
     private val recordFile get() = File(dir, "current.json")
+    private val planFile get() = File(app.filesDir, "setup-plan.json")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     /** Start a run of [plan]. Replaces any run already going. */
@@ -52,7 +53,10 @@ class SetupRuns(private val app: EmuApplication) {
         val runId = "run-${System.currentTimeMillis()}"
         withContext(Dispatchers.IO) {
             dir.mkdirs()
-            recordFile.writeText(json.encodeToString(RunRecord.serializer(), RunRecord.of(runId, plan, bios)))
+            val text = json.encodeToString(RunRecord.serializer(), RunRecord.of(runId, plan, bios))
+            recordFile.writeText(text)
+            // The plan outlives the run: health checks (P13) compare the device against it.
+            planFile.writeText(text)
         }
         return launch(runId, plan, bios, bundle)
     }
@@ -65,6 +69,19 @@ class SetupRuns(private val app: EmuApplication) {
             recordFile.takeIf { it.exists() }?.let { f -> runCatching { json.decodeFromString(RunRecord.serializer(), f.readText()) }.getOrNull() }
         } ?: return null
         return launch(record.runId, record.plan(), record.biosCopies(), bundle)
+    }
+
+    /** The plan the device was last set up with, if any. */
+    suspend fun lastPlan(): Plan? = withContext(Dispatchers.IO) {
+        planFile.takeIf { it.exists() }?.let { f -> runCatching { json.decodeFromString(RunRecord.serializer(), f.readText()).plan() }.getOrNull() }
+    }
+
+    /** Run the last plan again (S14 "Fix what we can"), with the BIOS picks it had. */
+    suspend fun restartLast(): ActiveRun? {
+        val record = withContext(Dispatchers.IO) {
+            planFile.takeIf { it.exists() }?.let { f -> runCatching { json.decodeFromString(RunRecord.serializer(), f.readText()) }.getOrNull() }
+        } ?: return null
+        return start(record.plan(), record.biosCopies())
     }
 
     /** Stop scheduling. [forget] also drops the saved run, e.g. when it finished or the user started over. */
@@ -80,7 +97,8 @@ class SetupRuns(private val app: EmuApplication) {
     }
 
     private suspend fun launch(runId: String, plan: Plan, bios: Map<String, BiosCopy>, bundle: KnowledgeBundle): ActiveRun {
-        val compiled = PlanCompiler().compile(plan, bundle, inventory(app, bundle), app.access.capabilities.value)
+        val inventory = runCatching { DeviceInventory(app, bundle, app.access).scan() }.getOrElse { inventory(app, bundle) }
+        val compiled = PlanCompiler(writesConfigs = false).compile(plan, bundle, inventory, app.access.capabilities.value)
         val executor = DeviceStepExecutor(app, bundle, app.access, AppInstaller(app, app.access), bios)
         val runner = WizardRunner(compiled, executor, JsonRunStore(dir, compiled), runId)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
