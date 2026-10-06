@@ -157,7 +157,11 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     }
     val pickBiosFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         val d = draft ?: return@rememberLauncherForActivityResult
-        if (tree != null) { d.biosFolder = tree; scanBios(d, tree) }
+        if (tree != null) {
+            // The run copies these files later, maybe after a restart: keep read access.
+            runCatching { context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            d.biosFolder = tree; scanBios(d, tree)
+        }
     }
     val startPlan = { other: String?, family: String? ->
         // Warm the title index now so S08's first search doesn't wait on it.
@@ -166,6 +170,10 @@ private fun EmuNav(app: EmuApplication, start: Route) {
         if (draft != null) nav.push(Route.PlanFrontend(other))
     }
     BackHandler(enabled = nav.canPop || reconnectOpen || pickerOpen || otherPickerOpen || draft?.changing != null) { when { draft?.changing != null -> draft?.changing = null; otherPickerOpen -> otherPickerOpen = false; pickerOpen -> pickerOpen = false; reconnectOpen -> reconnectOpen = false; else -> nav.pop() } }
+
+    val activeRun by app.runs.active.collectAsState()
+    val runState by remember(activeRun) { activeRun?.runner?.state ?: kotlinx.coroutines.flow.MutableStateFlow(null) }.collectAsState()
+    val runSummary = runState?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
 
     val openShizuku = {
         context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")?.let { context.startActivity(it) }
@@ -291,8 +299,15 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                             carts = d.chosen.take(3).map { com.ramrom.emumanager.screens.cartLabel(it.systemId) }, moreCarts = (d.chosen.size - 3).coerceAtLeast(0),
                         ),
                         otherDevice = r.otherDevice,
-                        // Running a plan (S13) lands in M3; until then Start and Save both finish onboarding.
-                        onStart = { finishOnboarding(Route.Main(Section.Home)) },
+                        onStart = {
+                            scope.launch {
+                                val run = app.runs.start(d.toPlan(null), d.biosCopies())
+                                if (run == null) { toast = "Couldn't start: the app's data didn't load"; return@launch }
+                                app.appState.markFirstRunDone()
+                                // Home underneath, so B from the wizard lands there and the run carries on.
+                                nav.reset(Route.Main(Section.Home)); nav.push(Route.Wizard)
+                            }
+                        },
                         onSave = { finishOnboarding(Route.Main(Section.Home)) },
                         onExport = {
                             exportFor = r.otherDevice
@@ -304,18 +319,28 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                 is Route.Main -> MainScreen(
                     r.section, onSection = nav::switchSection,
                     onStartSetup = {
-                        if (mode == AccessMode.Elevated || mode == AccessMode.Limited) startPlan(null, null)
+                        if (activeRun != null) nav.push(Route.Wizard)
+                        else if (mode == AccessMode.Elevated || mode == AccessMode.Limited) startPlan(null, null)
                         else nav.push(Route.Access(Route.PlanFrontend()))
                     },
                     onAbout = { nav.push(Route.About) },
+                    run = runSummary,
                     accessPanel = { AccessPanel(app.access, onSetUp = { nav.push(Route.Access(r)) }) },
                     banner = if (mode == AccessMode.Disconnected) { { Box(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) { AccessLostBanner { reconnectOpen = true } } } } else null,
                     overlay = {
                         Sheet(reconnectOpen && mode == AccessMode.Disconnected, onDismiss = { reconnectOpen = false }) {
                             ReconnectSheetContent(setup, onOpenShizuku = openShizuku)
                         }
+                        Toast(toast)
                     },
                 )
+                Route.Wizard -> activeRun?.let { run -> WizardRoute(run, nav, onFinished = { complete ->
+                    scope.launch {
+                        if (complete) { app.runs.stop(forget = true); toast = "Setup done" }
+                        nav.reset(Route.Main(Section.Home))
+                    }
+                }) } ?: LaunchedEffect(Unit) { nav.pop() }
+                is Route.Guided -> activeRun?.let { run -> GuidedRoute(run, r.stepId, nav) } ?: LaunchedEffect(Unit) { nav.pop() }
                 Route.About -> AboutScreen("${BuildConfig.VERSION_NAME} · debug")
             }
         }

@@ -83,6 +83,23 @@ class WizardRunner(
     suspend fun markGuidedDone(stepId: String) =
         reverify(stepId, fallback = StepRunStatus.NeedsYou("We couldn't see that change yet. Check it and try again."))
 
+    /**
+     * Run a guided step's automatic part now, because the user asked: in limited mode we download
+     * and Android asks them to confirm the install.
+     */
+    suspend fun runNow(stepId: String) {
+        val step = steps[stepId] ?: return
+        lock.withLock { set(stepId, StepRunStatus.Running()); updateRunning(); persist() }
+        run(step)
+    }
+
+    /** Quietly look again (the user came back from another app): done if the device agrees, else unchanged. */
+    suspend fun recheck(stepId: String) {
+        val before = lock.withLock { status(stepId) } ?: return
+        if (before !is StepRunStatus.NeedsYou) return
+        reverify(stepId, fallback = before)
+    }
+
     /** Try a failed, skipped or stuck step again; anything it blocked is unblocked. */
     suspend fun retryStep(stepId: String) {
         lock.withLock {

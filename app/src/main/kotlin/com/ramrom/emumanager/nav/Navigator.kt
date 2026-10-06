@@ -16,6 +16,9 @@ sealed interface Route {
     data class PlanBios(val otherDevice: String? = null) : Route
     data class PlanReview(val otherDevice: String? = null) : Route
     data object PlanImport : Route
+    /** S12 and S13. */
+    data object Wizard : Route
+    data class Guided(val stepId: String) : Route
     data class Main(val section: Section) : Route
     data object About : Route
 }
@@ -30,5 +33,7 @@ class Navigator(start: Route) {
     fun pop() { if (canPop) stack.removeAt(stack.lastIndex) }
     /** Replace the whole stack, e.g. when setup finishes and Home becomes the root. */
     fun reset(r: Route) { stack.clear(); stack += r }
+    /** Swap the top route, e.g. one guided step for the next, so B still goes back to S12. */
+    fun replace(r: Route) { stack[stack.lastIndex] = r }
     fun switchSection(s: Section) { stack[stack.lastIndex] = Route.Main(s) }
 }

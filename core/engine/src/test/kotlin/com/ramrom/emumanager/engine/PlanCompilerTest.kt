@@ -25,6 +25,20 @@ class PlanCompilerTest {
         return json.decodeFromString(KnowledgeBundle.serializer(), bundleJson)
     }
 
+    /** A saved run is matched to a recompiled plan by id; ids must not shift when the plan shrinks. */
+    @Test
+    fun stepIdsAreUniqueAndStableAcrossInventoryChanges() {
+        val plan = Plan("ayn-thor", "sd8gen2", "es-de",
+            listOf(Plan.PlanSystem("switch", "eden"), Plan.PlanSystem("gc", "dolphin"), Plan.PlanSystem("wii", "dolphin")), null)
+        val caps = Capability.entries.toSet()
+        val before = PlanCompiler().compile(plan, bundle, Inventory(), caps)
+        val after = PlanCompiler().compile(plan, bundle, Inventory(existingFolders = setOf("switch")), caps)
+        assertEquals(before.steps.size, before.steps.map { it.id }.toSet().size)
+        assertTrue(after.steps.size < before.steps.size)
+        val beforeIds = before.steps.map { it.id }.toSet()
+        after.steps.forEach { assertTrue("${it.id} changed", it.id in beforeIds) }
+    }
+
     @Test
     fun testFreshThorElevatedPlan() {
         val plan = Plan(

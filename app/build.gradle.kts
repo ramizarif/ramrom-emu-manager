@@ -1,4 +1,4 @@
-plugins { id("com.android.application"); kotlin("android") }
+plugins { id("com.android.application"); kotlin("android"); kotlin("plugin.serialization") }
 
 android {
     namespace = "com.ramrom.emumanager"

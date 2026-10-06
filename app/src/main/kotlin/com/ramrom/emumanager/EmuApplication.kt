@@ -22,11 +22,17 @@ class EmuApplication : Application() {
     val appState by lazy { com.ramrom.emumanager.data.AppStateRepository(db.appStateDao()) }
     /** Offline title search (P20). Heavy to build; first use is off the main thread. */
     val titleSearch by lazy { com.ramrom.emumanager.knowledge.TitleSearch(com.ramrom.emumanager.knowledge.TitleIndex.load(this).getAllEntries()) }
+    /** The one setup run (P05); outlives screens. */
+    val runs by lazy { com.ramrom.emumanager.run.SetupRuns(this) }
     /** The real Lemon Squeezy client replaces this in M6. */
     val entitlements: Entitlements by lazy { FakeEntitlements() }
 
     override fun onCreate() {
         super.onCreate()
-        scope.launch { access.initialize() }
+        scope.launch {
+            access.initialize()
+            // A run the process lost picks up where the device actually is.
+            runCatching { runs.resumeIfAny() }.onFailure { log.e("run", "resume failed", it) }
+        }
     }
 }

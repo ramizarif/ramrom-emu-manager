@@ -1,6 +1,7 @@
 package com.ramrom.emumanager.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -20,7 +21,7 @@ class AppStateRepository(private val dao: AppStateDao) {
      * Upserts: creates default row if missing, updates if exists.
      */
     suspend fun markFirstRunDone() {
-        dao.insert(AppState(firstRunDone = true))
+        edit { it.copy(firstRunDone = true) }
     }
 
     /**
@@ -28,7 +29,7 @@ class AppStateRepository(private val dao: AppStateDao) {
      * Upserts: creates default row if missing, updates if exists.
      */
     suspend fun setDeviceProfile(id: String) {
-        dao.insert(AppState(deviceProfileId = id))
+        edit { it.copy(deviceProfileId = id) }
     }
 
     /**
@@ -36,6 +37,9 @@ class AppStateRepository(private val dao: AppStateDao) {
      * Upserts: creates default row if missing, updates if exists.
      */
     suspend fun ackNotice(version: Int) {
-        dao.insert(AppState(noticeVersionAck = version))
+        edit { it.copy(noticeVersionAck = version) }
     }
+
+    /** Change one field and keep the rest; the single row is replaced, never duplicated. */
+    private suspend fun edit(change: (AppState) -> AppState) = dao.insert(change(state.first()))
 }

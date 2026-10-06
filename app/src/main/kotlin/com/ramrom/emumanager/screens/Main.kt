@@ -63,6 +63,8 @@ fun MainScreen(
     onSection: (Section) -> Unit,
     onStartSetup: () -> Unit,
     onAbout: () -> Unit,
+    /** A setup run in progress: (done, total, things waiting for the user). */
+    run: Triple<Int, Int, Int>? = null,
     accessPanel: @Composable ColumnScope.() -> Unit,
     banner: (@Composable () -> Unit)? = null,
     overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
@@ -75,7 +77,11 @@ fun MainScreen(
     )
     ToolScaffold(section, onSection, hints = listOf("A" to "Select", "L1/R1" to "Sections"), banner = banner, overlay = overlay) {
         when (section) {
-            Section.Home -> EmptyState(Face.Look, "Setup isn't finished yet", "Run setup to connect ES-DE, your emulators, folders and BIOS.", "Set up this device", onStartSetup)
+            Section.Home -> if (run != null) EmptyState(
+                if (run.third > 0) Face.Happy else Face.LookDown, "Setup is ${run.first} of ${run.second} done",
+                if (run.third > 0) "${run.third} thing${if (run.third == 1) "" else "s"} need you. Everything else carries on by itself." else "Still working. It keeps going while you do other things.",
+                "Carry on with setup", onStartSetup,
+            ) else EmptyState(Face.Look, "Setup isn't finished yet", "Run setup to connect ES-DE, your emulators, folders and BIOS.", "Set up this device", onStartSetup)
             Section.Library -> EmptyState(Face.Look, "No games yet", "Your games show up here once setup has found your ROM folders.")
             Section.Wishlist -> EmptyState(Face.Happy, "Your wishlist is empty", "Add games you want to play. We'll tell you how they run here, and spot them when they land in your library.")
             Section.Customize -> EmptyState(Face.Happy, "Make ES-DE yours", "Theme colours, backgrounds and game art, once ES-DE is set up.")

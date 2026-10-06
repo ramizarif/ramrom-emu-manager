@@ -40,9 +40,10 @@ class PlanCompiler {
         capabilities: Set<Capability>
     ): CompiledPlan {
         val steps = mutableListOf<Step>()
-        var n = 0
         fun add(step: Step): String { steps += step; return step.id }
-        fun id(prefix: String, subject: String) = "${prefix}_${subject}_${n++}"
+        // Stable ids: a run saved before a restart is matched back to a recompiled plan by id, and
+        // the plan may have shrunk meanwhile (a folder now exists), so no counters.
+        fun id(prefix: String, subject: String) = "${prefix}_${subject}"
 
         val frontend = plan.frontendId?.let { fid -> bundle.frontends.firstOrNull { it.id == fid } }
         val emulatorMap = bundle.emulators.associateBy { it.id }

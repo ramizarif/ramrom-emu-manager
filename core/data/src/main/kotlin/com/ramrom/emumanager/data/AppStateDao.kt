@@ -14,7 +14,7 @@ interface AppStateDao {
     @Query("SELECT * FROM app_state LIMIT 1")
     fun getAppState(): Flow<AppState?>
 
-    @Insert
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insert(state: AppState)
 
     @Update
