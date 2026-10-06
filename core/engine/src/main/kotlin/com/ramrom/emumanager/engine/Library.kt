@@ -46,7 +46,7 @@ object Library {
                 val exts = group.map { it.substringAfterLast('.', "").lowercase() }
                 // A lone .bin with a matching .cue is one game; a .bin alone (PS2 dumps) is a game itself.
                 if (exts.all { it in parts } && byBase.keys.any { other -> other != base && base.startsWith(other) && byBase.getValue(other).any { f -> f.endsWith(".cue", true) || f.endsWith(".m3u", true) } }) return@mapNotNull null
-                LibraryGame(title(base), base, group, opens.isEmpty() || exts.any { it in opens })
+                LibraryGame(displayTitle(base), base, group, opens.isEmpty() || exts.any { it in opens })
             }.sortedBy { it.title.lowercase() }
             if (games.isEmpty()) null else LibrarySystem(system.id, system.name, folder.folderName, emuId, games, folder.folderPath)
         }.sortedBy { it.name }
@@ -57,4 +57,17 @@ object Library {
         val decoded = if (escaped.containsMatchIn(base)) runCatching { URLDecoder.decode(base.replace("+", "%2B"), "UTF-8") }.getOrDefault(base) else base
         return decoded.replace('_', ' ').trim()
     }
+
+    /** [title] for showing on screen, without dump tags. File names keep them; this is display only. */
+    fun displayTitle(base: String) = title(base).let { t -> t.replace(tags, "").trim().ifEmpty { t } }
+
+    /**
+     * Dump tags, not part of the name: any `[…]` (title IDs, `[!]`, `[v0]`) and `(…)` groups that are
+     * regions, languages, revisions or the store (`(USA)`, `(En,Fr)`, `(Rev 1)`, `(eShop)`). Others,
+     * like `(Disc 2)`, stay.
+     */
+    private val tags = Regex(
+        """\s*\[[^\]]*]|\s*\((?:USA|US|Europe|EU|Japan|JP|World|Asia|Korea|Australia|Germany|France|Spain|Italy|""" +
+            """(?:USA|Europe|Japan|World)(?:, (?:USA|Europe|Japan|World|Korea|Asia))+|[A-Z][a-z](?:,[A-Z][a-z])+|Rev [0-9A-Z]+|v[0-9.]+|eShop|Unl|Beta|Proto)\)""",
+    )
 }

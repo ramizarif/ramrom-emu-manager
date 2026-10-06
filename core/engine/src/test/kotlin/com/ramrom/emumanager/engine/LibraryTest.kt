@@ -14,7 +14,7 @@ class LibraryTest {
 
     @Test fun cueAndBinAreOneGame() {
         val ps1 = lib(null, "$r/ps1/Crash (USA).cue", "$r/ps1/Crash (USA).bin", "$r/ps1/Spyro (USA).chd").single()
-        assertEquals(listOf("Crash (USA)", "Spyro (USA)"), ps1.games.map { it.title })
+        assertEquals(listOf("Crash", "Spyro"), ps1.games.map { it.title })
     }
 
     @Test fun multiTrackBinsFoldIntoTheirCue() {
@@ -25,7 +25,7 @@ class LibraryTest {
     /** [device] RamROM downloads arrive URL-escaped. */
     @Test fun escapedNamesAreDecoded() {
         val ps2 = lib(null, "$r/ps2/Tales%20of%20the%20Abyss%20%28USA%29.iso").single()
-        assertEquals("Tales of the Abyss (USA)", ps2.games.single().title)
+        assertEquals("Tales of the Abyss", ps2.games.single().title)
         assertEquals("Tales%20of%20the%20Abyss%20%28USA%29", ps2.games.single().baseName)
     }
 
@@ -40,9 +40,19 @@ class LibraryTest {
     @Test fun m3uFolderIsOneGame() {
         val d = "$r/ps1/FF7 (USA).m3u"
         val ps1 = lib(null, "$d/FF7 (USA).m3u", "$d/FF7 (USA) (Disc 1).cue", "$d/FF7 (USA) (Disc 1).bin", "$d/FF7 (USA) (Disc 2).cue", "$d/FF7 (USA) (Disc 2).bin").single()
-        assertEquals(listOf("FF7 (USA)"), ps1.games.map { it.title })
+        assertEquals(listOf("FF7"), ps1.games.map { it.title })
         assertEquals(4, ps1.games.single().files.size)
     }
 
     @Test fun emptyFoldersAreLeftOut() = assertTrue(lib(null, "$r/nds/.keep").isEmpty())
+
+    @Test fun dumpTagsLeaveTheTitle() {
+        assertEquals("Danganronpa - Trigger Happy Havoc Anniversary Edition",
+            Library.displayTitle("Danganronpa - Trigger Happy Havoc Anniversary Edition [0100A3301618E000][USA][v0](eShop)"))
+        assertEquals("Hades", Library.displayTitle("Hades[0100535012974000][US][v0]"))
+        assertEquals("Final Fantasy VII (Disc 2)", Library.displayTitle("Final Fantasy VII (USA) (Disc 2)"))
+        assertEquals("Pokemon Emerald", Library.displayTitle("Pokemon Emerald (USA, Europe) (Rev 1)"))
+        // File names are untouched.
+        assertEquals("FF7 (USA)", Library.title("FF7 (USA)"))
+    }
 }
