@@ -109,7 +109,8 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
             // Folder picks: only when we could read the grants.
             if (inventory.grantsKnown && emu.folderPick?.needed == true) {
                 val missing = chosen.filter { it.emulatorId == emuId }.filter { s ->
-                    inventory.folderGrants.none { g -> g.packageId == pkg && g.granted && (g.systemId == s.systemId || g.systemId.isEmpty()) }
+                    // Any installed build will do: on the Thor ES-DE launches Eden Nightly, which holds the grant.
+                    inventory.folderGrants.none { g -> g.packageId in emu.packages && g.packageId in installed && g.granted && (g.systemId == s.systemId || g.systemId.isEmpty()) }
                 }
                 if (missing.isNotEmpty()) issues += HealthIssue("folder_pick_$emuId", IssueSeverity.BLOCKER, "${emu.name} can't see your games folder",
                     "Android only lets you choose it inside ${emu.name}.", missing.map { "ROMs/${frontend?.systemFolders?.get(it.systemId) ?: it.systemId}" },

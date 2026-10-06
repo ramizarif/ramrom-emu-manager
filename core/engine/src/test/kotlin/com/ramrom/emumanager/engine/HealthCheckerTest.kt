@@ -76,6 +76,13 @@ class HealthCheckerTest {
         assertTrue(known.any { it.id == "folder_pick_duckstation" && it.severity == IssueSeverity.BLOCKER })
     }
 
+    @Test fun aGrantOnAnyInstalledBuildCounts() {
+        // The Thor: Stable and Nightly installed, only Nightly (which ES-DE launches) holds the grant.
+        val both = all + "dev.eden.eden_emulator.nightly"
+        val issues = check(inv(esdeSettings, installed = both) { copy(folderGrants = mapOf("dev.eden.eden_emulator.nightly" to listOf("$r/switch"))) })
+        assertFalse(issues.any { it.id == "folder_pick_eden" })
+    }
+
     @Test fun allFilesAndPermissions() {
         val issues = check(inv(esdeSettings) { copy(allFilesAccess = emptyMap(), grantedPermissions = emptyMap()) })
         assertTrue(issues.any { it.id == "all_files_eden" && it.severity == IssueSeverity.BLOCKER })
