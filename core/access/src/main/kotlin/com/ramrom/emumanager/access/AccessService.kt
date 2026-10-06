@@ -26,9 +26,12 @@ class AccessService : IAccessService.Stub() {
     override fun writeFile(path: String, bytes: ByteArray) {
         if (!AllowList.isPathAllowed(path)) throw SecurityException("Path not allowed: $path")
         try {
+            // Temp file then rename, so the owning app never reads half a file.
             val f = resolve(path)
             f.parentFile?.mkdirs()
-            f.writeBytes(bytes)
+            val tmp = File(f.parentFile, ".${f.name}.ramrom-tmp")
+            tmp.writeBytes(bytes)
+            if (!tmp.renameTo(f)) { tmp.delete(); f.writeBytes(bytes) }
         } catch (e: Exception) {
             throw RuntimeException("Write failed: ${e.message}", e)
         }

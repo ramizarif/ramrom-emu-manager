@@ -91,6 +91,9 @@ fun AppDetailScreen(
     primary: Pair<String, () -> Unit>?,
     onOpenApp: (() -> Unit)?,
     onUninstall: (() -> Unit)?,
+    /** L2 profiles for this device: name, what they set. */
+    deviceSettings: List<Pair<String, String>> = emptyList(),
+    onDeviceSettings: (Int) -> Unit = {},
 ) {
     val focus = initialFocus(row.id, row.installed)
     ScreenKeys(start = primary?.second, x = onOpenApp)
@@ -109,6 +112,12 @@ fun AppDetailScreen(
             if (primary != null) EmuButton(primary.first, primary.second, kind = ButtonKind.Go, focusRequester = focus)
             if (onOpenApp != null) EmuButton("Open ${row.name}", onOpenApp, focusRequester = if (primary == null) focus else null)
             if (onUninstall != null) EmuButton("Uninstall", onUninstall, kind = ButtonKind.Ghost)
+        }
+        if (deviceSettings.isNotEmpty()) {
+            SectionLabel("Settings for this device")
+            deviceSettings.forEachIndexed { i, (name, what) ->
+                ListRow(name, detail = what, onClick = { onDeviceSettings(i) }) { Tag("See changes", TagKind.YourTurn) }
+            }
         }
         SectionLabel("About")
         KeyValues(facts, mono = false)

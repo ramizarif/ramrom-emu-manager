@@ -53,19 +53,22 @@ fun ColumnScope.LibraryBody(rows: List<LibrarySystemRow>?, onOpen: (String) -> U
 }
 
 
-data class LibraryGameRow(val title: String, val files: String, val playable: Boolean, val cover: ImageBitmap?)
+data class LibraryGameRow(val title: String, val files: String, val playable: Boolean, val cover: ImageBitmap?, val baseName: String = "", val tuned: Boolean = false)
 
 /** One system's games. */
 @Composable
-fun LibrarySystemScreen(name: String, emulator: String?, games: List<LibraryGameRow>) {
+fun LibrarySystemScreen(name: String, emulator: String?, games: List<LibraryGameRow>, onOpen: (String) -> Unit = {}) {
     PageScaffold(name, hints = listOf("B" to "Back")) {
         BasicText(listOfNotNull("${games.size} game${if (games.size == 1) "" else "s"}", emulator?.let { "plays in $it" }).joinToString("  ·  "), style = EmuType.Body)
         games.forEach { g ->
-            ListRow(g.title, detail = g.files, monoDetail = true, onClick = {}, leading = {
+            ListRow(g.title, detail = g.files, monoDetail = true, onClick = { onOpen(g.baseName) }, leading = {
                 Box(Modifier.size(36.dp, 48.dp).clip(RoundedCornerShape(6.dp)).background(EmuColors.Hairline), contentAlignment = Alignment.Center) {
                     g.cover?.let { Image(it, null, Modifier.size(36.dp, 48.dp), contentScale = ContentScale.Crop) }
                 }
-            }) { if (!g.playable) Tag("Can't open", TagKind.Caveat) }
+            }) {
+                if (g.tuned) Tag("Tuned settings", TagKind.Done)
+                if (!g.playable) Tag("Can't open", TagKind.Caveat)
+            }
         }
     }
 }

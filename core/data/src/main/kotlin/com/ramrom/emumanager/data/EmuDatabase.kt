@@ -5,10 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * EmuDatabase: main Room database for RamROM Emu Manager.
- * Version 1 with schema export for migration tracking.
+ * Schema exported for migration tracking; every version bump ships a migration.
  */
 @Database(
     entities = [
@@ -27,7 +29,7 @@ import androidx.room.TypeConverters
         KnowledgeBundleState::class,
         Customization::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(RoomConverters::class)
@@ -50,12 +52,23 @@ abstract class EmuDatabase : RoomDatabase() {
     companion object {
         private const val DB_NAME = "emumanager.db"
 
+        /** P09 history: where each config change went and how to undo it. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE config_changes ADD COLUMN filePath TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE config_changes ADD COLUMN pkg TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE config_changes ADD COLUMN title TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE config_changes ADD COLUMN existedBefore INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE config_changes ADD COLUMN writtenPath TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun create(context: Context): EmuDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 EmuDatabase::class.java,
                 DB_NAME
-            ).build()
+            ).addMigrations(MIGRATION_1_2).build()
         }
     }
 }

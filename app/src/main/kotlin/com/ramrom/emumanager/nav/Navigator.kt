@@ -21,6 +21,12 @@ sealed interface Route {
     data class Guided(val stepId: String) : Route
     /** S18's per-system game list. */
     data class LibrarySystem(val systemId: String) : Route
+    /** S19, by the game's base name in its system folder. */
+    data class GameDetail(val systemId: String, val baseName: String) : Route
+    /** S21 for [com.ramrom.emumanager.run.ConfigWriter.pending]. */
+    data object ApplyPreview : Route
+    /** S22, all changes or one game's. */
+    data class ChangeHistory(val gameId: String? = null) : Route
     /** S33. */
     data class AppDetail(val appId: String) : Route
     /** S23 and S24. */

@@ -1,5 +1,6 @@
 package com.ramrom.emumanager.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -37,5 +38,15 @@ data class ConfigChange(
     val keysBefore: String = "", // JSON
     val keysAfter: String = "", // JSON
     val snapshotPath: String = "",
-    val revertedAt: Long? = null
+    val revertedAt: Long? = null,
+    /** The file written, `{appData}` resolved. */
+    @ColumnInfo(defaultValue = "") val filePath: String = "",
+    /** The app that owns the file, closed before writing or undoing. */
+    @ColumnInfo(defaultValue = "") val pkg: String = "",
+    /** What the user saw: the profile or fix name. */
+    @ColumnInfo(defaultValue = "") val title: String = "",
+    /** False when the file was created by this change; undo then deletes it. */
+    @ColumnInfo(defaultValue = "1") val existedBefore: Boolean = true,
+    /** Copy of what was written, so undo can tell whether the app changed the file since. */
+    @ColumnInfo(defaultValue = "") val writtenPath: String = "",
 )

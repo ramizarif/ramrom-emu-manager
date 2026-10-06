@@ -13,7 +13,11 @@ data class LibraryGame(
     val playable: Boolean,
 )
 
-data class LibrarySystem(val systemId: String, val name: String, val folderName: String, val emulatorId: String?, val games: List<LibraryGame>)
+data class LibrarySystem(
+    val systemId: String, val name: String, val folderName: String, val emulatorId: String?, val games: List<LibraryGame>,
+    /** Absolute; [LibraryGame.files] are relative to it. */
+    val folderPath: String = "",
+)
 
 /**
  * S18 from the ROM folders P03 found. No hashing: titles come from file names, grouped so a
@@ -44,7 +48,7 @@ object Library {
                 if (exts.all { it in parts } && byBase.keys.any { other -> other != base && base.startsWith(other) && byBase.getValue(other).any { f -> f.endsWith(".cue", true) || f.endsWith(".m3u", true) } }) return@mapNotNull null
                 LibraryGame(title(base), base, group, opens.isEmpty() || exts.any { it in opens })
             }.sortedBy { it.title.lowercase() }
-            if (games.isEmpty()) null else LibrarySystem(system.id, system.name, folder.folderName, emuId, games)
+            if (games.isEmpty()) null else LibrarySystem(system.id, system.name, folder.folderName, emuId, games, folder.folderPath)
         }.sortedBy { it.name }
     }
 

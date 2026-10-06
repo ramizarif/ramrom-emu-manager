@@ -93,7 +93,8 @@ fun ColumnScope.AppsSection(app: EmuApplication, onOpen: (String) -> Unit) {
 
 /** S33 for one app. */
 @Composable
-fun AppDetailRoute(app: EmuApplication, appId: String) {
+fun AppDetailRoute(app: EmuApplication, nav: com.ramrom.emumanager.nav.Navigator, appId: String) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val context = LocalContext.current
     val bundle = app.knowledge.getBundle() ?: return
     val e = bundle.emulators.firstOrNull { it.id == appId } ?: return
@@ -114,6 +115,8 @@ fun AppDetailRoute(app: EmuApplication, appId: String) {
         else -> null
     }
     val appData = pkg?.let { "Android/data/$it" }
+    val key = remember { deviceKey(app, bundle) }
+    val defaults = remember(appId, pkg) { if (pkg == null) emptyList() else com.ramrom.emumanager.engine.config.SettingsProfiles.defaults(bundle, appId, key.deviceId, key.chipFamily) }
     fun local(path: String) = path.replace("{appData}", appData ?: "Android/data/…").removePrefix("/sdcard/").removePrefix("/storage/emulated/0/")
     AppDetailScreen(
         row,
@@ -132,6 +135,13 @@ fun AppDetailRoute(app: EmuApplication, appId: String) {
         primary = primary,
         onOpenApp = pkg?.let { p -> context.packageManager.getLaunchIntentForPackage(p)?.let { i -> { context.tryStart(i); Unit } } },
         onUninstall = pkg?.let { p -> { context.tryStart(Intent(Intent.ACTION_DELETE, Uri.parse("package:$p"))); Unit } },
+        deviceSettings = defaults.map { d -> d.name to d.settings.joinToString(", ") { it.label.substringBefore(": ") } },
+        onDeviceSettings = { i ->
+            scope.launch {
+                app.settings.pending.value = app.settings.plan(e, defaults[i], defaults[i].name, null)
+                nav.push(com.ramrom.emumanager.nav.Route.ApplyPreview)
+            }
+        },
     )
 }
 

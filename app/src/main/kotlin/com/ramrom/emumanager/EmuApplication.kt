@@ -30,6 +30,8 @@ class EmuApplication : Application() {
     val apps by lazy { com.ramrom.emumanager.run.AppsSession(this) }
     /** P12 game import (S23/S24); outlives screens. */
     val imports by lazy { com.ramrom.emumanager.importer.ImportSession(this) }
+    /** P09: settings writes, history and undo. */
+    val settings by lazy { com.ramrom.emumanager.run.ConfigWriter(this) }
     /** The real Lemon Squeezy client replaces this in M6. */
     val entitlements: Entitlements by lazy { FakeEntitlements() }
 

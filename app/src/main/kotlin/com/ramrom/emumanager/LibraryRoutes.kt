@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.ramrom.emumanager.engine.Library
 import com.ramrom.emumanager.engine.LibrarySystem
+import com.ramrom.emumanager.engine.config.SettingsProfiles
 import com.ramrom.emumanager.knowledge.DeviceDetector
 import com.ramrom.emumanager.knowledge.Verdict
 import com.ramrom.emumanager.knowledge.Verdicts
@@ -28,7 +29,7 @@ import java.io.File
 
 /** The library as last scanned; shared by the section and its system pages. */
 @Composable
-private fun rememberLibrary(app: EmuApplication): List<LibrarySystem>? {
+internal fun rememberLibrary(app: EmuApplication): List<LibrarySystem>? {
     val scope = rememberCoroutineScope()
     var lib by remember { mutableStateOf<List<LibrarySystem>?>(null) }
     LifecycleResumeEffect(Unit) {
@@ -57,7 +58,7 @@ fun ColumnScope.LibrarySection(app: EmuApplication, onOpen: (String) -> Unit, on
 }
 
 @Composable
-fun LibrarySystemRoute(app: EmuApplication, systemId: String) {
+fun LibrarySystemRoute(app: EmuApplication, systemId: String, onOpenGame: (String) -> Unit) {
     val lib = rememberLibrary(app) ?: return
     val s = lib.firstOrNull { it.systemId == systemId } ?: return
     val bundle = app.knowledge.getBundle()
@@ -75,6 +76,17 @@ fun LibrarySystemRoute(app: EmuApplication, systemId: String) {
             }.toMap()
         }
     }
+    // Games with settings tuned for this device get a tag; finding out reads a few KB of each file.
+    var tuned by remember(s) { mutableStateOf<Set<String>>(emptySet()) }
+    androidx.compose.runtime.LaunchedEffect(s) {
+        val b = bundle ?: return@LaunchedEffect
+        val key = deviceKey(app, b)
+        val emu = emulatorFor(b, s, key.chipFamily) ?: return@LaunchedEffect
+        tuned = withContext(Dispatchers.IO) {
+            s.games.filter { g -> gameIdOf(s, g)?.let { id -> SettingsProfiles.forGame(b, emu.id, id, key.deviceId, key.chipFamily).isNotEmpty() } == true }.map { it.baseName }.toSet()
+        }
+    }
     LibrarySystemScreen(s.name, s.emulatorId?.let { id -> bundle?.emulators?.firstOrNull { it.id == id }?.name },
-        s.games.map { g -> LibraryGameRow(g.title, g.files.joinToString(", ") { it.substringAfterLast('.').lowercase() }.let { if (g.files.size > 1) "${g.files.size} files · $it" else it }, g.playable, covers[g.baseName]) })
+        s.games.map { g -> LibraryGameRow(g.title, g.files.joinToString(", ") { it.substringAfterLast('.').lowercase() }.let { if (g.files.size > 1) "${g.files.size} files · $it" else it }, g.playable, covers[g.baseName], g.baseName, g.baseName in tuned) },
+        onOpenGame)
 }

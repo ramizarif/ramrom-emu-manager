@@ -440,6 +440,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         else nav.push(Route.Access(Route.PlanFrontend()))
                     },
                     onAbout = { nav.push(Route.About) },
+                    onHistory = { nav.push(Route.ChangeHistory()) },
                     run = runSummary,
                     home = homeStatus,
                     library = { LibrarySection(app, onOpen = { nav.push(Route.LibrarySystem(it)) }, onImport = openImporter) },
@@ -463,8 +464,11 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         nav.reset(Route.Main(Section.Home)); nav.push(Route.Health)
                     }
                 }) } ?: LaunchedEffect(Unit) { nav.pop() }
-                is Route.AppDetail -> AppDetailRoute(app, r.appId)
-                is Route.LibrarySystem -> LibrarySystemRoute(app, r.systemId)
+                is Route.AppDetail -> AppDetailRoute(app, nav, r.appId)
+                is Route.LibrarySystem -> LibrarySystemRoute(app, r.systemId) { nav.push(Route.GameDetail(r.systemId, it)) }
+                is Route.GameDetail -> GameDetailRoute(app, nav, r.systemId, r.baseName) { toast = it }
+                Route.ApplyPreview -> ApplyPreviewRoute(app, nav) { toast = it }
+                is Route.ChangeHistory -> ChangeHistoryRoute(app, r.gameId)
                 Route.Adopt -> AdoptRoute(app,
                     onKeep = { plan -> scope.launch { app.runs.savePlan(plan); app.appState.markFirstRunDone(); nav.reset(Route.Main(Section.Home)); toast = "Kept as it is" } },
                     onFix = { plan -> scope.launch {

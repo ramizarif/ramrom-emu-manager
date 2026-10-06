@@ -1747,7 +1747,7 @@
         {
           "key": "Overlay/show_input_overlay",
           "value": "false",
-          "label": "Hide the on-screen controller (the device has buttons)"
+          "label": "On-screen controller: hidden"
         },
         {
           "key": "Renderer/use_asynchronous_shaders",
@@ -1757,7 +1757,7 @@
         {
           "key": "Renderer/use_disk_shader_cache",
           "value": "true",
-          "label": "Keep built shaders between sessions"
+          "label": "Disk shader cache: on"
         }
       ],
       "tradeoff": "Fewer stutters while shaders build; an effect can be missing for a moment the first time it appears.",
@@ -1765,7 +1765,7 @@
       "verifiedOn": [
         "ayn-thor"
       ],
-      "notes": "",
+      "notes": "The on-screen controller is hidden because the Thor has buttons.",
       "updated": "2026-10-06"
     },
     {
@@ -1782,7 +1782,7 @@
         {
           "key": "Layout/layout_option",
           "value": "1",
-          "label": "Main display: Single Screen (top screen)"
+          "label": "Main display: Single Screen"
         },
         {
           "key": "Layout/secondary_display_layout",
@@ -1817,7 +1817,7 @@
         {
           "key": "Renderer/use_disk_shader_cache",
           "value": "true",
-          "label": "Keep built shaders between sessions"
+          "label": "Disk shader cache: on"
         },
         {
           "key": "Renderer/resolution_factor",
@@ -1827,7 +1827,7 @@
         {
           "key": "Renderer/disable_right_eye_render",
           "value": "true",
-          "label": "Skip the 3D right-eye image (no 3D screen here)"
+          "label": "3D right-eye image: off"
         }
       ],
       "tradeoff": "Fewer stutters while shaders build; a rare effect can be missing for a moment.",
@@ -1835,7 +1835,7 @@
       "verifiedOn": [
         "ayn-thor"
       ],
-      "notes": "",
+      "notes": "The Thor has no 3D screen, so the right-eye image is skipped.",
       "updated": "2026-10-06"
     },
     {
@@ -1852,7 +1852,7 @@
         {
           "key": "DSP.DSPThread",
           "value": "True",
-          "label": "Audio (DSP) on its own thread"
+          "label": "Audio on its own thread: on"
         }
       ],
       "tradeoff": "Faster on 8 cores; a rare game has audio timing glitches.",
@@ -1922,7 +1922,7 @@
         {
           "key": "Renderer/use_disk_shader_cache",
           "value": "true",
-          "label": "Keep built shaders between sessions"
+          "label": "Disk shader cache: on"
         },
         {
           "key": "Renderer/force_max_clock",

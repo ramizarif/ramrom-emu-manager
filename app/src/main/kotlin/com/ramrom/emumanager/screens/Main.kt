@@ -63,6 +63,7 @@ fun MainScreen(
     onSection: (Section) -> Unit,
     onStartSetup: () -> Unit,
     onAbout: () -> Unit,
+    onHistory: () -> Unit = {},
     /** A setup run in progress: (done, total, things waiting for the user). */
     run: Triple<Int, Int, Int>? = null,
     /** Set once the device has a plan (set up or adopted); null shows the first-run empty state. */
@@ -94,7 +95,7 @@ fun MainScreen(
             Section.Wishlist -> EmptyState(Face.Happy, "Your wishlist is empty", "Add games you want to play. We'll tell you how they run here, and spot them when they land in your library.")
             Section.Customize -> EmptyState(Face.Happy, "Make ES-DE yours", "Theme colours, backgrounds and game art, once ES-DE is set up.")
             Section.Apps -> if (apps != null) apps() else EmptyState(Face.Look, "No apps set up yet", "Emulators you add during setup are listed here with their versions and updates.")
-            Section.Settings -> SettingsBody(accessPanel, onAbout)
+            Section.Settings -> SettingsBody(accessPanel, onAbout, onHistory)
         }
     }
 }
@@ -142,17 +143,17 @@ private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMor
     else Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Buttons() }
 }
 
-private enum class SettingsPane(val title: String) { Device("Device"), Access("Access"), Updates("Updates"), Notifications("Notifications"), Report("Report a problem"), About("About") }
+private enum class SettingsPane(val title: String) { Device("Device"), Access("Access"), Updates("Updates"), Notifications("Notifications"), Report("Report a problem"), History("Change history"), About("About") }
 
 /** S38 skeleton: sections on the left, the chosen one on the right (Wide); list only elsewhere. */
 @Composable
-private fun ColumnScope.SettingsBody(accessPanel: @Composable ColumnScope.() -> Unit, onAbout: () -> Unit) {
+private fun ColumnScope.SettingsBody(accessPanel: @Composable ColumnScope.() -> Unit, onAbout: () -> Unit, onHistory: () -> Unit) {
     var pane by remember { mutableStateOf(SettingsPane.Access) }
     val wide = LocalSizeClass.current == SizeClass.Wide
     Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(Modifier.width(if (wide) 200.dp else 520.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             SettingsPane.entries.forEach { p ->
-                ListRow(p.title, onClick = { if (p == SettingsPane.About) onAbout() else pane = p }) { BasicText("›", style = EmuType.Body) }
+                ListRow(p.title, onClick = { when (p) { SettingsPane.About -> onAbout(); SettingsPane.History -> onHistory(); else -> pane = p } }) { BasicText("›", style = EmuType.Body) }
             }
         }
         if (wide) Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
