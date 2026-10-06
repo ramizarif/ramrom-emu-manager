@@ -172,6 +172,39 @@ class ConfigTransaction(
         return true
     }
 
+    /** What [execute] would do, without writing anything: S21's preview. */
+    fun preview(filePath: String, changes: ChangeSet): TransactionResult {
+        val originalText = fileStore.read(filePath) ?: ""
+        val parsed = codec.parse(originalText)
+        val diff = changes.changes.filter { (k, v) -> parsed.values[k] != v }.map { (k, v) -> Triple(k, parsed.values[k], v) }
+        if (diff.isEmpty()) return TransactionResult(emptyList(), originalText, originalText, false)
+        changes.changes.forEach { (k, v) -> if (v == null) parsed.values.remove(k) else parsed.values[k] = v }
+        return TransactionResult(diff, codec.render(parsed), originalText, true)
+    }
+
+    sealed class UndoResult {
+        object Restored : UndoResult()
+        /** The file changed after our write (the user or the app edited it); nothing was touched. */
+        data class Changed(val current: String) : UndoResult()
+        object NoSnapshot : UndoResult()
+    }
+
+    /**
+     * Undo with the 3-way check: restore only if the file is still what we wrote, unless [force].
+     * A file that didn't exist before our write is removed again.
+     */
+    fun undoChecked(filePath: String, snapshotPath: String, written: String, existedBefore: Boolean, force: Boolean = false): UndoResult {
+        val snapshot = snapshotStore.read(snapshotPath) ?: if (!existedBefore) "" else return UndoResult.NoSnapshot
+        val current = fileStore.read(filePath) ?: ""
+        if (!force && current != written) return UndoResult.Changed(current)
+        if (existedBefore) {
+            fileStore.write(filePath, snapshot)
+            if (fileStore.read(filePath) != snapshot) throw ConfigTransactionException("File verification failed during undo: content mismatch", filePath)
+        } else fileStore.delete(filePath)
+        snapshotStore.delete(snapshotPath)
+        return UndoResult.Restored
+    }
+
     /**
      * Check if a file needs to be closed before writing (e.g., ES-DE, emulators).
      * This is metadata; actual app management is done by the caller.

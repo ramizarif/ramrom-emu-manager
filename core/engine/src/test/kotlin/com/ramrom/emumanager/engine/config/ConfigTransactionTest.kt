@@ -223,4 +223,32 @@ class ConfigTransactionTest {
         assertEquals(original, result.originalText)
         assertFalse(result.hasChanges)
     }
+
+    @Test
+    fun previewWritesNothing() {
+        fileStore.write("/p.ini", "[R]\na=1\n")
+        val r = transaction.preview("/p.ini", ChangeSet(mapOf("R/a" to "2", "R/b" to "3")))
+        assertEquals(listOf(Triple("R/a", "1", "2"), Triple("R/b", null, "3")), r.changes)
+        assertEquals("[R]\na=1\n", fileStore.read("/p.ini"))
+        assertEquals("[R]\na=2\nb=3\n", r.newText)
+    }
+
+    @Test
+    fun undoRefusesWhenTheFileChangedSinceOurWrite() {
+        fileStore.write("/u.ini", "[R]\na=1\n")
+        val r = transaction.execute("/u.ini", ChangeSet(mapOf("R/a" to "2")), "/u.snap")
+        fileStore.write("/u.ini", "[R]\na=5\n") // the app or the user edited it after us
+        val res = transaction.undoChecked("/u.ini", "/u.snap", r.newText, existedBefore = true)
+        assertTrue(res is ConfigTransaction.UndoResult.Changed)
+        assertEquals("[R]\na=5\n", fileStore.read("/u.ini"))
+        assertEquals(ConfigTransaction.UndoResult.Restored, transaction.undoChecked("/u.ini", "/u.snap", r.newText, existedBefore = true, force = true))
+        assertEquals("[R]\na=1\n", fileStore.read("/u.ini"))
+    }
+
+    @Test
+    fun undoOfANewFileRemovesIt() {
+        val r = transaction.execute("/n.ini", ChangeSet(mapOf("R/a" to "1")), "/n.snap")
+        assertEquals(ConfigTransaction.UndoResult.Restored, transaction.undoChecked("/n.ini", "/n.snap", r.newText, existedBefore = false))
+        assertFalse(fileStore.exists("/n.ini"))
+    }
 }

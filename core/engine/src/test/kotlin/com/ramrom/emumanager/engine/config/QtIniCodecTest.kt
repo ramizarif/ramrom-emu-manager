@@ -39,8 +39,8 @@ class QtIniCodecTest {
         """.trimIndent() + "\n"
 
         val config = codec.parse(text)
-        assertEquals("value1", config.values["key1"])
-        assertEquals("value2", config.values["key2"])
+        assertEquals("value1", config.values["Section1/key1"])
+        assertEquals("value2", config.values["Section2/key2"])
     }
 
     @Test
@@ -196,11 +196,51 @@ class QtIniCodecTest {
         """.trimIndent() + "\n"
 
         val config = codec.parse(text)
-        config.values["indented_key"] = "new_value"
+        config.values["Section/indented_key"] = "new_value"
 
         val output = codec.render(config)
 
         assertTrue(output.contains("  indented_key=new_value"))
         assertTrue(output.contains("non_indented=value2"))
+    }
+
+    /** Eden per-game overrides: three lines per key, in the right section. */
+    @Test
+    fun newKeysGoInTheirSection() {
+        val text = "[Core]\nuse_multi_core=true\n\n[Renderer]\nbackend=1\n\n[System]\nlanguage_index=1\n"
+        val config = codec.parse(text)
+        config.values["Renderer/resolution_setup\\use_global"] = "false"
+        config.values["Renderer/resolution_setup\\default"] = "false"
+        config.values["Renderer/resolution_setup"] = "3"
+        config.values["Cpu/cpu_accuracy"] = "0"
+        val out = codec.render(config)
+        assertEquals("[Core]\nuse_multi_core=true\n\n[Renderer]\nbackend=1\nresolution_setup\\use_global=false\nresolution_setup\\default=false\nresolution_setup=3\n\n[System]\nlanguage_index=1\n\n[Cpu]\ncpu_accuracy=0\n", out)
+    }
+
+    @Test
+    fun sameKeyInTwoSectionsStaysApart() {
+        val config = codec.parse("[A]\nx=1\n[B]\nx=2\n")
+        config.values["B/x"] = "9"
+        assertEquals("[A]\nx=1\n[B]\nx=9\n", codec.render(config))
+    }
+
+    @Test
+    fun removedKeysAreDropped() {
+        val config = codec.parse("[R]\na=1\nb=2\n")
+        config.values.remove("R/a")
+        assertEquals("[R]\nb=2\n", codec.render(config))
+    }
+
+    @Test
+    fun newFileGetsSections() {
+        val config = codec.parse("")
+        config.values["Renderer/resolution_setup"] = "3"
+        assertEquals("[Renderer]\nresolution_setup=3\n", codec.render(config))
+    }
+
+    @Test
+    fun untouchedFileIsByteForByte() {
+        val text = "; c\r\n[A]\r\n  x = 1\r\ny=2\r\n\r\n[B]\r\nz=3"
+        assertEquals(text, codec.render(codec.parse(text)))
     }
 }
