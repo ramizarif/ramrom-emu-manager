@@ -24,6 +24,9 @@ import java.io.File
 /** Where S23 looks. */
 data class ImportSourceDir(val path: String, val label: String, val isDownloads: Boolean)
 
+/** A folder S23 found games in, to offer as a source. */
+data class SuggestedSource(val dir: ImportSourceDir, val games: Int, val archives: Int)
+
 /** S23's working state: what we found, the user's changes, and the plan they make. */
 data class ImportDraft(
     val source: ImportSourceDir,
@@ -52,6 +55,9 @@ class ImportSession(private val app: EmuApplication) {
     private val _job = MutableStateFlow<ImportJob?>(null)
     val job: StateFlow<ImportJob?> = _job.asStateFlow()
     private var worker: Job? = null
+    private val _suggestions = MutableStateFlow<List<SuggestedSource>?>(null)
+    /** Folders with games S23 found by itself; null until it has looked. */
+    val suggestions: StateFlow<List<SuggestedSource>?> = _suggestions.asStateFlow()
     /** The notification asked to show S24. */
     val openRequested = MutableStateFlow(false)
     @Volatile private var cancelRequested = false
@@ -75,6 +81,20 @@ class ImportSession(private val app: EmuApplication) {
             val setUp = app.runs.lastPlan()?.systems?.map { it.systemId }?.toSet()
             _draft.value = replan(ImportDraft(source, candidates, options = options, plan = ImportPlan(emptyList(), emptyList(), options), freeBytes = 0, setUp = setUp))
         } finally { _scanning.value = false }
+    }
+
+    /** Look for folders with games, by name only, so the user confirms one instead of hunting. */
+    suspend fun findSources() {
+        val root = com.ramrom.emumanager.BiosScan.STORAGE_ROOT
+        val esde = "$root/ES-DE"
+        _suggestions.value = withContext(Dispatchers.IO) {
+            runCatching {
+                com.ramrom.emumanager.engine.importer.GameFolderFinder(com.ramrom.emumanager.BiosScan.storage, listOf(romRoot, esde)).find(root)
+            }.getOrDefault(emptyList()).map { g ->
+                val rel = g.path.removePrefix("$root/")
+                SuggestedSource(ImportSourceDir(g.path, rel, g.path.equals(downloads.path, ignoreCase = true)), g.games, g.archives)
+            }
+        }
     }
 
     fun setSystem(itemId: String, systemId: String) = update { it.copy(systemOverrides = it.systemOverrides + (itemId to systemId), includeOverrides = it.includeOverrides - itemId) }
@@ -116,7 +136,7 @@ class ImportSession(private val app: EmuApplication) {
     }
 
     /** S24 closed on a finished import. */
-    fun dismiss() { if (_job.value?.finished == true) { store.clear(); _job.value = null; _draft.value = null } }
+    fun dismiss() { if (_job.value?.finished == true) { store.clear(); _job.value = null; _draft.value = null; _suggestions.value = null } }
 
     private fun launch(job: ImportJob) {
         cancelRequested = false

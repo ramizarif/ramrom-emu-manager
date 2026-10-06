@@ -26,6 +26,7 @@ import com.ramrom.emumanager.engine.importer.ImportProblem
 import com.ramrom.emumanager.importer.ImportDraft
 import com.ramrom.emumanager.importer.ImportJob
 import com.ramrom.emumanager.importer.JobItem
+import com.ramrom.emumanager.importer.SuggestedSource
 import com.ramrom.emumanager.ui.components.AlertKind
 import com.ramrom.emumanager.ui.components.ButtonKind
 import com.ramrom.emumanager.ui.components.EmuButton
@@ -74,6 +75,9 @@ fun ImportScreen(
     onMove: (Boolean) -> Unit,
     onDeleteArchives: (Boolean) -> Unit,
     onImport: () -> Unit,
+    /** Folders with games found by name; null while looking. */
+    suggestions: List<SuggestedSource>? = null,
+    onUseSource: (SuggestedSource) -> Unit = {},
 ) {
     var open by remember { mutableStateOf<String?>(null) }
     val plan = draft?.plan
@@ -103,10 +107,22 @@ fun ImportScreen(
             if (draft?.source?.isDownloads == false) BasicText(draft.source.path.removePrefix("/storage/emulated/0/"), style = EmuType.Hint)
         }
         if (scanning || draft == null) { BasicText("Looking through ${draft?.source?.label ?: "Downloads"}…", style = EmuType.Lead); return@PageScaffold }
+        val elsewhere = suggestions.orEmpty().filter { !it.dir.path.equals(draft.source.path, ignoreCase = true) }
         if (plan!!.items.isEmpty()) {
-            BasicText("No games here", style = EmuType.Headline2)
-            BasicText("We look for game files and archives of them. Your games may be in another folder.", style = EmuType.Body)
-            EmuButton("Pick a folder", onPickFolder, focusRequester = focus)
+            BasicText("No games in ${draft.source.label}", style = EmuType.Headline2)
+            val best = elsewhere.firstOrNull()
+            if (best == null) {
+                BasicText(if (suggestions == null) "Looking for other folders with games…" else "We didn't spot games anywhere else either. Pick the folder you keep them in.", style = EmuType.Body)
+                EmuButton("Pick a folder", onPickFolder, focusRequester = focus)
+                return@PageScaffold
+            }
+            InlineAlert("Found games in ${best.dir.label}", "${countOf(best)} there. Is this the folder?", AlertKind.YourTurn) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    EmuButton("Yes, look there", { onUseSource(best) }, kind = ButtonKind.Go, small = true, focusRequester = focus)
+                    EmuButton("Pick a folder", onPickFolder, small = true)
+                }
+            }
+            OtherSources(elsewhere.drop(1), "Or", onUseSource)
             return@PageScaffold
         }
         val included = plan.included
@@ -130,6 +146,18 @@ fun ImportScreen(
             out.forEach { ItemRow(it, name) { open = it.id } }
         }
         if (plan.playlists.isNotEmpty()) BasicText("Multi-disc games go in one folder each, so ES-DE lists them once.", style = EmuType.Hint)
+        OtherSources(elsewhere, "Other folders with games", onUseSource)
+    }
+}
+
+private fun countOf(s: SuggestedSource) = "${s.games} game file${if (s.games == 1) "" else "s"}" + if (s.archives > 0) " and ${s.archives} archive${if (s.archives == 1) "" else "s"}" else ""
+
+@Composable
+private fun OtherSources(list: List<SuggestedSource>, label: String, onUse: (SuggestedSource) -> Unit) {
+    if (list.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel(label, list.size)
+        list.forEach { s -> ListRow(s.dir.label, detail = countOf(s), onClick = { onUse(s) }) { Tag("Look here", TagKind.Neutral) } }
     }
 }
 

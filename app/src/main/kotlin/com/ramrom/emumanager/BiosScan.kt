@@ -53,9 +53,10 @@ object BiosScan {
     const val STORAGE_ROOT = "/storage/emulated/0"
 
     /** [BiosFinder] over real files; needs all-files access. */
-    fun finder(bundle: KnowledgeBundle) = BiosFinder(bundle, StorageLister { dir ->
-        File(dir).listFiles()?.map { StorageEntry(it.name, it.isDirectory, if (it.isFile) it.length() else 0) }
-    }, ::md5File)
+    fun finder(bundle: KnowledgeBundle) = BiosFinder(bundle, storage, ::md5File)
+
+    /** Shared storage through plain files (all-files access); also used to find folders of games. */
+    val storage = StorageLister { dir -> File(dir).listFiles()?.map { StorageEntry(it.name, it.isDirectory, if (it.isFile) it.length() else 0) } }
 
     private fun md5File(path: String): String {
         val digest = MessageDigest.getInstance("MD5")

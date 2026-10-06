@@ -42,10 +42,13 @@ fun ImportRoute(app: EmuApplication, nav: Navigator) {
     val session = app.imports
     val draft by session.draft.collectAsState()
     val scanning by session.scanning.collectAsState()
+    val suggestions by session.suggestions.collectAsState()
     var canRead by remember { mutableStateOf(session.canReadFiles()) }
     LifecycleResumeEffect(Unit) { canRead = session.canReadFiles(); onPauseOrDispose { } }
     // A fresh visit looks in Downloads; coming back keeps the user's choices.
     LaunchedEffect(canRead) { if (canRead && draft == null && !scanning) session.scan(session.downloads) }
+    // Meanwhile, look for other folders with games so an empty Downloads isn't a dead end.
+    LaunchedEffect(canRead) { if (canRead && suggestions == null) session.findSources() }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         val path = uri?.let(::treePath) ?: return@rememberLauncherForActivityResult
         val name = path.substringAfterLast('/')
@@ -67,6 +70,8 @@ fun ImportRoute(app: EmuApplication, nav: Navigator) {
         onMove = { m -> draft?.let { session.setOptions(it.plan.options.copy(move = m)) } },
         onDeleteArchives = { d -> draft?.let { session.setOptions(it.plan.options.copy(deleteArchives = d)) } },
         onImport = { if (session.start()) nav.replace(Route.ImportProgress) },
+        suggestions = suggestions,
+        onUseSource = { s -> scope.launch { session.scan(s.dir) } },
     )
 }
 
