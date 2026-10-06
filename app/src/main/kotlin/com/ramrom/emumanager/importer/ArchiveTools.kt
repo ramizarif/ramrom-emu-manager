@@ -33,14 +33,17 @@ object ArchiveTools {
     private fun IInArchive.encrypted(i: Int) = getProperty(i, PropID.ENCRYPTED) as? Boolean ?: false
 
     /** Files inside, or null when it won't open or wants a password. */
-    fun entries(file: File): List<ArchiveEntry>? = runCatching {
+    fun entries(file: File): List<ArchiveEntry>? = logged("list ${file.name}") {
         open(file) { a ->
             (0 until a.numberOfItems).filter { !a.isFolder(it) }.map { i ->
                 if (a.encrypted(i)) return@open null
                 ArchiveEntry(a.path(i), (a.getProperty(i, PropID.SIZE) as? Long) ?: 0L)
             }
         }
-    }.getOrNull()
+    }
+
+    private fun <T> logged(what: String, block: () -> T?): T? = runCatching(block)
+        .onFailure { android.util.Log.w("RamROM/archive", "$what failed", it) }.getOrNull()
 
     /** The first [maxBytes] of [entry], unpacked; stops decoding once it has them. */
     fun peek(file: File, entry: String, maxBytes: Int): ByteArray? = runCatching {

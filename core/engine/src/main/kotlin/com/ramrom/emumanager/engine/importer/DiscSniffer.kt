@@ -149,6 +149,27 @@ object DiscSniffer {
         return (h[0x8F].toInt() and 0x04) == 0
     }
 
+    /**
+     * True when an archive is shorter than its own headers say: a download that stopped early.
+     * 7z records where its closing header is; zip ends with an end-of-directory record.
+     */
+    fun archiveIncomplete(r: ByteReader, size: Long): Boolean {
+        val h = r.read(0, 32) ?: return false
+        if (h.size >= 32 && h[0] == '7'.code.toByte() && h[1] == 'z'.code.toByte() && (h[2].toInt() and 0xFF) == 0xBC && (h[3].toInt() and 0xFF) == 0xAF) {
+            val next = u64le(h, 12); val nextSize = u64le(h, 20)
+            return 32 + next + nextSize > size
+        }
+        if (h.size >= 4 && h[0] == 'P'.code.toByte() && h[1] == 'K'.code.toByte() && h[2].toInt() == 3 && h[3].toInt() == 4) {
+            // The end record sits in the last 64 KiB (22 bytes plus a comment).
+            val tailLen = minOf(size, 65_557L).toInt()
+            val tail = r.read(size - tailLen, tailLen) ?: return false
+            return (tail.size - 22 downTo 0).none { i -> tail[i] == 'P'.code.toByte() && tail[i + 1] == 'K'.code.toByte() && tail[i + 2].toInt() == 5 && tail[i + 3].toInt() == 6 }
+        }
+        return false
+    }
+
+    private fun u64le(b: ByteArray, o: Int) = u32le(b, o) or (u32le(b, o + 4) shl 32)
+
     private fun align(v: Long) = (v + 63) / 64 * 64
 
     internal fun u32be(b: ByteArray, o: Int): Long =

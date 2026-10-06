@@ -111,7 +111,11 @@ class ImportClassifier(private val bundle: KnowledgeBundle, private val probe: I
     private fun archive(c: ImportCandidate, flags: MutableSet<ImportCandidate.Flag>, found: (List<ArchiveEntry>) -> Unit): Verdict? {
         if (ImportCandidate.Flag.SplitArchive in flags) return switchName(c)
         val entries = runCatching { probe.entries(c.primary.path) }.getOrNull()
-        if (entries == null) { flags += ImportCandidate.Flag.Unreadable; return switchName(c) }
+        if (entries == null) {
+            val partial = runCatching { DiscSniffer.archiveIncomplete(probe.reader(c.primary.path), c.primary.size) }.getOrDefault(false)
+            flags += if (partial) ImportCandidate.Flag.Incomplete else ImportCandidate.Flag.Unreadable
+            return switchName(c)
+        }
         val games = entries.filter { val x = ext(it.name); x in sure || x in ambiguous || x in tracks || x == "m3u" }
         val known = games.filter { ext(it.name) in sure || ext(it.name) in ambiguous }
         if (known.isEmpty()) {

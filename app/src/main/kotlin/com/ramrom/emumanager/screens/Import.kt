@@ -46,6 +46,7 @@ import com.ramrom.emumanager.ui.theme.EmuType
 fun bytes(n: Long): String = when {
     n >= 1L shl 30 -> "%.1f GB".format(n / (1L shl 30).toDouble())
     n >= 1L shl 20 -> "%.0f MB".format(n / (1L shl 20).toDouble())
+    n == 0L -> "nothing"
     else -> "${maxOf(1, n / 1024)} KB"
 }
 
@@ -112,9 +113,9 @@ fun ImportScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 BasicText("${included.size} game${if (included.size == 1) "" else "s"} to import", style = EmuType.Headline2)
-                BasicText("Needs ${bytes(plan.bytesNeeded)}  ·  ${bytes(draft.freeBytes)} free", style = EmuType.Body)
+                BasicText(if (included.isEmpty()) "Nothing to import yet. Pick a system for anything left out, or include it." else "Needs ${bytes(plan.bytesNeeded)}  ·  ${bytes(draft.freeBytes)} free", style = EmuType.Body)
             }
-            EmuButton("Import", onImport, kind = ButtonKind.Go, focusRequester = if (ready) focus else null)
+            if (ready) EmuButton("Import", onImport, kind = ButtonKind.Go, focusRequester = focus)
         }
         if (!draft.enoughSpace) InlineAlert("Not enough space", "This needs ${bytes(plan.bytesNeeded)} and the device has ${bytes(draft.freeBytes)} free. Leave some games out or free up space.", AlertKind.Blocked)
         ListRow(if (plan.options.move) "Move files out of ${draft.source.label}" else "Copy files, leave the originals", detail = "Archives are unpacked either way", onClick = { onMove(!plan.options.move) }) { Toggle(plan.options.move) }

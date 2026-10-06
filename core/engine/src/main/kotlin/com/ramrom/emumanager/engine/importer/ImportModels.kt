@@ -41,6 +41,8 @@ data class ImportCandidate(
         SplitArchive,
         /** The archive wouldn't open. */
         Unreadable,
+        /** Shorter than its own headers say: the download stopped early. */
+        Incomplete,
         /** A zip of many unknown files: an arcade romset, which stays zipped. */
         ArcadeSet,
         /** The name matches a BIOS file the bundle knows. */
@@ -53,9 +55,9 @@ data class ImportCandidate(
 enum class ImportAction { Move, Copy, Extract, KeepZipped }
 
 data class ImportProblem(val kind: Kind, val text: String) {
-    enum class Kind { NoSystem, AlreadyThere, NameClash, Encrypted, SplitArchive, Unreadable, Bios, NotSetUp }
+    enum class Kind { NoSystem, AlreadyThere, NameClash, Encrypted, SplitArchive, Unreadable, Incomplete, Bios, NotSetUp }
     /** Problems that leave the item out unless the user includes it. */
-    val excludesByDefault get() = kind in setOf(Kind.NoSystem, Kind.AlreadyThere, Kind.NameClash, Kind.SplitArchive, Kind.Unreadable, Kind.Bios)
+    val excludesByDefault get() = kind in setOf(Kind.NoSystem, Kind.AlreadyThere, Kind.NameClash, Kind.SplitArchive, Kind.Unreadable, Kind.Incomplete, Kind.Bios)
 }
 
 /** One row on S23. */

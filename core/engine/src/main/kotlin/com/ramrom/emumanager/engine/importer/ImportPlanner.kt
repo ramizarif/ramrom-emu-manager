@@ -56,6 +56,7 @@ class ImportPlanner(
         if (ImportCandidate.Flag.Bios in flags) problems += ImportProblem(ImportProblem.Kind.Bios, "This looks like a BIOS file, not a game. Health puts BIOS files in place.")
         if (ImportCandidate.Flag.SplitArchive in flags) problems += ImportProblem(ImportProblem.Kind.SplitArchive, "Split archives can't be unpacked here yet. Join the parts first.")
         if (ImportCandidate.Flag.Unreadable in flags) problems += ImportProblem(ImportProblem.Kind.Unreadable, "This archive wouldn't open. It may need a password or be damaged.")
+        if (ImportCandidate.Flag.Incomplete in flags) problems += ImportProblem(ImportProblem.Kind.Incomplete, "This archive is incomplete, as if a copy or download stopped part way. A complete copy will import.")
         if (ImportCandidate.Flag.Encrypted in flags) problems += ImportProblem(ImportProblem.Kind.Encrypted, "This 3DS game is encrypted, so Azahar may not open it.")
         if (systemId == null) problems += ImportProblem(ImportProblem.Kind.NoSystem,
             if (ImportCandidate.Flag.ArcadeSet in flags) "Looks like an arcade set. Pick Arcade or Neo Geo and it stays zipped." else "Pick a system for this one.")

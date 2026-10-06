@@ -103,6 +103,15 @@ class ImportClassifierTest {
         assertEquals("switch", c.systemId); assertEquals(Confidence.Likely, c.confidence)
     }
 
+    /** [device] A real 1.5 GB .7z whose header points 3.1 GB in: a download cut short. */
+    @Test fun truncatedArchivesAreCalledIncomplete() {
+        val sevenZip = ByteArray(64).also { "7z".toByteArray().copyInto(it); it[2] = 0xBC.toByte(); it[3] = 0xAF.toByte(); it[4] = 0x27; it[5] = 0x1C
+            Fixtures.le32(it, 12, 0x7000_0000) }
+        val zip = ByteArray(64).also { it[0] = 'P'.code.toByte(); it[1] = 'K'.code.toByte(); it[2] = 3; it[3] = 4 }
+        val c = scan(FakeProbe(files = mapOf("$dl/cut.7z" to sevenZip, "$dl/cut.zip" to zip)), SourceFile("$dl/cut.7z", 64), SourceFile("$dl/cut.zip", 64))
+        assertTrue(c.all { Flag.Incomplete in it.flags })
+    }
+
     @Test fun encrypted3dsIsFlaggedNeverConverted() {
         val probe = FakeProbe(files = mapOf(
             "$dl/enc.cia" to Fixtures.cia(true), "$dl/dec.cia" to Fixtures.cia(false),
