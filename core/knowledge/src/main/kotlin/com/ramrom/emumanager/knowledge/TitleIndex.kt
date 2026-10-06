@@ -56,11 +56,11 @@ class TitleIndex(private val bundle: TitleIndexBundle) {
          * Load title index from bundled gzipped asset (lazy singleton).
          *
          * @param context Android context for asset access
-         * @param assetPath Path to gzipped JSON (default: "knowledge/title-index-v1.json.gz")
+         * @param assetPath Path to gzipped JSON (default: "knowledge/title-index-v1.bin")
          * @return TitleIndex instance
          * @throws Exception if asset cannot be read or JSON is invalid
          */
-        fun load(context: Context, assetPath: String = "knowledge/title-index-v1.json.gz"): TitleIndex {
+        fun load(context: Context, assetPath: String = "knowledge/title-index-v1.bin"): TitleIndex {
             instance?.let { return it }
 
             val bundle = loadBundleFromAsset(context, assetPath)

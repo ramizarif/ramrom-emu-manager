@@ -39,6 +39,14 @@ class PlanDraft(
         bios = null
     }
 
+    /** S08 "Add to plan": turn a system on. */
+    fun addSystem(systemId: String) {
+        systems = systems.map { if (it.systemId == systemId) it.copy(on = true) else it }
+        bios = null
+    }
+
+    fun systemName(systemId: String) = bundle.systems.firstOrNull { it.id == systemId }?.name ?: systemId
+
     fun pickEmulator(systemId: String, emulatorId: String) {
         val e = bundle.emulators.firstOrNull { it.id == emulatorId } ?: return
         systems = systems.map {

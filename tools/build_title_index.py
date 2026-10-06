@@ -6,7 +6,7 @@ Sources:
   - Wikidata SPARQL (CC0): all gaming platforms
   - blawar/titledb (MIT): Switch title IDs and names (facts only, never descriptions/artwork)
 
-Output: gzipped JSON at core/knowledge/src/main/assets/knowledge/title-index-v1.json.gz
+Output: gzipped JSON at core/knowledge/src/main/assets/knowledge/title-index-v1.bin
 
 Uses stdlib only; no external dependencies.
 Respects SPARQL endpoint (User-Agent, sequential queries, retries with backoff).
@@ -21,6 +21,7 @@ Verification notes (2026-10-05):
 """
 
 import json
+import re
 import urllib.request
 import urllib.error
 import sys
@@ -188,7 +189,7 @@ LIMIT {limit}
                 if name.startswith("Q") and name[1:].isdigit():
                     continue
 
-                name = self.normalize_name(name)
+                name = self.normalize_name(name.replace("™", "").replace("®", "").replace("©", ""))
                 release_date = result.get("releaseDate", {}).get("value", "")
 
                 year = None
@@ -224,7 +225,8 @@ LIMIT {limit}
         Never takes descriptions, artwork, or categories.
         Base games are identified by titleId ending in "000" (excludes DLC/updates).
 
-        Format of titledb: { "titleId": { "id": "...", "name": "...", "releaseDate": "...", ... } }
+        Format of titledb: { "<nsuId>": { "id": "<titleId or None>", "name": "...", "releaseDate": "YYYYMMDD", ... } }
+        The key is the eShop id, not the title id; the title id is the entry's "id" field.
         """
         entries = []
 
@@ -241,8 +243,13 @@ LIMIT {limit}
             titles_by_titleid = json.loads(content)
 
             # Filter for base games only (titleId ending in "000")
-            for titleid, entry_data in titles_by_titleid.items():
+            for _nsu_id, entry_data in titles_by_titleid.items():
                 if not isinstance(entry_data, dict):
+                    continue
+                titleid = str(entry_data.get("id") or "").upper()
+                if re.search(r"\b(demo|kiosk|trial)\b", str(entry_data.get("name") or ""), re.I):
+                    continue
+                if len(titleid) != 16 or entry_data.get("isDemo") in (True, "True"):
                     continue
 
                 # Only keep base games (ending in "000")

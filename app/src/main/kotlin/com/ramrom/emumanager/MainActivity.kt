@@ -45,6 +45,8 @@ import com.ramrom.emumanager.screens.SystemsScreen
 import com.ramrom.emumanager.screens.PlanReviewScreen
 import com.ramrom.emumanager.screens.ImportPlanScreen
 import com.ramrom.emumanager.screens.BiosCheckScreen
+import com.ramrom.emumanager.screens.GameCheckScreen
+import com.ramrom.emumanager.screens.GameCheckRow
 import com.ramrom.emumanager.ui.layout.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -158,6 +160,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
         if (tree != null) { d.biosFolder = tree; scanBios(d, tree) }
     }
     val startPlan = { other: String?, family: String? ->
+        // Warm the title index now so S08's first search doesn't wait on it.
+        scope.launch(kotlinx.coroutines.Dispatchers.Default) { runCatching { app.titleSearch } }
         draft = app.knowledge.getBundle()?.let { PlanDraft.create(context, it, family) }
         if (draft != null) nav.push(Route.PlanFrontend(other))
     }
@@ -227,7 +231,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         d.systems, bestGuess = device.kind != DeviceSummary.Kind.Verified || r.otherDevice != null, familyName = d.familyId.takeIf { it != "generic" }?.let(Detection::familyName),
                         changing = d.systems.firstOrNull { it.systemId == d.changing },
                         onToggle = d::toggle, onChangeEmulator = { d.changing = it }, onPickEmulator = d::pickEmulator,
-                        onCloseSheet = { d.changing = null }, onNext = { nav.push(Route.PlanBios(r.otherDevice)) },
+                        onCloseSheet = { d.changing = null }, onCheckGames = { nav.push(Route.PlanGames(r.otherDevice)) },
+                        onNext = { nav.push(Route.PlanBios(r.otherDevice)) },
                     )
                 }
                 Route.PlanImport -> ImportPlanScreen(
@@ -239,6 +244,33 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     onPickAgain = openPlanFile,
                     onCancel = { nav.pop() },
                 )
+                is Route.PlanGames -> draft?.let { d ->
+                    var query by remember { mutableStateOf("") }
+                    var hits by remember { mutableStateOf<List<com.ramrom.emumanager.knowledge.SearchHit>?>(null) }
+                    var searching by remember { mutableStateOf(false) }
+                    LaunchedEffect(query) {
+                        if (query.isBlank()) { hits = null; return@LaunchedEffect }
+                        kotlinx.coroutines.delay(150) // let typing settle
+                        searching = true
+                        hits = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                            runCatching { app.titleSearch.search(query, d.systems.map { it.systemId }.toSet(), limit = 25) }
+                                .onFailure { app.log.e("search", "title index failed", it) }.getOrDefault(emptyList())
+                        }
+                        searching = false
+                    }
+                    val onIds = d.chosen.map { it.systemId }.toSet()
+                    GameCheckScreen(
+                        query, { query = it },
+                        // Systems already in the plan first: that's the answer the user is after.
+                        hits?.map { h -> GameCheckRow(h, d.systemName(h.system), com.ramrom.emumanager.knowledge.Verdicts.forSystem(h.system, d.familyId), h.system in onIds) }
+                            ?.sortedByDescending { it.inPlan },
+                        searching,
+                        d.familyId.takeIf { it != "generic" }?.let(Detection::familyName),
+                        onAddSystem = { d.addSystem(it); toast = "${d.systemName(it)} added to your plan" },
+                        onDone = { nav.pop() },
+                    )
+                    Box(Modifier.fillMaxSize()) { Toast(toast) }
+                }
                 is Route.PlanBios -> draft?.let { d ->
                     // A changed plan clears the last result; re-check the same folder without asking.
                     LaunchedEffect(d.bios, d.biosFolder) { val f = d.biosFolder; if (d.bios == null && f != null && !biosScanning) scanBios(d, f) }

@@ -110,18 +110,19 @@ fun SystemsScreen(
     onChangeEmulator: (String) -> Unit,
     onPickEmulator: (String, String) -> Unit,
     onCloseSheet: () -> Unit,
+    onCheckGames: () -> Unit,
     onNext: () -> Unit,
 ) {
     val focus = com.ramrom.emumanager.ui.input.initialFocus()
     // X opens the emulator sheet for whichever row has focus.
     var focused by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    ScreenKeys(start = onNext, x = { focused?.let { id -> if ((systems.firstOrNull { it.systemId == id }?.alternatives?.size ?: 0) > 1) onChangeEmulator(id) } })
+    ScreenKeys(start = onNext, y = onCheckGames, x = { focused?.let { id -> if ((systems.firstOrNull { it.systemId == id }?.alternatives?.size ?: 0) > 1) onChangeEmulator(id) } })
     val on = systems.filter { it.on }
     val tiles = on.distinctBy { it.emulatorId }.mapIndexed { i, s -> HandheldTile(s.emulatorId, s.tileLabel, accent(i)) }
     Box(Modifier.fillMaxSize()) {
         GuidedScaffold(
             handheld = HandheldState(awake = true, face = Face.LookDown, tiles = tiles, carts = on.take(3).map { cartLabel(it.systemId) }, moreCarts = (on.size - 3).coerceAtLeast(0)),
-            hints = listOf("A" to "On/off", "X" to "Change emulator", "START" to "Next", "B" to "Back"),
+            hints = listOf("A" to "On/off", "X" to "Change emulator", "Y" to "Check games", "START" to "Next", "B" to "Back"),
             listHeavy = true,
             banner = if (bestGuess) { { Box(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) { InlineAlert(if (familyName == null) "These are general picks; we couldn't tell your chip." else "Recommendations are best guesses for $familyName.", "Change anything you like.", AlertKind.Neutral) } } } else null,
             actions = { EmuButton("Next", onNext, kind = ButtonKind.Go) },

@@ -20,6 +20,8 @@ class EmuApplication : Application() {
     val db by lazy { EmuDatabase.create(this) }
     val log by lazy { EmuLog(this) }
     val appState by lazy { com.ramrom.emumanager.data.AppStateRepository(db.appStateDao()) }
+    /** Offline title search (P20). Heavy to build; first use is off the main thread. */
+    val titleSearch by lazy { com.ramrom.emumanager.knowledge.TitleSearch(com.ramrom.emumanager.knowledge.TitleIndex.load(this).getAllEntries()) }
     /** The real Lemon Squeezy client replaces this in M6. */
     val entitlements: Entitlements by lazy { FakeEntitlements() }
 
