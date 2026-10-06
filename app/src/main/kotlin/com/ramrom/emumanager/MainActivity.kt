@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import com.ramrom.emumanager.ui.theme.EmuColors
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.ramrom.emumanager.access.AccessMode
@@ -43,6 +44,7 @@ import com.ramrom.emumanager.screens.FrontendScreen
 import com.ramrom.emumanager.screens.SystemsScreen
 import com.ramrom.emumanager.screens.PlanReviewScreen
 import com.ramrom.emumanager.screens.ImportPlanScreen
+import com.ramrom.emumanager.screens.BiosCheckScreen
 import com.ramrom.emumanager.ui.layout.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,6 +60,18 @@ import com.ramrom.emumanager.ui.layout.Sheet
 import com.ramrom.emumanager.ui.theme.EmuTheme
 
 class MainActivity : ComponentActivity() {
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        // Android starts in touch mode and returns to it on any tap; there nothing holds focus, and
+        // gamepad buttons (unlike the d-pad) don't leave it, so A would do nothing. Any key leaves
+        // touch mode here; screens then focus their main element (initialFocus). That first press is
+        // spent on this, so it never triggers something the user can't see.
+        if (event.action == android.view.KeyEvent.ACTION_DOWN && window.decorView.isInTouchMode) {
+            (findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) ?: window.decorView).requestFocusFromTouch()
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -127,6 +141,22 @@ private fun EmuNav(app: EmuApplication, start: Route) {
             .onFailure { app.log.e("plan", "export failed", it); toast = "Couldn't save the plan" }
     }
     val openPlanFile = { pickPlan.launch(arrayOf("*/*")) }
+    var biosScanning by remember { mutableStateOf(false) }
+    var biosError by remember { mutableStateOf<String?>(null) }
+    val scope2 = rememberCoroutineScope()
+    val scanBios = { d: PlanDraft, tree: android.net.Uri ->
+        biosScanning = true; biosError = null
+        scope2.launch {
+            runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { d.checkBios(BiosScan.candidates(context, tree, d.biosSizes)) } }
+                .onFailure { app.log.w("bios", "scan failed: ${it.message}"); biosError = "Android didn't let us read it. Pick the folder again." }
+            biosScanning = false
+        }
+        Unit
+    }
+    val pickBiosFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        val d = draft ?: return@rememberLauncherForActivityResult
+        if (tree != null) { d.biosFolder = tree; scanBios(d, tree) }
+    }
     val startPlan = { other: String?, family: String? ->
         draft = app.knowledge.getBundle()?.let { PlanDraft.create(context, it, family) }
         if (draft != null) nav.push(Route.PlanFrontend(other))
@@ -139,7 +169,10 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     }
 
     CompositionLocalProvider(LocalKeyRouter provides router) {
-        Box(Modifier.fillMaxSize().controllerKeys(router)) {
+        Box(
+            Modifier.fillMaxSize()
+                .controllerKeys(router)
+        ) {
             when (val r = nav.current) {
                 Route.Welcome -> WelcomeScreen(onWake = { nav.push(Route.Device) })
                 Route.Device -> Box(Modifier.fillMaxSize()) {
@@ -194,7 +227,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         d.systems, bestGuess = device.kind != DeviceSummary.Kind.Verified || r.otherDevice != null, familyName = d.familyId.takeIf { it != "generic" }?.let(Detection::familyName),
                         changing = d.systems.firstOrNull { it.systemId == d.changing },
                         onToggle = d::toggle, onChangeEmulator = { d.changing = it }, onPickEmulator = d::pickEmulator,
-                        onCloseSheet = { d.changing = null }, onNext = { nav.push(Route.PlanReview(r.otherDevice)) },
+                        onCloseSheet = { d.changing = null }, onNext = { nav.push(Route.PlanBios(r.otherDevice)) },
                     )
                 }
                 Route.PlanImport -> ImportPlanScreen(
@@ -206,6 +239,15 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     onPickAgain = openPlanFile,
                     onCancel = { nav.pop() },
                 )
+                is Route.PlanBios -> draft?.let { d ->
+                    // A changed plan clears the last result; re-check the same folder without asking.
+                    LaunchedEffect(d.bios, d.biosFolder) { val f = d.biosFolder; if (d.bios == null && f != null && !biosScanning) scanBios(d, f) }
+                    BiosCheckScreen(
+                        BiosRows.rows(d), biosScanning, d.biosFolder != null, biosError,
+                        onPickFolder = { pickBiosFolder.launch(null) },
+                        onNext = { nav.push(Route.PlanReview(r.otherDevice)) },
+                    )
+                }
                 is Route.PlanReview -> Box(Modifier.fillMaxSize()) { draft?.let { d ->
                     val limited = mode != AccessMode.Elevated
                     val summary = remember(d.systems, d.useEsde, limited) { PlanSummaries.review(app, d, r.otherDevice, limited) }

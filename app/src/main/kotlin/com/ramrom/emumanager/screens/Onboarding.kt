@@ -35,8 +35,7 @@ import com.ramrom.emumanager.ui.theme.EmuType
 /** S01. The handheld is asleep; one button wakes it. */
 @Composable
 fun WelcomeScreen(onWake: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus()
     GuidedScaffold(
         handheld = HandheldState(awake = false),
         hints = listOf("A" to "Wake it up"),
@@ -63,8 +62,7 @@ data class DeviceSummary(
 /** S02. Verified device waves hello; unknown handhelds get a best guess; phones go to planning. */
 @Composable
 fun DeviceScreen(device: DeviceSummary, onConfirm: () -> Unit, onChoose: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus()
     val verified = device.kind == DeviceSummary.Kind.Verified
     val phone = device.kind == DeviceSummary.Kind.Phone
     GuidedScaffold(
@@ -117,8 +115,7 @@ enum class SetupPath { Adopt, SetUp, PlanOther, Restore }
 /** S03. The scan's result decides which option is recommended and focused. */
 @Composable
 fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onOpenPlanFile: () -> Unit, onPick: (SetupPath) -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus()
     val found = existing != null && (existing.frontendInstalled || existing.emulatorTiles.isNotEmpty())
     val count = existing?.emulatorTiles?.size ?: 0
     com.ramrom.emumanager.ui.input.ScreenKeys(y = onOpenPlanFile)
@@ -157,8 +154,7 @@ fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onOpenP
 /** S02 picker: every known device plus a catch-all by chip. Shown in a sheet. */
 @Composable
 fun ColumnScope.DevicePickerContent(devices: List<Pair<String, String>>, onPick: (String?) -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus()
     BasicText("Which handheld is this?", style = EmuType.Headline2)
     Column(Modifier.androidxVerticalScroll(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         devices.forEachIndexed { i, (id, name) ->

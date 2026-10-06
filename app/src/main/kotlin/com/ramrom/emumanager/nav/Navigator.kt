@@ -12,6 +12,7 @@ sealed interface Route {
     /** S06–S10. `otherDevice` names the target when planning for a handheld this isn't. */
     data class PlanFrontend(val otherDevice: String? = null) : Route
     data class PlanSystems(val otherDevice: String? = null) : Route
+    data class PlanBios(val otherDevice: String? = null) : Route
     data class PlanReview(val otherDevice: String? = null) : Route
     data object PlanImport : Route
     data class Main(val section: Section) : Route

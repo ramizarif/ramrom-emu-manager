@@ -44,8 +44,7 @@ import com.ramrom.emumanager.ui.theme.SizeClass
 /** Empty state: the handheld, a headline, one line, one action. */
 @Composable
 fun ColumnScope.EmptyState(face: Face, title: String, body: String, action: String? = null, onAction: () -> Unit = {}) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(action) { if (action != null) runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus(action)
     Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LivingHandheld(HandheldState(awake = true, face = face), Modifier.size(250.dp, 180.dp))
         BasicText(title, style = EmuType.Headline2)

@@ -2,6 +2,7 @@ package com.ramrom.emumanager.ui.theme
 
 import android.provider.Settings
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
@@ -28,8 +29,15 @@ val LocalSizeClass = staticCompositionLocalOf { SizeClass.Wide }
 val LocalMotionEnabled = staticCompositionLocalOf { true }
 
 object EmuMotion {
-    /** Pieces landing, milestones. */
-    val Spring = CubicBezierEasing(.34f, 1.56f, .64f, 1f)
+    /**
+     * Pieces landing, milestones: ease-out-back, a small overshoot then settle. Closed form on
+     * purpose: CubicBezierEasing with y > 1 (the CSS curve .34,1.56,.64,1) throws "no solution"
+     * near t = 1 and crashed the app mid-transition.
+     */
+    val Spring = Easing { t ->
+        val c1 = 1.70158f; val c3 = c1 + 1f; val u = t - 1f
+        1f + c3 * u * u * u + c1 * u * u
+    }
     /** Everyday transitions, 150–250 ms. */
     val Out = CubicBezierEasing(.22f, 1f, .36f, 1f)
 }

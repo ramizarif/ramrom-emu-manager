@@ -49,8 +49,7 @@ private fun PlanTrack(n: Int, name: String) = JourneyTrack(n, 4, "Plan · $name"
 /** S06 Frontend choice. ES-DE is paid and comes from its own site: we never install it. */
 @Composable
 fun FrontendScreen(esdeInstalled: Boolean, chosenEsde: Boolean, onChoose: (Boolean) -> Unit, onNext: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus()
     ScreenKeys(start = onNext)
     GuidedScaffold(
         handheld = HandheldState(
@@ -113,8 +112,7 @@ fun SystemsScreen(
     onCloseSheet: () -> Unit,
     onNext: () -> Unit,
 ) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus()
     // X opens the emulator sheet for whichever row has focus.
     var focused by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
     ScreenKeys(start = onNext, x = { focused?.let { id -> if ((systems.firstOrNull { it.systemId == id }?.alternatives?.size ?: 0) > 1) onChangeEmulator(id) } })
@@ -147,8 +145,7 @@ fun SystemsScreen(
         }
         Sheet(changing != null, onDismiss = onCloseSheet) {
             if (changing != null) {
-                val sheetFocus = remember { FocusRequester() }
-                LaunchedEffect(changing.systemId) { runCatching { sheetFocus.requestFocus() } }
+                val sheetFocus = com.ramrom.emumanager.ui.input.initialFocus(changing.systemId)
                 BasicText("Emulator for ${changing.systemName}", style = EmuType.Headline2)
                 changing.alternatives.forEach { o ->
                     OptionCard(o.name, listOfNotNull(o.description, o.caveat).joinToString(" "), { onPickEmulator(changing.systemId, o.id) },
@@ -212,8 +209,7 @@ fun PlanReviewScreen(
     onExport: () -> Unit,
     onConnect: () -> Unit,
 ) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus()
     ScreenKeys(start = if (otherDevice == null) onStart else onExport, x = onExport)
     GuidedScaffold(
         handheld = handheld.copy(awake = otherDevice == null),
@@ -279,8 +275,7 @@ fun ImportPlanScreen(
     onPickAgain: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(import, error) { runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus(import, error)
     ScreenKeys(start = if (import != null) onAccept else null)
     GuidedScaffold(
         handheld = HandheldState(
@@ -322,6 +317,84 @@ fun ImportPlanScreen(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 import.changes.forEach { c ->
                     ListRow(c.systemName, detail = listOfNotNull(c.from, c.to).joinToString("  →  ").ifEmpty { null }?.let { "$it · ${c.why}" } ?: c.why)
+                }
+            }
+        }
+    }
+}
+
+/** One row of S09's matrix. */
+data class BiosRow(val systemName: String, val state: BiosRowState, val detail: String)
+enum class BiosRowState { Found, WrongVersion, Missing, Optional, InApp, NotChecked }
+
+/** S09 BIOS check. Names what's expected, never where to get it. */
+@Composable
+fun BiosCheckScreen(
+    rows: List<BiosRow>,
+    scanning: Boolean,
+    folderPicked: Boolean,
+    error: String?,
+    onPickFolder: () -> Unit,
+    onNext: () -> Unit,
+) {
+    val focus = com.ramrom.emumanager.ui.input.initialFocus(folderPicked, scanning)
+    ScreenKeys(start = onNext, x = onPickFolder)
+    val found = rows.count { it.state == BiosRowState.Found }
+    val needed = rows.count { it.state in setOf(BiosRowState.Found, BiosRowState.WrongVersion, BiosRowState.Missing, BiosRowState.NotChecked) }
+    GuidedScaffold(
+        handheld = HandheldState(awake = true, face = when {
+            scanning -> Face.LookDown
+            !folderPicked -> Face.Look
+            found == needed -> Face.Joy
+            else -> Face.Look
+        }),
+        bubble = when {
+            scanning -> "Checking your files..."
+            !folderPicked -> if (needed == 0) "No BIOS needed!" else "Show me where they are."
+            needed == 0 -> "Nothing else needed."
+            found == needed -> "All there!"
+            else -> "$found of $needed so far."
+        },
+        hints = listOf("A" to "Select", "X" to if (folderPicked) "Pick another folder" else "Pick folder", "START" to "Next", "B" to "Back"),
+        listHeavy = true,
+        actions = {
+            if (!folderPicked && needed > 0) {
+                EmuButton("Pick folder", onPickFolder, kind = ButtonKind.Go, focusRequester = focus)
+                EmuButton("Skip for now", onNext)
+            } else {
+                EmuButton("Next", onNext, kind = ButtonKind.Go, focusRequester = focus)
+                if (needed > 0) EmuButton("Pick another folder", onPickFolder)
+            }
+        },
+    ) {
+        PlanTrack(3, "BIOS")
+        Spacer(Modifier.height(10.dp))
+        BasicText(if (folderPicked) "Your BIOS files" else "Pick the folder with your BIOS files", style = EmuType.Headline)
+        Spacer(Modifier.height(8.dp))
+        when {
+            error != null -> InlineAlert("Can't read that folder.", error, AlertKind.Blocked)
+            scanning -> BasicText("Checking files by their fingerprint, not their name.", style = EmuType.Body)
+            !folderPicked && needed > 0 -> BasicText("Files are matched by fingerprint, so names don't matter. Nothing leaves your device.", style = EmuType.Body)
+            folderPicked && needed > 0 && found == 0 -> InlineAlert("No matching BIOS files in this folder.", "Try the folder you keep them in, or skip and add them later.", AlertKind.YourTurn)
+            else -> {}
+        }
+        Spacer(Modifier.height(10.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            rows.forEach { r ->
+                ListRow(r.systemName, detail = r.detail, leading = {
+                    TileIcon(
+                        when (r.state) { BiosRowState.Found -> "✓"; BiosRowState.WrongVersion -> "!"; BiosRowState.Missing -> "×"; BiosRowState.NotChecked -> "?"; else -> "–" },
+                        when (r.state) { BiosRowState.Found -> EmuColors.Mint; BiosRowState.WrongVersion -> EmuColors.Sunshine; BiosRowState.Missing -> EmuColors.Berry; else -> EmuColors.Hairline },
+                    )
+                }) {
+                    when (r.state) {
+                        BiosRowState.Found -> Tag("Found", TagKind.Done)
+                        BiosRowState.WrongVersion -> Tag("Not recognised", TagKind.Caveat)
+                        BiosRowState.Missing -> Tag("Missing", TagKind.Blocked)
+                        BiosRowState.Optional -> Tag("Optional", TagKind.Neutral)
+                        BiosRowState.InApp -> Tag("Set up in the app", TagKind.Neutral)
+                        BiosRowState.NotChecked -> Tag("Needed", TagKind.Neutral)
+                    }
                 }
             }
         }

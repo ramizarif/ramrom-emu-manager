@@ -24,11 +24,19 @@ class PlanDraft(
     var useEsde by mutableStateOf(true)
     var systems by mutableStateOf(initialSystems())
         private set
+    /** The folder picked on S09; kept so a changed plan can be re-checked without asking again. */
+    var biosFolder by mutableStateOf<android.net.Uri?>(null)
+    /** S09's last scan; null until the user picks a BIOS folder. */
+    var bios by mutableStateOf<List<com.ramrom.emumanager.engine.BiosCheckResult>?>(null)
+    /** Systems in the plan that need a BIOS, before any scan. */
+    val biosSystems: List<SystemChoice> get() = chosen.filter { it.biosNeeded }
+
     /** The system whose emulator sheet is open on S07. */
     var changing by mutableStateOf<String?>(null)
 
     fun toggle(systemId: String) {
         systems = systems.map { if (it.systemId == systemId) it.copy(on = !it.on) else it }
+        bios = null
     }
 
     fun pickEmulator(systemId: String, emulatorId: String) {
@@ -59,8 +67,18 @@ class PlanDraft(
         chipFamily = familyId,
         frontendId = if (useEsde) bundle.frontends.firstOrNull()?.id else null,
         systems = chosen.map { com.ramrom.emumanager.engine.Plan.PlanSystem(it.systemId, it.emulatorId) },
-        bios = null,
+        bios = bios?.let { com.ramrom.emumanager.engine.BiosIdentifier(bundle).toSummary(it) },
     )
+
+    fun checkBios(candidates: List<com.ramrom.emumanager.engine.CandidateFile>) {
+        bios = com.ramrom.emumanager.engine.BiosIdentifier(bundle).checkBios(candidates, chosen.map { it.systemId to it.emulatorId })
+    }
+
+    /** Sizes worth hashing: only files the size of a known BIOS. */
+    val biosSizes: Set<Long> get() = bundle.bios.map { it.size }.filter { it > 0 }.toSet()
+
+    /** Expected file names for a system, for the Missing row. Names only; we never say where to get them. */
+    fun biosFileNames(systemId: String): List<String> = bundle.bios.filter { it.system == systemId }.map { it.fileName }.distinct()
 
     /** Packages from the bundle that are on this device; the engine skips installing them. */
     fun inventory() = com.ramrom.emumanager.engine.Inventory(

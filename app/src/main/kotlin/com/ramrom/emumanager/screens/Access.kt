@@ -104,8 +104,7 @@ fun AccessScreen(manager: AccessManager, onDone: () -> Unit) {
         LimitedModeView(onUse = { manager.chooseLimited(); onDone() }, onConnect = { limitedView = false })
         return
     }
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(step) { runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus(step)
 
     fun state(done: Boolean, now: Boolean, bad: Boolean = false) = when { done -> CheckState.Done; bad -> CheckState.Blocked; now -> CheckState.Now; else -> CheckState.Todo }
 
@@ -199,8 +198,7 @@ private fun LimitedModeView(onUse: () -> Unit, onConnect: () -> Unit) {
     val context = LocalContext.current
     var filesOk by remember { mutableStateOf(android.os.Environment.isExternalStorageManager()) }
     LifecycleResumeEffect(Unit) { filesOk = android.os.Environment.isExternalStorageManager(); onPauseOrDispose { } }
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(filesOk) { runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus(filesOk)
     GuidedScaffold(
         handheld = HandheldState(awake = true, face = Face.Happy),
         bubble = "No problem, I'll guide you.",
@@ -248,8 +246,7 @@ fun AccessLostBanner(onReconnect: () -> Unit) {
 /** S05 reconnect sheet content: only the steps that matter after a restart. */
 @Composable
 fun ColumnScope.ReconnectSheetContent(setup: ShizukuSetup, onOpenShizuku: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus()
     BasicText("Wake me back up", style = EmuType.Headline2)
     CheckItem("Wi-Fi on", CheckState.Done)
     CheckItem("Start Shizuku", if (setup.running) CheckState.Done else CheckState.Now, detail = if (setup.running) null else "about 20 s")
