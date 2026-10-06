@@ -94,7 +94,7 @@ object StepText {
                 action = GuidedAction.RunNow, actionLabel = "Set it up", appId = step.subject, verifiable = false,
             )
             StepType.WriteEmulatorConfig -> StepCopy(
-                "Apply $name's best settings", "Tuned for this device.",
+                "Apply $name's settings for this device", "A few defaults that suit this handheld. Undo any time from Change history.",
                 action = GuidedAction.RunNow, actionLabel = "Apply", appId = step.subject, verifiable = false,
             )
             StepType.StageBios -> {

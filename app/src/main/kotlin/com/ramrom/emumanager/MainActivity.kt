@@ -408,7 +408,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         otherDevice = r.otherDevice,
                         onStart = {
                             scope.launch {
-                                val run = app.runs.start(d.toPlan(null), d.biosCopies())
+                                val run = app.runs.start(d.toPlan(), d.biosCopies())
                                 if (run == null) { toast = "Couldn't start: the app's data didn't load"; return@launch }
                                 app.appState.markFirstRunDone()
                                 // Home underneath, so B from the wizard lands there and the run carries on.

@@ -1,6 +1,9 @@
 package com.ramrom.emumanager.engine.config
 
 import com.ramrom.emumanager.engine.testBundle
+import com.ramrom.emumanager.knowledge.GameIdentity
+import com.ramrom.emumanager.knowledge.GameSetting
+import com.ramrom.emumanager.knowledge.GameSettingsProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -16,7 +19,11 @@ class SettingsProfilesTest {
     }
 
     @Test fun edenPerGameWritesTheThreeLineOverride() {
-        val botw = SettingsProfiles.forGame(testBundle, "eden", "01007ef00011e000", "ayn-thor", "sd8gen2").single()
+        // No per-game profiles ship yet; the format is ready for when they do.
+        val botw = GameSettingsProfile(GameIdentity("switch", "01007ef00011e000"), "eden", chipFamily = "sd8gen2",
+            settings = listOf(GameSetting("Renderer/resolution_setup", "3", "Resolution: 1X (720p/1080p)")))
+        val bundle = testBundle.copy(settingsProfiles = testBundle.settingsProfiles + botw)
+        assertEquals(botw, SettingsProfiles.forGame(bundle, "eden", "01007EF00011E000", "ayn-thor", "sd8gen2").single())
         val w = SettingsProfiles.write(eden, botw)!!
         assertEquals("{appData}/files/config/custom/01007EF00011E000.ini", w.filePath)
         val c = w.changes.changes
@@ -39,6 +46,11 @@ class SettingsProfilesTest {
         val azahar = testBundle.emulators.first { it.id == "azahar" }
         val w = SettingsProfiles.write(azahar, SettingsProfiles.defaults(testBundle, "azahar", "ayn-thor", "sd8gen2").first())!!
         assertEquals(mapOf("Layout/layout_option" to "1", "Layout/secondary_display_layout" to "2"), w.changes.changes)
+    }
+
+    @Test fun onlyDeviceDefaultsShip() {
+        // Per-game settings wait for a sourced, ToS-checked dataset (PLAN N17); one owner's tweaks aren't a baseline.
+        assertTrue(testBundle.settingsProfiles.all { it.gameKey.titleId.isEmpty() })
     }
 
     @Test fun everyProfileHasLabelsAndAWritableTarget() {

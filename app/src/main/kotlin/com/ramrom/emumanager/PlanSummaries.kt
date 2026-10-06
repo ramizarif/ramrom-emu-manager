@@ -13,9 +13,9 @@ object PlanSummaries {
                 // Planning for another device: nothing here counts as installed, and access is theirs to sort out.
                 val inventory = if (otherDevice == null) draft.inventory() else com.ramrom.emumanager.engine.Inventory()
                 val caps = if (otherDevice == null) app.access.capabilities.value else Capability.entries.toSet()
-                val here = PlanCompiler(writesConfigs = false).compile(draft.toPlan(null), it, inventory, caps).summary()
+                val here = PlanCompiler(writesConfigs = false).compile(draft.toPlan(), it, inventory, caps).summary()
                 // What Shizuku would save: the same plan compiled with full access.
-                val connected = PlanCompiler(writesConfigs = false).compile(draft.toPlan(null), it, inventory, Capability.entries.toSet()).summary()
+                val connected = PlanCompiler(writesConfigs = false).compile(draft.toPlan(), it, inventory, Capability.entries.toSet()).summary()
                 here.copy(savedMinutesIfConnected = (here.handsOnMinutes - connected.handsOnMinutes).coerceAtLeast(0))
             }.onFailure { e -> app.log.e("plan", "compile failed", e) }.getOrNull()
         }

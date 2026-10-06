@@ -63,7 +63,7 @@ fun GameDetailScreen(
         if (profiles.isEmpty()) {
             BasicText(
                 if (emulator == null) "No emulator is set up for this system yet."
-                else "No tuned settings for this game yet, so it plays with $emulator's own settings.",
+                else "No settings just for this game. It plays with $emulator's settings for this device.",
                 style = EmuType.Body,
             )
         }

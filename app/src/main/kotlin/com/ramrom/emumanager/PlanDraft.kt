@@ -19,6 +19,8 @@ class PlanDraft(
     /** Chip family to read recommendations for, e.g. "sd8gen2". "generic" when unknown. */
     val familyId: String,
     private val installed: (String) -> Boolean,
+    /** The handheld this plan is for, when it's this one; device-only defaults key on it. */
+    val deviceId: String? = null,
 ) {
     val esdeInstalled: Boolean = bundle.frontends.any { f -> f.packages.any(installed) }
     var useEsde by mutableStateOf(true)
@@ -74,7 +76,7 @@ class PlanDraft(
     }
 
     /** What the engine compiles. ES-DE is the only frontend in v1. */
-    fun toPlan(targetDeviceId: String?) = com.ramrom.emumanager.engine.Plan(
+    fun toPlan(targetDeviceId: String? = deviceId) = com.ramrom.emumanager.engine.Plan(
         targetDeviceId = targetDeviceId,
         chipFamily = familyId,
         frontendId = if (useEsde) bundle.frontends.firstOrNull()?.id else null,
@@ -148,13 +150,12 @@ class PlanDraft(
         val DEFAULT_ON = setOf("switch", "n3ds", "nds", "ps1", "ps2", "psp", "gc", "wii", "gba", "snes")
 
         fun create(context: Context, bundle: KnowledgeBundle, familyOverride: String? = null): PlanDraft {
-            val family = familyOverride
-                ?: DeviceDetector.match(DeviceDetector.readDevice(context), bundle).chipFamily?.id
-                ?: "generic"
+            val here = DeviceDetector.match(DeviceDetector.readDevice(context), bundle)
+            val family = familyOverride ?: here.chipFamily?.id ?: "generic"
             val pm = context.packageManager
-            return PlanDraft(bundle, family) { pkg ->
+            return PlanDraft(bundle, family, { pkg ->
                 try { pm.getPackageInfo(pkg, 0); true } catch (_: PackageManager.NameNotFoundException) { false }
-            }
+            }, deviceId = if (familyOverride == null) here.profile?.id else null)
         }
     }
 }

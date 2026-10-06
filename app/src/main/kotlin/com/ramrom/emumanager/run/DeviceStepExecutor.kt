@@ -35,6 +35,10 @@ class DeviceStepExecutor(
     /** S09's findings, by system id. */
     private val bios: Map<String, BiosCopy>,
     private val romRoot: String = DEFAULT_ROM_ROOT,
+    /** P09's writer and the device the plan is for, for L2 defaults. */
+    private val settings: ConfigWriter? = null,
+    private val deviceId: String? = null,
+    private val chipFamily: String = "generic",
 ) : StepExecutor {
     private val pm = context.packageManager
 
@@ -47,8 +51,7 @@ class DeviceStepExecutor(
         // ES-DE already knows every emulator in the bundle; nothing to write until a per-system
         // alternative emulator is chosen (verified on the Thor first).
         StepType.WriteFrontendConfig -> StepResult.Ok
-        // L2 config profiles are M3's next step; until then the app's defaults stand.
-        StepType.WriteEmulatorConfig -> StepResult.Ok
+        StepType.WriteEmulatorConfig -> deviceDefaults(step.subject)
         StepType.HealthCheck -> StepResult.Ok
         // Guided types only reach here if the plan marked them automatic; they still need the user.
         else -> StepResult.NeedsUser(step.userFacingText.ifEmpty { "This one needs you." })
@@ -68,6 +71,26 @@ class DeviceStepExecutor(
             // next); until then the user's "I did it" stands.
             else -> true
         }
+    }
+
+    /**
+     * L2 defaults through P09: snapshot, history and undo like any other change. The plan said so
+     * before the run started; the app is closed first only if it's open.
+     */
+    private suspend fun deviceDefaults(appId: String): StepResult {
+        val writer = settings ?: return StepResult.Ok
+        val emu = bundle.emulators.firstOrNull { it.id == appId } ?: return StepResult.Ok
+        for (profile in com.ramrom.emumanager.engine.config.SettingsProfiles.defaults(bundle, appId, deviceId, chipFamily)) {
+            val plan = writer.plan(emu, profile, profile.name, null)
+            plan.blocked?.let { reason ->
+                val values = profile.settings.joinToString(", ") { it.label }
+                return StepResult.NeedsUser("$reason Set these in ${emu.name}: $values.")
+            }
+            // A config the emulator hasn't created yet would be ours alone; let it make its own first.
+            if (plan.files.any { !it.existed && it.rows.isNotEmpty() }) return StepResult.NeedsUser("Open ${emu.name} once so it creates its settings, then come back.")
+            writer.apply(plan)?.let { return StepResult.Failed(it) }
+        }
+        return StepResult.Ok
     }
 
     private suspend fun install(appId: String, progress: (Float) -> Unit): StepResult {

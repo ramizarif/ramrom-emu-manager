@@ -30,8 +30,9 @@ object TimeConstants {
  */
 class PlanCompiler(
     /**
-     * Plan config-writing steps (P09/P10). Off in the app until the writers and L2 profiles land:
-     * a step that does nothing must never ask the user to do it.
+     * Plan the frontend config step (P10). Off in the app until its writer lands: a step that does
+     * nothing must never ask the user to do it. Emulator steps need no flag: they appear only for
+     * emulators with device defaults (L2) for this device.
      */
     private val writesConfigs: Boolean = true,
 ) {
@@ -144,9 +145,11 @@ class PlanCompiler(
                 handsOnSeconds = if (canWriteShared) 0 else TimeConstants.GUIDED_IN_APP_SETUP_HANDS_ON))
         }
 
-        // Phase 6: emulator configs. Some live in Android/data and need elevated access.
+        // Phase 6: emulator device defaults (L2), where we have them. Some live in Android/data and
+        // need elevated access.
         for (e in emulators) {
-            if (!writesConfigs || e.configFormat == ConfigFormat.NONE) continue
+            if (e.configFormat == ConfigFormat.NONE) continue
+            if (com.ramrom.emumanager.engine.config.SettingsProfiles.defaults(bundle, e.id, plan.targetDeviceId, plan.chipFamily).isEmpty()) continue
             val auto = if (e.pathsNeedElevated) canWriteAppData else canWriteShared || canWriteAppData
             add(Step(id("config", e.id), StepType.WriteEmulatorConfig, e.id, listOf(ready.getValue(e.id)),
                 if (auto) Executor.Auto else Executor.Guided,
