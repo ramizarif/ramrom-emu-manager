@@ -39,6 +39,8 @@ class DeviceStepExecutor(
     private val settings: ConfigWriter? = null,
     private val deviceId: String? = null,
     private val chipFamily: String = "generic",
+    /** The plan's systems, for ES-DE's per-system emulator choice. */
+    private val systems: List<com.ramrom.emumanager.engine.Plan.PlanSystem> = emptyList(),
 ) : StepExecutor {
     private val pm = context.packageManager
 
@@ -48,9 +50,7 @@ class DeviceStepExecutor(
         StepType.GrantAllFilesAccess -> packageOf(step.subject)?.let { grantAllFiles(it) } ?: notInstalled(step.subject)
         StepType.CreateFolder -> createFolder(step.subject)
         StepType.StageBios -> stageBios(step.subject)
-        // ES-DE already knows every emulator in the bundle; nothing to write until a per-system
-        // alternative emulator is chosen (verified on the Thor first).
-        StepType.WriteFrontendConfig -> StepResult.Ok
+        StepType.WriteFrontendConfig -> frontendChoices(step.subject)
         StepType.WriteEmulatorConfig -> deviceDefaults(step.subject)
         StepType.HealthCheck -> StepResult.Ok
         // Guided types only reach here if the plan marked them automatic; they still need the user.
@@ -89,6 +89,31 @@ class DeviceStepExecutor(
             // A config the emulator hasn't created yet would be ours alone; let it make its own first.
             if (plan.files.any { !it.existed && it.rows.isNotEmpty() }) return StepResult.NeedsUser("Open ${emu.name} once so it creates its settings, then come back.")
             writer.apply(plan)?.let { return StepResult.Failed(it) }
+        }
+        return StepResult.Ok
+    }
+
+    /**
+     * ES-DE's per-system emulator choice, where its default isn't the plan's emulator. A choice that
+     * already opens the right emulator (Eden Nightly for Eden) is kept.
+     */
+    private suspend fun frontendChoices(frontendId: String): StepResult {
+        val writer = settings ?: return StepResult.Ok
+        val fe = bundle.frontends.firstOrNull { it.id == frontendId } ?: return StepResult.Ok
+        val pkg = fe.packages.firstOrNull { p -> runCatching { pm.getPackageInfo(p, 0) }.isSuccess } ?: return StepResult.NeedsUser("Install ES-DE first.")
+        val dir = fe.paths.gamelists.ifEmpty { return StepResult.Ok }
+        for (s in systems) {
+            val emu = bundle.emulators.firstOrNull { it.id == s.emulatorId } ?: continue
+            val installed = emu.packages.firstOrNull { p -> runCatching { pm.getPackageInfo(p, 0) }.isSuccess }
+            val label = com.ramrom.emumanager.engine.config.EsdeLaunch.wanted(fe, s.systemId, emu, installed) ?: continue
+            val folder = fe.systemFolders[s.systemId] ?: s.systemId
+            val path = "$dir/$folder/gamelist.xml"
+            val current = withContext(Dispatchers.IO) { runCatching { File(path).readText() }.getOrDefault("") }
+            if (com.ramrom.emumanager.engine.config.EsdeLaunch.opens(com.ramrom.emumanager.engine.config.EsdeLaunch.systemLabel(current), emu, fe)) continue
+            val system = bundle.systems.firstOrNull { it.id == s.systemId }?.name ?: s.systemId
+            writer.writeText(pkg, "ES-DE", path, "$system opens in ${emu.name}", mapOf("alternativeEmulator" to label)) {
+                com.ramrom.emumanager.engine.config.EsdeLaunch.withSystemLabel(it, label)
+            }?.let { return StepResult.Failed(it) }
         }
         return StepResult.Ok
     }

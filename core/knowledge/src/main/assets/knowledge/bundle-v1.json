@@ -1108,6 +1108,48 @@
         "ps1": [
           "ps1"
         ]
+      },
+      "defaultLabels": {
+        "switch": "Eden (Standalone)",
+        "nds": "melonDS DS",
+        "n3ds": "Azahar",
+        "psp": "PPSSPP",
+        "ps1": "Beetle PSX",
+        "ps2": "AetherSX2 (Standalone)",
+        "n64": "Mupen64Plus-Next",
+        "gc": "Dolphin",
+        "wii": "Dolphin",
+        "gba": "mGBA",
+        "gbc": "Gambatte",
+        "gb": "Gambatte",
+        "nes": "Mesen",
+        "snes": "Snes9x - Current",
+        "genesis": "Genesis Plus GX",
+        "dreamcast": "Flycast",
+        "gamegear": "Genesis Plus GX",
+        "mastersystem": "Genesis Plus GX",
+        "saturn": "Beetle Saturn",
+        "arcade": "MAME - Current",
+        "neogeo": "FinalBurn Neo",
+        "psvita": "Vita3K (Standalone)",
+        "wiiu": "Cemu (Standalone)",
+        "pc": "DOSBox-Pure",
+        "steam": "GameNative (Standalone)"
+      },
+      "emulatorLabels": {
+        "eden": "Eden (Standalone)",
+        "duckstation": "DuckStation (Standalone)",
+        "ppsspp": "PPSSPP (Standalone)",
+        "dolphin": "Dolphin (Standalone)",
+        "azahar": "Azahar (Standalone)",
+        "nethersx2": "AetherSX2 (Standalone)",
+        "melonds": "melonDS (Standalone)",
+        "vita3k": "Vita3K (Standalone)",
+        "cemu": "Cemu (Standalone)",
+        "gamenative": "GameNative (Standalone)"
+      },
+      "packageLabels": {
+        "dev.eden.eden_emulator.nightly": "Eden Nightly (Standalone)"
       }
     }
   ],

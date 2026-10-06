@@ -28,14 +28,7 @@ object TimeConstants {
  * Compiler that converts a Plan + Inventory + Capabilities into a CompiledPlan.
  * Pure function, fully unit-testable.
  */
-class PlanCompiler(
-    /**
-     * Plan the frontend config step (P10). Off in the app until its writer lands: a step that does
-     * nothing must never ask the user to do it. Emulator steps need no flag: they appear only for
-     * emulators with device defaults (L2) for this device.
-     */
-    private val writesConfigs: Boolean = true,
-) {
+class PlanCompiler {
     companion object {
         /** Sources with a stable, machine-readable APK link we may download ourselves. */
         val AUTO_SOURCES = setOf(SourceType.GITHUB_RELEASE, SourceType.FORGEJO_RELEASE, SourceType.DIRECT_URL)
@@ -136,8 +129,13 @@ class PlanCompiler(
             }
         }
 
-        // Phase 5: frontend config. ES-DE keeps it in shared storage; it must be closed while we write.
-        if (writesConfigs && frontend != null && !inventory.esdeConfigured) {
+        // Phase 5: frontend config: tell ES-DE which emulator opens each system where its default is
+        // something else (a RetroArch core where the plan picks a standalone app). ES-DE keeps it in
+        // shared storage and must be closed while we write.
+        val needsChoice = frontend != null && plan.systems.any { s ->
+            emulatorMap[s.emulatorId]?.let { com.ramrom.emumanager.engine.config.EsdeLaunch.wanted(frontend, s.systemId, it, null) } != null
+        }
+        if (frontend != null && needsChoice) {
             add(Step(id("config", frontend.id), StepType.WriteFrontendConfig, frontend.id, folderIds + ready.getValue(frontend.id),
                 if (canWriteShared) Executor.Auto else Executor.Guided,
                 capabilityNeeded = Capability.WRITE_SHARED_STORAGE,

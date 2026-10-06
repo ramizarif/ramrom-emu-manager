@@ -103,9 +103,9 @@ class SetupRuns(private val app: EmuApplication) {
 
     private suspend fun launch(runId: String, plan: Plan, bios: Map<String, BiosCopy>, bundle: KnowledgeBundle): ActiveRun {
         val inventory = runCatching { DeviceInventory(app, bundle, app.access).scan() }.getOrElse { inventory(app, bundle) }
-        val compiled = PlanCompiler(writesConfigs = false).compile(plan, bundle, inventory, app.access.capabilities.value)
+        val compiled = PlanCompiler().compile(plan, bundle, inventory, app.access.capabilities.value)
         val executor = DeviceStepExecutor(app, bundle, app.access, AppInstaller(app, app.access), bios,
-            settings = app.settings, deviceId = plan.targetDeviceId, chipFamily = plan.chipFamily)
+            settings = app.settings, deviceId = plan.targetDeviceId, chipFamily = plan.chipFamily, systems = plan.systems)
         val runner = WizardRunner(compiled, executor, JsonRunStore(dir, compiled), runId)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         runner.start(scope)

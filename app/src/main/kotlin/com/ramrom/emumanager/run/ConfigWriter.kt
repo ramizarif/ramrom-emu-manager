@@ -159,15 +159,41 @@ class ConfigWriter(private val app: EmuApplication) {
         null
     }
 
+    /**
+     * A whole-file edit for formats without a key codec (an ES-DE gamelist): closes [pkg] if it's
+     * open (ES-DE writes gamelists on exit), snapshots, writes, records history. Null on success.
+     */
+    suspend fun writeText(pkg: String, appName: String, path: String, title: String, keys: Map<String, String>, edit: (String) -> String): String? = withContext(Dispatchers.IO) {
+        if ((app.access.access.isRunning(pkg) as? AccessResult.Ok)?.value != false) app.access.access.forceStop(pkg)
+        val store = AccessStore()
+        val existed = store.exists(path)
+        val before = store.read(path).orEmpty()
+        val after = edit(before)
+        if (after == before) return@withContext null
+        val id = UUID.randomUUID().toString()
+        val beforeFile = File(historyDir, "$id.before"); val afterFile = File(historyDir, "$id.after")
+        if (existed) beforeFile.writeText(before)
+        runCatching { store.write(path, after) }.onFailure { e -> app.log.e("config", "write $path", e); return@withContext "Couldn't write $appName's settings: ${e.message}" }
+        if (store.read(path) != after) return@withContext "Couldn't write $appName's settings: the file didn't read back the same."
+        afterFile.writeText(after)
+        app.db.configChangeDao().insert(ConfigChange(
+            id = id, at = System.currentTimeMillis(), target = ConfigChangeTarget.FILE, reason = ConfigChangeReason.PROFILE,
+            keysAfter = JSONObject(keys).toString(), snapshotPath = beforeFile.path, filePath = path, pkg = pkg,
+            title = "$title · $appName", existedBefore = existed, writtenPath = afterFile.path,
+        ))
+        app.log.i("config", "wrote $path: $keys")
+        null
+    }
+
     /** Put the file back as it was. Unless [force], refuses when the file changed since our write. */
     suspend fun undo(change: ConfigChange, force: Boolean = false): UndoOutcome = withContext(Dispatchers.IO) {
+        // Undo restores whole files; the codec only matters for emulators' INI files.
         val emu = app.knowledge.getBundle()?.emulators?.firstOrNull { change.pkg in it.packages }
-            ?: return@withContext UndoOutcome.Failed("RamROM doesn't know this app any more.")
         val written = runCatching { File(change.writtenPath).readText() }.getOrNull()
             ?: return@withContext UndoOutcome.Failed("The copy needed to undo this is gone.")
         // The app could save over the restored file on exit, so it closes first, as for a write.
         if ((app.access.access.isRunning(change.pkg) as? AccessResult.Ok)?.value != false) app.access.access.forceStop(change.pkg)
-        val tx = ConfigTransaction(codecFor(emu), AccessStore(), LocalStore())
+        val tx = ConfigTransaction(emu?.let(::codecFor) ?: QtIniCodec(), AccessStore(), LocalStore())
         val r = runCatching { tx.undoChecked(change.filePath, change.snapshotPath, written, change.existedBefore, force) }
             .getOrElse { e -> app.log.e("config", "undo ${change.filePath}", e); return@withContext UndoOutcome.Failed(e.message ?: "Undo failed") }
         when (r) {

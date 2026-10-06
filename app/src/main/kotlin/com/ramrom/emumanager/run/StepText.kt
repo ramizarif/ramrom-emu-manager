@@ -90,7 +90,7 @@ object StepText {
                 action = GuidedAction.OwnAllFiles, actionLabel = "Allow file access", verifiable = true,
             )
             StepType.WriteFrontendConfig -> StepCopy(
-                "Set up $name", "So it knows where your games and emulators are.",
+                "Point $name at your emulators", "So each system opens in the emulator you chose, not $name's default. $name is closed while we write.",
                 action = GuidedAction.RunNow, actionLabel = "Set it up", appId = step.subject, verifiable = false,
             )
             StepType.WriteEmulatorConfig -> StepCopy(

@@ -253,6 +253,14 @@ data class FrontendProfile(
      * and recognised, never created: new games go to [systemFolders].
      */
     val folderAliases: Map<String, List<String>> = emptyMap(),
+    /**
+     * ES-DE's labels, from its bundled es_systems.xml (Android): the command each system launches by
+     * default, the label that picks a standalone emulator, and per-package overrides (a nightly
+     * build). RetroArch has none: ES-DE's defaults already are RetroArch cores.
+     */
+    val defaultLabels: Map<String, String> = emptyMap(),
+    val emulatorLabels: Map<String, String> = emptyMap(),
+    val packageLabels: Map<String, String> = emptyMap(),
     val mediaTypes: List<MediaType> = emptyList(),
     val mustBeClosedToWrite: Boolean = false,
     val knownCompanions: List<String> = emptyList()
