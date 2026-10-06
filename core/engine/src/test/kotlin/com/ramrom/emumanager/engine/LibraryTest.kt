@@ -36,5 +36,13 @@ class LibraryTest {
         assertTrue(ps2.games.first { it.title == "Other" }.playable)
     }
 
+    /** What import writes for a multi-disc game: ES-DE shows the folder as one entry. */
+    @Test fun m3uFolderIsOneGame() {
+        val d = "$r/ps1/FF7 (USA).m3u"
+        val ps1 = lib(null, "$d/FF7 (USA).m3u", "$d/FF7 (USA) (Disc 1).cue", "$d/FF7 (USA) (Disc 1).bin", "$d/FF7 (USA) (Disc 2).cue", "$d/FF7 (USA) (Disc 2).bin").single()
+        assertEquals(listOf("FF7 (USA)"), ps1.games.map { it.title })
+        assertEquals(4, ps1.games.single().files.size)
+    }
+
     @Test fun emptyFoldersAreLeftOut() = assertTrue(lib(null, "$r/nds/.keep").isEmpty())
 }

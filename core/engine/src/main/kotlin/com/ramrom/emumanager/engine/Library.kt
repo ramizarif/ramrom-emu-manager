@@ -33,7 +33,11 @@ object Library {
                 ?: bundle.emulators.filter { folder.systemId in it.systems }.flatMap { it.romExtensions }).map { it.lowercase() }.toSet()
             val strays = folder.strays.map { it.fileName }.toSet()
             val files = folder.files.filter { it !in strays }
-            val byBase = files.groupBy { it.substringAfterLast('/').substringBeforeLast('.') }
+            // A `Game.m3u/` folder (ES-DE's directory-as-file) is one game, whatever discs are inside.
+            val byBase = files.groupBy { f ->
+                f.split('/').dropLast(1).lastOrNull { it.endsWith(".m3u", true) }?.substringBeforeLast('.')
+                    ?: f.substringAfterLast('/').substringBeforeLast('.')
+            }
             val games = byBase.mapNotNull { (base, group) ->
                 val exts = group.map { it.substringAfterLast('.', "").lowercase() }
                 // A lone .bin with a matching .cue is one game; a .bin alone (PS2 dumps) is a game itself.

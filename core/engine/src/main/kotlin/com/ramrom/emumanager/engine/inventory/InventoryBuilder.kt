@@ -160,6 +160,6 @@ class InventoryBuilder(
     }
 
     private companion object {
-        val COMPANIONS = setOf("sav", "ml1", "srm", "sta", "dsv", "txt", "nfo", "jpg", "png")
+        val COMPANIONS = setOf("sav", "ml1", "srm", "sta", "dsv", "txt", "nfo", "jpg", "png", "m3u")
     }
 }
