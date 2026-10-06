@@ -39,6 +39,12 @@ import com.ramrom.emumanager.screens.MainScreen
 import com.ramrom.emumanager.screens.ReconnectSheetContent
 import com.ramrom.emumanager.screens.SetupPath
 import com.ramrom.emumanager.screens.WelcomeScreen
+import com.ramrom.emumanager.screens.FrontendScreen
+import com.ramrom.emumanager.screens.SystemsScreen
+import com.ramrom.emumanager.screens.PlanReviewScreen
+import com.ramrom.emumanager.ui.handheld.Face
+import com.ramrom.emumanager.ui.handheld.HandheldState
+import com.ramrom.emumanager.ui.handheld.HandheldTile
 import com.ramrom.emumanager.ui.input.KeyRouter
 import com.ramrom.emumanager.ui.input.LocalKeyRouter
 import com.ramrom.emumanager.ui.input.controllerKeys
@@ -83,7 +89,14 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     val mode by app.access.mode.collectAsState()
     val setup by app.access.setup.collectAsState()
     var reconnectOpen by remember { mutableStateOf(false) }
-    BackHandler(enabled = nav.canPop || reconnectOpen || pickerOpen) { when { pickerOpen -> pickerOpen = false; reconnectOpen -> reconnectOpen = false; else -> nav.pop() } }
+    // One draft per plan flow; recreated when the flow starts again.
+    var draft by remember { mutableStateOf<PlanDraft?>(null) }
+    var otherPickerOpen by remember { mutableStateOf(false) }
+    val startPlan = { other: String?, family: String? ->
+        draft = app.knowledge.getBundle()?.let { PlanDraft.create(context, it, family) }
+        if (draft != null) nav.push(Route.PlanFrontend(other))
+    }
+    BackHandler(enabled = nav.canPop || reconnectOpen || pickerOpen || otherPickerOpen || draft?.changing != null) { when { draft?.changing != null -> draft?.changing = null; otherPickerOpen -> otherPickerOpen = false; pickerOpen -> pickerOpen = false; reconnectOpen -> reconnectOpen = false; else -> nav.pop() } }
 
     val openShizuku = {
         context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")?.let { context.startActivity(it) }
@@ -106,16 +119,65 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         }
                     }
                 }
-                Route.ChoosePath -> ChoosePathScreen(existing, restoreUnlocked = false) { path ->
-                    when (path) {
-                        SetupPath.Adopt, SetupPath.SetUp ->
-                            if (mode == AccessMode.Elevated || mode == AccessMode.Limited) finishOnboarding(Route.Main(Section.Home))
-                            else nav.push(Route.Access(Route.Main(Section.Home)))
-                        SetupPath.PlanOther -> finishOnboarding(Route.Main(Section.Home))
-                        SetupPath.Restore -> Unit
+                Route.ChoosePath -> Box(Modifier.fillMaxSize()) {
+                    ChoosePathScreen(existing, restoreUnlocked = false) { path ->
+                        when (path) {
+                            SetupPath.SetUp ->
+                                if (mode == AccessMode.Elevated || mode == AccessMode.Limited) startPlan(null, null)
+                                else nav.push(Route.Access(Route.PlanFrontend()))
+                            // Adopt (S12) lands in M3; Home shows what's here until then.
+                            SetupPath.Adopt ->
+                                if (mode == AccessMode.Elevated || mode == AccessMode.Limited) finishOnboarding(Route.Main(Section.Home))
+                                else nav.push(Route.Access(Route.Main(Section.Home)))
+                            SetupPath.PlanOther -> otherPickerOpen = true
+                            SetupPath.Restore -> Unit
+                        }
+                    }
+                    Sheet(otherPickerOpen, onDismiss = { otherPickerOpen = false }) {
+                        DevicePickerContent(knownDevices) { id ->
+                            otherPickerOpen = false
+                            val profile = app.knowledge.getBundle()?.devices?.firstOrNull { it.id == id }
+                            startPlan(profile?.names?.firstOrNull() ?: "other handheld", profile?.chipFamily)
+                        }
                     }
                 }
-                is Route.Access -> AccessScreen(app.access, onDone = { if (r.next is Route.Main) finishOnboarding(r.next) else nav.reset(r.next) })
+                is Route.Access -> AccessScreen(app.access, onDone = {
+                    when (val next = r.next) {
+                        is Route.Main -> finishOnboarding(next)
+                        // Replace the access step so B from S06 goes back to S03, not to S04.
+                        is Route.PlanFrontend -> { nav.pop(); startPlan(next.otherDevice, null) }
+                        else -> nav.reset(next)
+                    }
+                })
+                is Route.PlanFrontend -> draft?.let { d ->
+                    FrontendScreen(d.esdeInstalled, d.useEsde, onChoose = { d.useEsde = it }, onNext = { nav.push(Route.PlanSystems(r.otherDevice)) })
+                }
+                is Route.PlanSystems -> draft?.let { d ->
+                    SystemsScreen(
+                        d.systems, bestGuess = device.kind != DeviceSummary.Kind.Verified || r.otherDevice != null, familyName = d.familyId.takeIf { it != "generic" }?.let(Detection::familyName),
+                        changing = d.systems.firstOrNull { it.systemId == d.changing },
+                        onToggle = d::toggle, onChangeEmulator = { d.changing = it }, onPickEmulator = d::pickEmulator,
+                        onCloseSheet = { d.changing = null }, onNext = { nav.push(Route.PlanReview(r.otherDevice)) },
+                    )
+                }
+                is Route.PlanReview -> draft?.let { d ->
+                    val limited = mode != AccessMode.Elevated
+                    val summary = remember(d.systems, d.useEsde, limited) { PlanSummaries.review(app, d, r.otherDevice, limited) }
+                    PlanReviewScreen(
+                        summary,
+                        handheld = HandheldState(
+                            awake = true, face = Face.Happy,
+                            tiles = d.chosen.distinctBy { it.emulatorId }.mapIndexed { i, s -> HandheldTile(s.emulatorId, s.tileLabel, Detection.tileColor(i)) },
+                            carts = d.chosen.take(3).map { com.ramrom.emumanager.screens.cartLabel(it.systemId) }, moreCarts = (d.chosen.size - 3).coerceAtLeast(0),
+                        ),
+                        otherDevice = r.otherDevice,
+                        // Running a plan (S13) lands in M3; until then Start and Save both finish onboarding.
+                        onStart = { finishOnboarding(Route.Main(Section.Home)) },
+                        onSave = { finishOnboarding(Route.Main(Section.Home)) },
+                        onExport = { },
+                        onConnect = { nav.push(Route.Access(r)) },
+                    )
+                }
                 is Route.Main -> MainScreen(
                     r.section, onSection = nav::switchSection,
                     onStartSetup = { nav.push(Route.Access(Route.Main(Section.Home))) },

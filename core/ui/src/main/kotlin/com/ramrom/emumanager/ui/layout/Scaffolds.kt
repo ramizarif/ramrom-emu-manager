@@ -35,6 +35,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -175,6 +177,7 @@ fun PageScaffold(
 }
 
 /** Bottom sheet over a scrim. Rendered by the caller inside an overlay slot. */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun BoxScope.Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val motion = LocalMotionEnabled.current
@@ -187,7 +190,10 @@ fun BoxScope.Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable
         exit = slideOutVertically(tween(if (motion) 200 else 0)) { it } + fadeOut(tween(if (motion) 150 else 0)),
     ) {
         Column(
-            Modifier.widthIn(max = 560.dp).fillMaxWidth()
+            // Focus stays inside an open sheet; the screen behind is dimmed and shouldn't be reachable.
+            Modifier.focusProperties { exit = { androidx.compose.ui.focus.FocusRequester.Cancel } }
+                .focusGroup()
+                .widthIn(max = 560.dp).fillMaxWidth()
                 .shadow(24.dp, RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .background(EmuColors.Canvas, RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .padding(start = 26.dp, end = 26.dp, top = 10.dp, bottom = 18.dp),

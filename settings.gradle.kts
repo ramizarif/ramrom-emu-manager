@@ -4,4 +4,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "RamROMEmuManager"
-include(":app", ":core:ui", ":core:knowledge", ":core:access", ":core:data", ":core:entitlements")
+include(":app", ":core:ui", ":core:knowledge", ":core:access", ":core:data", ":core:entitlements", ":core:engine")

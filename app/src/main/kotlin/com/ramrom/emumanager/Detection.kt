@@ -31,7 +31,9 @@ object Detection {
         }
     }
 
-    private fun familyName(id: String) = when (id) {
+    fun tileColor(i: Int) = tileColors[i % tileColors.size]
+
+    fun familyName(id: String) = when (id) {
         "sd8gen2" -> "Snapdragon 8 Gen 2"; "sd8gen3" -> "Snapdragon 8 Gen 3"; "sd8elite" -> "Snapdragon 8 Elite"
         "g3xgen2" -> "Snapdragon G3x Gen 2"; "sd865" -> "Snapdragon 865"; else -> "Android"
     }

@@ -17,6 +17,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import com.ramrom.emumanager.ui.components.AlertKind
 import com.ramrom.emumanager.ui.components.ButtonKind
@@ -75,7 +78,7 @@ fun FrontendScreen(esdeInstalled: Boolean, chosenEsde: Boolean, onChoose: (Boole
                 icon = { TileIcon("◧", EmuColors.InkSoft, 38.dp) }) { if (!chosenEsde) Tag("Chosen", TagKind.Done) }
         }
         Spacer(Modifier.height(12.dp))
-        if (chosenEsde && !esdeInstalled) InlineAlert("ES-DE is a paid app from es-de.org.", "Install it whenever you like; setup connects it as soon as it's there.", AlertKind.YourTurn)
+        if (chosenEsde && !esdeInstalled) InlineAlert("ES-DE is a paid app from es-de.org.", "Setup connects it once it's installed.", AlertKind.YourTurn)
         else BasicText("More frontends come later. You can change this any time.", style = EmuType.Body)
     }
 }
@@ -102,7 +105,7 @@ data class EmulatorOption(val id: String, val name: String, val description: Str
 fun SystemsScreen(
     systems: List<SystemChoice>,
     bestGuess: Boolean,
-    familyName: String,
+    familyName: String?,
     changing: SystemChoice?,
     onToggle: (String) -> Unit,
     onChangeEmulator: (String) -> Unit,
@@ -112,7 +115,9 @@ fun SystemsScreen(
 ) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    ScreenKeys(start = onNext)
+    // X opens the emulator sheet for whichever row has focus.
+    var focused by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    ScreenKeys(start = onNext, x = { focused?.let { id -> if ((systems.firstOrNull { it.systemId == id }?.alternatives?.size ?: 0) > 1) onChangeEmulator(id) } })
     val on = systems.filter { it.on }
     val tiles = on.distinctBy { it.emulatorId }.mapIndexed { i, s -> HandheldTile(s.emulatorId, s.tileLabel, accent(i)) }
     Box(Modifier.fillMaxSize()) {
@@ -120,7 +125,7 @@ fun SystemsScreen(
             handheld = HandheldState(awake = true, face = Face.LookDown, tiles = tiles, carts = on.take(3).map { cartLabel(it.systemId) }, moreCarts = (on.size - 3).coerceAtLeast(0)),
             hints = listOf("A" to "On/off", "X" to "Change emulator", "START" to "Next", "B" to "Back"),
             listHeavy = true,
-            banner = if (bestGuess) { { Box(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) { InlineAlert("Recommendations are best guesses for $familyName.", "Change anything you like.", AlertKind.Neutral) } } } else null,
+            banner = if (bestGuess) { { Box(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) { InlineAlert(if (familyName == null) "These are general picks; we couldn't tell your chip." else "Recommendations are best guesses for $familyName.", "Change anything you like.", AlertKind.Neutral) } } } else null,
             actions = { EmuButton("Next", onNext, kind = ButtonKind.Go) },
         ) {
             PlanTrack(2, "Systems")
@@ -132,7 +137,8 @@ fun SystemsScreen(
                 Spacer(Modifier.height(6.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     list.forEachIndexed { i, s ->
-                        val m = if (gi == 0 && i == 0) Modifier.focusRequester(focus) else Modifier
+                        val m = (if (gi == 0 && i == 0) Modifier.focusRequester(focus) else Modifier)
+                            .onFocusChanged { if (it.isFocused) focused = s.systemId }
                         SystemRow(s, m, onToggle = { onToggle(s.systemId) }, onChange = { onChangeEmulator(s.systemId) })
                     }
                 }
@@ -141,9 +147,12 @@ fun SystemsScreen(
         }
         Sheet(changing != null, onDismiss = onCloseSheet) {
             if (changing != null) {
+                val sheetFocus = remember { FocusRequester() }
+                LaunchedEffect(changing.systemId) { runCatching { sheetFocus.requestFocus() } }
                 BasicText("Emulator for ${changing.systemName}", style = EmuType.Headline2)
                 changing.alternatives.forEach { o ->
-                    OptionCard(o.name, listOfNotNull(o.description, o.caveat).joinToString(" "), { onPickEmulator(changing.systemId, o.id) }) {
+                    OptionCard(o.name, listOfNotNull(o.description, o.caveat).joinToString(" "), { onPickEmulator(changing.systemId, o.id) },
+                        if (o.id == changing.emulatorId) Modifier.focusRequester(sheetFocus) else Modifier) {
                         if (o.recommended) Tag("Recommended", TagKind.Done)
                         if (o.id == changing.emulatorId) Tag("Chosen", TagKind.Neutral)
                     }
@@ -173,7 +182,7 @@ private fun accent(i: Int) = accents[i % accents.size]
 private fun accentFor(id: String) = accents[(id.hashCode() and 0x7fffffff) % accents.size]
 
 /** Short cartridge labels in mono. */
-private fun cartLabel(systemId: String) = when (systemId) {
+fun cartLabel(systemId: String) = when (systemId) {
     "switch" -> "nsw"; "gc" -> "gc"; "wii" -> "wii"; "n3ds" -> "3ds"; "nds" -> "nds"; "psx", "ps1" -> "ps1"; "ps2" -> "ps2"; "psp" -> "psp"
     else -> systemId.take(3)
 }
