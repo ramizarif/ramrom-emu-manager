@@ -10,6 +10,7 @@ import com.ramrom.emumanager.engine.config.ChangeSet
 import com.ramrom.emumanager.engine.config.ConfigCodec
 import com.ramrom.emumanager.engine.config.ConfigTransaction
 import com.ramrom.emumanager.engine.config.DolphinIniCodec
+import com.ramrom.emumanager.engine.config.EsdeLaunch
 import com.ramrom.emumanager.engine.config.FileStore
 import com.ramrom.emumanager.engine.config.QtIniCodec
 import com.ramrom.emumanager.engine.config.SettingsProfiles
@@ -84,17 +85,27 @@ class ConfigWriter(private val app: EmuApplication) {
         runCatching { app.packageManager.getPackageInfo(pkg, 0) }.isSuccess
     }
 
-    suspend fun plan(emu: EmulatorProfile, profile: GameSettingsProfile, title: String, gameId: String?): ApplyPlan = withContext(Dispatchers.IO) {
+    /**
+     * [launch] is the build ES-DE opens the game in; a game's settings go to that build only. Device
+     * defaults ([launch] null) go to every installed build.
+     */
+    suspend fun plan(emu: EmulatorProfile, profile: GameSettingsProfile, title: String, gameId: String?, launch: EsdeLaunch.Pick? = null): ApplyPlan = withContext(Dispatchers.IO) {
         val write = SettingsProfiles.write(emu, profile)
-        val pkgs = installed(emu)
+        val pkgs = when (launch) {
+            null -> installed(emu)
+            is EsdeLaunch.Pick.Package -> listOf(launch.pkg)
+            else -> emptyList()
+        }
         val blocked = when {
             write == null -> "${emu.name} keeps these settings somewhere RamROM can't write."
+            launch is EsdeLaunch.Pick.OtherEmulator -> "ES-DE opens this game in ${launch.name}, so ${emu.name} settings wouldn't be used. Choose ${emu.name} for it in ES-DE first, or keep ${launch.name}."
             pkgs.isEmpty() -> "Install ${emu.name} first."
             "{appData}" in write.filePath && !app.access.capabilities.value.contains(com.ramrom.emumanager.access.Capability.WRITE_APP_DATA) ->
                 "${emu.name}'s settings are in a protected folder. With elevated access RamROM sets them for you; for now, set them in ${emu.name}."
             else -> null
         }
         if (blocked != null || write == null) return@withContext ApplyPlan(title, gameId, emu, profile, emptyList(), blocked)
+        // A shared-storage config (Azahar) is one file whichever build is installed.
         val targets = if ("{appData}" in write.filePath) pkgs else pkgs.take(1)
         val files = targets.map { pkg ->
             val path = resolve(write.filePath, pkg)

@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.ramrom.emumanager.data.ConfigChange
 import com.ramrom.emumanager.engine.LibraryGame
 import com.ramrom.emumanager.engine.LibrarySystem
+import com.ramrom.emumanager.engine.config.EsdeLaunch
 import com.ramrom.emumanager.engine.config.SettingsProfiles
 import com.ramrom.emumanager.engine.importer.SwitchTitleId
 import com.ramrom.emumanager.importer.DeviceImportProbe
@@ -62,6 +63,14 @@ fun gameIdOf(s: LibrarySystem, g: LibraryGame): String? {
     return SwitchTitleId.read(file.substringAfterLast('/'), if (file.endsWith(".nsp", true)) DeviceImportProbe().reader(path) else null)
 }
 
+/** The build ES-DE opens [g] in, read from its gamelist; the emulator's main build without ES-DE. */
+fun launchOf(app: EmuApplication, bundle: KnowledgeBundle, s: LibrarySystem, g: LibraryGame, emu: EmulatorProfile): EsdeLaunch.Pick {
+    val dir = bundle.frontends.firstOrNull()?.paths?.gamelists?.ifEmpty { null }
+    val xml = dir?.let { runCatching { java.io.File("$it/${s.folderName}/gamelist.xml").readText() }.getOrNull() }
+    val label = xml?.let { x -> g.files.firstNotNullOfOrNull { EsdeLaunch.label(x, it) } }
+    return EsdeLaunch.packageFor(emu, label, app.settings.installed(emu))
+}
+
 private fun GameSettingsProfile.card(bundle: KnowledgeBundle, device: String?) = ProfileCard(
     name = if (gameKey.titleId.isEmpty()) name else "Recommended",
     source = when {
@@ -86,6 +95,12 @@ fun GameDetailRoute(app: EmuApplication, nav: Navigator, systemId: String, baseN
     val key = remember { deviceKey(app, bundle) }
     val emu = remember(s) { emulatorFor(bundle, s, key.chipFamily) }
     val gameId by produceState<String?>(null, s, g) { value = withContext(Dispatchers.IO) { gameIdOf(s, g) } }
+    val launch by produceState<EsdeLaunch.Pick?>(null, s, g, emu) { value = emu?.let { e -> withContext(Dispatchers.IO) { launchOf(app, bundle, s, g, e) } } }
+    val playsIn = when (val l = launch) {
+        is EsdeLaunch.Pick.Package -> if (l.pkg.endsWith(".nightly")) "${emu?.name} Nightly" else emu?.name
+        is EsdeLaunch.Pick.OtherEmulator -> "${l.name}, chosen in ES-DE"
+        else -> emu?.name
+    }
     val profiles = remember(gameId, emu) {
         val id = gameId ?: return@remember emptyList()
         emu?.let { SettingsProfiles.forGame(bundle, it.id, id, key.deviceId, key.chipFamily) }.orEmpty()
@@ -98,7 +113,7 @@ fun GameDetailRoute(app: EmuApplication, nav: Navigator, systemId: String, baseN
             "System" to s.name,
             "File" to g.files.joinToString(", ") { it.substringAfterLast('/') },
             if (s.systemId == "switch") "Title ID" to (gameId ?: "Not in the file name or file") else null,
-            emu?.let { "Plays in" to it.name },
+            playsIn?.let { "Plays in" to it },
         ),
         emulator = emu?.name,
         profiles = profiles.map { it.card(bundle, key.deviceId) },
@@ -106,7 +121,8 @@ fun GameDetailRoute(app: EmuApplication, nav: Navigator, systemId: String, baseN
         onApply = { i ->
             val e = emu ?: return@GameDetailScreen
             scope.launch {
-                app.settings.pending.value = app.settings.plan(e, profiles[i], g.title, gameId)
+                val launch = withContext(Dispatchers.IO) { launchOf(app, bundle, s, g, e) }
+                app.settings.pending.value = app.settings.plan(e, profiles[i], g.title, gameId, launch)
                 nav.push(Route.ApplyPreview)
             }
         },
