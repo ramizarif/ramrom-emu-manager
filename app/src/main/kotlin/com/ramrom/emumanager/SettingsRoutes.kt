@@ -59,14 +59,14 @@ fun emulatorFor(bundle: KnowledgeBundle, s: LibrarySystem, chipFamily: String): 
 fun gameIdOf(s: LibrarySystem, g: LibraryGame): String? {
     if (s.systemId != "switch") return null
     val file = g.files.firstOrNull { it.endsWith(".nsp", true) || it.endsWith(".xci", true) } ?: return null
-    val path = "${s.folderPath}/$file"
+    val path = "${g.folderPath.ifEmpty { s.folderPath }}/$file"
     return SwitchTitleId.read(file.substringAfterLast('/'), if (file.endsWith(".nsp", true)) DeviceImportProbe().reader(path) else null)
 }
 
 /** The build ES-DE opens [g] in, read from its gamelist; the emulator's main build without ES-DE. */
 fun launchOf(app: EmuApplication, bundle: KnowledgeBundle, s: LibrarySystem, g: LibraryGame, emu: EmulatorProfile): EsdeLaunch.Pick {
     val dir = bundle.frontends.firstOrNull()?.paths?.gamelists?.ifEmpty { null }
-    val xml = dir?.let { runCatching { java.io.File("$it/${s.folderName}/gamelist.xml").readText() }.getOrNull() }
+    val xml = dir?.let { runCatching { java.io.File("$it/${g.folderName.ifEmpty { s.folderName }}/gamelist.xml").readText() }.getOrNull() }
     val label = xml?.let { x -> g.files.firstNotNullOfOrNull { EsdeLaunch.label(x, it) } }
     return EsdeLaunch.packageFor(emu, label, app.settings.installed(emu))
 }

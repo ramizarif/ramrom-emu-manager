@@ -329,18 +329,21 @@
       "folderPick": {
         "needed": true,
         "inAppSteps": [
-          "Launch Eden",
-          "Go to Settings > System > Paths",
-          "Tap Game Directory",
-          "Select your ROMs/switch folder",
-          "Confirm selection"
+          "Open Eden",
+          "On its first-run Add Games page, or later in Settings > Game folders",
+          "Tap Add game folder",
+          "Choose ROMs/switch and allow access"
         ],
         "verifyTreeSuffix": "switch"
       },
       "inAppSetup": [
         {
+          "title": "Keys",
+          "instruction": "In Eden, Install prod.keys (first-run Keys page, or Settings), then pick the prod.keys file from your own console. Eden needs it to read games."
+        },
+        {
           "title": "Firmware",
-          "instruction": "Place firmware files in the keys folder"
+          "instruction": "In Eden, Install firmware (first-run Firmware page, or Settings), then pick the firmware ZIP from your own console. Some games need it."
         }
       ],
       "firstLaunchCreatesDirs": true,
@@ -984,7 +987,7 @@
         "nds": "nds",
         "n3ds": "n3ds",
         "psp": "psp",
-        "ps1": "ps1",
+        "ps1": "psx",
         "ps2": "ps2",
         "n64": "n64",
         "gc": "gc",
@@ -1100,7 +1103,12 @@
       "mustBeClosedToWrite": true,
       "knownCompanions": [
         "com.esde.companion"
-      ]
+      ],
+      "folderAliases": {
+        "ps1": [
+          "ps1"
+        ]
+      }
     }
   ],
   "themes": [

@@ -248,6 +248,11 @@ data class FrontendProfile(
     val source: FrontendSource = FrontendSource(),
     val paths: FrontendPaths = FrontendPaths(),
     val systemFolders: Map<String, String> = emptyMap(), // system id → folder name
+    /**
+     * Other folder names a system's games are found in (a custom ES-DE system like `ps1`). Scanned
+     * and recognised, never created: new games go to [systemFolders].
+     */
+    val folderAliases: Map<String, List<String>> = emptyMap(),
     val mediaTypes: List<MediaType> = emptyList(),
     val mustBeClosedToWrite: Boolean = false,
     val knownCompanions: List<String> = emptyList()

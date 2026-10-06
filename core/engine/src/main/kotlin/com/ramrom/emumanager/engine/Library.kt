@@ -11,11 +11,15 @@ data class LibraryGame(
     val files: List<String>,
     /** The emulator chosen for its system can open it. */
     val playable: Boolean,
+    /** Absolute folder [files] are relative to; a system can have two (`psx` and an alias `ps1`). */
+    val folderPath: String = "",
+    /** ES-DE's system name for that folder, which names its media and gamelist folders. */
+    val folderName: String = "",
 )
 
 data class LibrarySystem(
     val systemId: String, val name: String, val folderName: String, val emulatorId: String?, val games: List<LibraryGame>,
-    /** Absolute; [LibraryGame.files] are relative to it. */
+    /** The system's main folder; a game's own folder is [LibraryGame.folderPath]. */
     val folderPath: String = "",
 )
 
@@ -30,26 +34,32 @@ object Library {
 
     fun build(bundle: KnowledgeBundle, inventory: Inventory, plan: Plan?): List<LibrarySystem> {
         val chosen = plan?.systems?.associate { it.systemId to it.emulatorId }.orEmpty()
-        return inventory.romFolders.mapNotNull { folder ->
-            val system = bundle.systems.firstOrNull { it.id == folder.systemId } ?: return@mapNotNull null
-            val emuId = chosen[folder.systemId]
+        // A system's games may sit in more than one folder (an alias kept for a custom ES-DE system).
+        return inventory.romFolders.groupBy { it.systemId }.mapNotNull { (systemId, folders) ->
+            val system = bundle.systems.firstOrNull { it.id == systemId } ?: return@mapNotNull null
+            val emuId = chosen[systemId]
             val opens = (emuId?.let { id -> bundle.emulators.firstOrNull { it.id == id }?.romExtensions }
-                ?: bundle.emulators.filter { folder.systemId in it.systems }.flatMap { it.romExtensions }).map { it.lowercase() }.toSet()
-            val strays = folder.strays.map { it.fileName }.toSet()
-            val files = folder.files.filter { it !in strays }
-            // A `Game.m3u/` folder (ES-DE's directory-as-file) is one game, whatever discs are inside.
-            val byBase = files.groupBy { f ->
-                f.split('/').dropLast(1).lastOrNull { it.endsWith(".m3u", true) }?.substringBeforeLast('.')
-                    ?: f.substringAfterLast('/').substringBeforeLast('.')
-            }
-            val games = byBase.mapNotNull { (base, group) ->
-                val exts = group.map { it.substringAfterLast('.', "").lowercase() }
-                // A lone .bin with a matching .cue is one game; a .bin alone (PS2 dumps) is a game itself.
-                if (exts.all { it in parts } && byBase.keys.any { other -> other != base && base.startsWith(other) && byBase.getValue(other).any { f -> f.endsWith(".cue", true) || f.endsWith(".m3u", true) } }) return@mapNotNull null
-                LibraryGame(displayTitle(base), base, group, opens.isEmpty() || exts.any { it in opens })
-            }.sortedBy { it.title.lowercase() }
-            if (games.isEmpty()) null else LibrarySystem(system.id, system.name, folder.folderName, emuId, games, folder.folderPath)
+                ?: bundle.emulators.filter { systemId in it.systems }.flatMap { it.romExtensions }).map { it.lowercase() }.toSet()
+            val games = folders.flatMap { folder -> gamesIn(folder, opens) }.sortedBy { it.title.lowercase() }
+            val main = folders.first()
+            if (games.isEmpty()) null else LibrarySystem(system.id, system.name, main.folderName, emuId, games, main.folderPath)
         }.sortedBy { it.name }
+    }
+
+    private fun gamesIn(folder: com.ramrom.emumanager.engine.inventory.RomFolder, opens: Set<String>): List<LibraryGame> {
+        val strays = folder.strays.map { it.fileName }.toSet()
+        val files = folder.files.filter { it !in strays }
+        // A `Game.m3u/` folder (ES-DE's directory-as-file) is one game, whatever discs are inside.
+        val byBase = files.groupBy { f ->
+            f.split('/').dropLast(1).lastOrNull { it.endsWith(".m3u", true) }?.substringBeforeLast('.')
+                ?: f.substringAfterLast('/').substringBeforeLast('.')
+        }
+        return byBase.mapNotNull { (base, group) ->
+            val exts = group.map { it.substringAfterLast('.', "").lowercase() }
+            // A lone .bin with a matching .cue is one game; a .bin alone (PS2 dumps) is a game itself.
+            if (exts.all { it in parts } && byBase.keys.any { other -> other != base && base.startsWith(other) && byBase.getValue(other).any { f -> f.endsWith(".cue", true) || f.endsWith(".m3u", true) } }) return@mapNotNull null
+            LibraryGame(displayTitle(base), base, group, opens.isEmpty() || exts.any { it in opens }, folder.folderPath, folder.folderName)
+        }
     }
 
     /** "Tales%20of%20the%20Abyss%20%28USA%29" → "Tales of the Abyss (USA)". */

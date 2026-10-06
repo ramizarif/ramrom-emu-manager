@@ -68,8 +68,8 @@ fun LibrarySystemRoute(app: EmuApplication, systemId: String, onOpenGame: (Strin
     var covers by remember(s) { mutableStateOf<Map<String, ImageBitmap>>(emptyMap()) }
     androidx.compose.runtime.LaunchedEffect(s) {
         covers = withContext(Dispatchers.IO) {
-            val dir = "/storage/emulated/0/ES-DE/downloaded_media/${s.folderName}/covers"
             s.games.mapNotNull { g ->
+                val dir = "/storage/emulated/0/ES-DE/downloaded_media/${g.folderName.ifEmpty { s.folderName }}/covers"
                 val f = listOf("png", "jpg", "jpeg").map { File(dir, "${g.baseName}.$it") }.firstOrNull { it.exists() } ?: return@mapNotNull null
                 runCatching {
                     val opts = BitmapFactory.Options().apply { inSampleSize = 4 }

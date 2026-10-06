@@ -30,6 +30,8 @@ class InventoryBuilder(
 ) {
     private val frontend = bundle.frontends.firstOrNull()
     private fun folderOf(systemId: String) = frontend?.systemFolders?.get(systemId) ?: systemId
+    /** The system's folder first, then any aliases. */
+    private fun foldersOf(systemId: String) = listOf(folderOf(systemId)) + frontend?.folderAliases?.get(systemId).orEmpty()
 
     /** system → extensions any of its emulators open. */
     private val extensions: Map<String, Set<String>> = bundle.systems.associate { s ->
@@ -68,7 +70,7 @@ class InventoryBuilder(
 
     private fun romFolders(root: String): List<RomFolder> {
         if (!files.isDirectory(root)) return emptyList()
-        return bundle.systems.map { it.id to folderOf(it.id) }.distinctBy { it.second }.mapNotNull { (systemId, folder) ->
+        return bundle.systems.flatMap { s -> foldersOf(s.id).map { s.id to it } }.distinctBy { it.second }.mapNotNull { (systemId, folder) ->
             val path = "$root/$folder"
             if (!files.isDirectory(path)) return@mapNotNull null
             val own = extensions[systemId].orEmpty()
@@ -103,7 +105,7 @@ class InventoryBuilder(
                     path == root || root.startsWith("$path/") -> listOf(FolderGrant(pkg, ""))
                     path.startsWith("$root/") -> {
                         val folder = path.removePrefix("$root/").substringBefore('/')
-                        bundle.systems.filter { folderOf(it.id) == folder }.map { FolderGrant(pkg, it.id) }
+                        bundle.systems.filter { folder in foldersOf(it.id) }.map { FolderGrant(pkg, it.id) }
                     }
                     else -> emptyList()
                 }

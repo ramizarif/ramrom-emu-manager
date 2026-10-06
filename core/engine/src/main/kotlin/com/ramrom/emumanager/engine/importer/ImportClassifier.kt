@@ -32,6 +32,7 @@ class ImportClassifier(private val bundle: KnowledgeBundle, private val probe: I
     private val folderHints: Map<String, String> = buildMap {
         bundle.systems.forEach { put(it.id.lowercase(), it.id); put(it.name.lowercase(), it.id) }
         bundle.frontends.forEach { f -> f.systemFolders.forEach { (sys, folder) -> put(folder.lowercase(), sys) } }
+        bundle.frontends.forEach { f -> f.folderAliases.forEach { (sys, names) -> names.forEach { put(it.lowercase(), sys) } } }
         putAll(aliases)
     }
     private val biosNames = bundle.bios.map { it.fileName.lowercase() }.filter { it.isNotEmpty() }.toSet()

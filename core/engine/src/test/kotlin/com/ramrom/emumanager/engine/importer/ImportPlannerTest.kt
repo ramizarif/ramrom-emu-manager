@@ -83,7 +83,7 @@ class ImportPlannerTest {
             listOf(SourceFile("$dl/FF7 (USA) (Disc $n).cue", 1), SourceFile("$dl/FF7 (USA) (Disc $n).bin", 700)), systemId = "ps1")
         val plan = planner().plan(listOf(disc(2), disc(1), disc(3)), move)
         val playlist = plan.playlists.single()
-        assertEquals("$roms/ps1/FF7 (USA).m3u", playlist.dir)
+        assertEquals("$roms/psx/FF7 (USA).m3u", playlist.dir)
         assertEquals("FF7 (USA).m3u", playlist.fileName)
         assertEquals((1..3).map { "FF7 (USA) (Disc $it).cue" }, playlist.discs)
         assertTrue(plan.items.all { it.destDir == playlist.dir })

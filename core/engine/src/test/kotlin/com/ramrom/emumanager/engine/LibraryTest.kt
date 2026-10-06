@@ -44,6 +44,14 @@ class LibraryTest {
         assertEquals(4, ps1.games.single().files.size)
     }
 
+    @Test fun aliasFolderJoinsItsSystem() {
+        // Stock ES-DE scans ROMs/psx; the Thor also has ROMs/ps1 from a custom ES-DE system.
+        val ps1 = lib(null, "$r/psx/Crash.chd", "$r/ps1/Spyro.chd").single()
+        assertEquals(listOf("Crash", "Spyro"), ps1.games.map { it.title })
+        assertEquals("$r/ps1", ps1.games.single { it.title == "Spyro" }.folderPath)
+        assertEquals("psx", ps1.folderName)
+    }
+
     @Test fun emptyFoldersAreLeftOut() = assertTrue(lib(null, "$r/nds/.keep").isEmpty())
 
     @Test fun dumpTagsLeaveTheTitle() {
