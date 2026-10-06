@@ -443,7 +443,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     onHistory = { nav.push(Route.ChangeHistory()) },
                     run = runSummary,
                     home = homeStatus,
-                    library = { LibrarySection(app, onOpen = { nav.push(Route.LibrarySystem(it)) }, onImport = openImporter) },
+                    library = { LibrarySection(app, onOpen = { nav.push(Route.LibrarySystem(it)) }, onImport = openImporter, onOpenGame = { sys, base -> nav.push(Route.GameDetail(sys, base)) }) },
                     onImport = openImporter,
                     apps = { AppsSection(app, onOpen = { nav.push(Route.AppDetail(it)) }) },
                     onHealth = { nav.push(Route.Health) },

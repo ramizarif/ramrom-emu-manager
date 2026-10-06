@@ -58,6 +58,14 @@ object Library {
         return decoded.replace('_', ' ').trim()
     }
 
+    /** S18 search: every word typed starts a word of the title, ignoring case and punctuation ("zel bre" finds Breath of the Wild). */
+    fun matches(title: String, query: String): Boolean {
+        fun words(s: String) = s.lowercase().split(nonWord).filter { it.isNotEmpty() }
+        val have = words(title)
+        return words(query).all { q -> have.any { it.startsWith(q) } }
+    }
+    private val nonWord = Regex("""[^\p{L}\p{N}]+""")
+
     /** [title] for showing on screen, without dump tags. File names keep them; this is display only. */
     fun displayTitle(base: String) = title(base).let { t -> t.replace(tags, "").trim().ifEmpty { t } }
 

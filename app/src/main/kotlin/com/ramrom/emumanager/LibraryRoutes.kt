@@ -43,7 +43,7 @@ internal fun rememberLibrary(app: EmuApplication): List<LibrarySystem>? {
 }
 
 @Composable
-fun ColumnScope.LibrarySection(app: EmuApplication, onOpen: (String) -> Unit, onImport: () -> Unit) {
+fun ColumnScope.LibrarySection(app: EmuApplication, onOpen: (String) -> Unit, onImport: () -> Unit, onOpenGame: (String, String) -> Unit = { _, _ -> }) {
     val lib = rememberLibrary(app)
     val bundle = app.knowledge.getBundle()
     val family = remember { bundle?.let { DeviceDetector.match(DeviceDetector.readDevice(app), it).chipFamily?.id } ?: "generic" }
@@ -54,7 +54,9 @@ fun ColumnScope.LibrarySection(app: EmuApplication, onOpen: (String) -> Unit, on
             listOfNotNull("${s.games.size} game${if (s.games.size == 1) "" else "s"}", emu, if (unplayable > 0) "$unplayable can't open" else null).joinToString("  ·  "),
             com.ramrom.emumanager.screens.cartLabel(s.systemId) to Detection.tileColor(i),
             Verdicts.forSystem(s.systemId, family).let { it.label to (it == Verdict.Great) })
-    }, onOpen, onImport)
+    }, onOpen, onImport,
+        games = lib?.flatMap { s -> s.games.map { g -> com.ramrom.emumanager.screens.LibraryFindRow(s.systemId, s.name, g.baseName, g.title, g.playable) } }.orEmpty(),
+        onOpenGame = onOpenGame)
 }
 
 @Composable

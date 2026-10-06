@@ -55,4 +55,14 @@ class LibraryTest {
         // File names are untouched.
         assertEquals("FF7 (USA)", Library.title("FF7 (USA)"))
     }
+
+    @Test fun searchMatchesWordStarts() {
+        val botw = "The Legend of Zelda - Breath of the Wild"
+        assertTrue(Library.matches(botw, "zelda"))
+        assertTrue(Library.matches(botw, "zel bre"))
+        assertTrue(Library.matches("Pokémon Emerald", "poké"))
+        assertTrue(Library.matches("Hades II", "hades ii"))
+        assertFalse(Library.matches(botw, "elda"))
+        assertFalse(Library.matches(botw, "zelda kingdom"))
+    }
 }
