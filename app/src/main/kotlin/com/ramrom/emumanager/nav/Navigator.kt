@@ -19,6 +19,8 @@ sealed interface Route {
     /** S12 and S13. */
     data object Wizard : Route
     data class Guided(val stepId: String) : Route
+    /** S18's per-system game list. */
+    data class LibrarySystem(val systemId: String) : Route
     /** S33. */
     data class AppDetail(val appId: String) : Route
     /** S16 What we found. */

@@ -362,6 +362,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     onAbout = { nav.push(Route.About) },
                     run = runSummary,
                     home = homeStatus,
+                    library = { LibrarySection(app, onOpen = { nav.push(Route.LibrarySystem(it)) }, onHealth = { nav.push(Route.Health) }) },
                     apps = { AppsSection(app, onOpen = { nav.push(Route.AppDetail(it)) }) },
                     onHealth = { nav.push(Route.Health) },
                     onOpenEsde = esdeLaunch?.let { i -> { context.startActivity(i) } },
@@ -382,6 +383,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     }
                 }) } ?: LaunchedEffect(Unit) { nav.pop() }
                 is Route.AppDetail -> AppDetailRoute(app, r.appId)
+                is Route.LibrarySystem -> LibrarySystemRoute(app, r.systemId)
                 Route.Adopt -> AdoptRoute(app,
                     onKeep = { plan -> scope.launch { app.runs.savePlan(plan); app.appState.markFirstRunDone(); nav.reset(Route.Main(Section.Home)); toast = "Kept as it is" } },
                     onFix = { plan -> scope.launch {
