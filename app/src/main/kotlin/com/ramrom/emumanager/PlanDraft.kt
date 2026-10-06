@@ -82,6 +82,15 @@ class PlanDraft(
         bios = com.ramrom.emumanager.engine.BiosIdentifier(bundle).checkBios(candidates, chosen.map { it.systemId to it.emulatorId })
     }
 
+    /** What S09 found, as copies for the run: system id → source file and destination. */
+    fun biosCopies(): Map<String, com.ramrom.emumanager.run.BiosCopy> = bios.orEmpty().mapNotNull { r ->
+        val found = r.status as? com.ramrom.emumanager.engine.BiosCheckStatus.Found ?: return@mapNotNull null
+        val target = found.entry.targets.firstOrNull { it.emulatorId == r.emulatorId } ?: return@mapNotNull null
+        if (found.file.uri.isEmpty()) return@mapNotNull null
+        r.system.id to com.ramrom.emumanager.run.BiosCopy(android.net.Uri.parse(found.file.uri), r.emulatorId, target.path,
+            target.renameTo.ifEmpty { found.entry.fileName })
+    }.toMap()
+
     /** Sizes worth hashing: only files the size of a known BIOS. */
     val biosSizes: Set<Long> get() = bundle.bios.map { it.size }.filter { it > 0 }.toSet()
 

@@ -344,11 +344,6 @@
         }
       ],
       "firstLaunchCreatesDirs": true,
-      "esdeLaunch": {
-        "findRuleName": "EDEN",
-        "packageActivity": "dev.eden.eden_emulator/org.yuzu.yuzu_emu.activities.EmulationActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "nsp",
         "xci",
@@ -414,11 +409,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "RETROARCH",
-        "packageActivity": "com.retroarch/com.retroarch.browser.retroactivity.RetroActivityFuture",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "zip",
         "7z",
@@ -474,11 +464,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "DUCKSTATION",
-        "packageActivity": "com.github.stenzek.duckstation/com.github.stenzek.duckstation.MainActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "bin",
         "cue",
@@ -531,11 +516,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "PPSSPP",
-        "packageActivity": "org.ppsspp.ppsspp/org.ppsspp.ppsspp.PpssppActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "iso",
         "cso",
@@ -590,11 +570,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "DOLPHIN",
-        "packageActivity": "org.dolphinemu.dolphinemu/org.dolphinemu.ui.main.MainActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "iso",
         "gcm",
@@ -647,11 +622,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "AZAHAR",
-        "packageActivity": "com.sun.emulator.azahar/org.yuzu.yuzu_emu.activities.EmulationActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "cia",
         "3ds",
@@ -703,11 +673,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "NETHERSX2-TURNIP",
-        "packageActivity": "xyz.aethersx2.tturnip/xyz.aethersx2.android.EmulationActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "iso",
         "bin",
@@ -759,11 +724,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "MELONDS",
-        "packageActivity": "me.magnum.melonds/me.magnum.melonds.activities.EmulationActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "nds",
         "srl"
@@ -820,11 +780,6 @@
         }
       ],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "VITA3K",
-        "packageActivity": "com.github.vita3k/com.github.vita3k.MainActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "vpk",
         "bin",
@@ -874,11 +829,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "CEMU",
-        "packageActivity": "info.cemu/MainActivity",
-        "command": "VIEW"
-      },
       "romExtensions": [
         "iso",
         "wud"
@@ -924,11 +874,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "GAMENATIVE",
-        "packageActivity": "app.gamenative/app.gamenative.MainActivity",
-        "command": "LAUNCHER"
-      },
       "romExtensions": [
         "steam"
       ],
@@ -975,11 +920,6 @@
       },
       "inAppSetup": [],
       "firstLaunchCreatesDirs": false,
-      "esdeLaunch": {
-        "findRuleName": "WINLATOR",
-        "packageActivity": "com.winlator/MainActivity",
-        "command": "LAUNCHER"
-      },
       "romExtensions": [
         "exe"
       ],

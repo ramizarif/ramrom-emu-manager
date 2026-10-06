@@ -11,6 +11,8 @@ import com.ramrom.emumanager.knowledge.SystemDef
 data class CandidateFile(
     val path: String,
     val size: Long,
+    /** Where to read the file again when staging it (a content URI on Android). */
+    val uri: String = "",
     val md5: () -> String  // Lazy: only called when size matches
 )
 

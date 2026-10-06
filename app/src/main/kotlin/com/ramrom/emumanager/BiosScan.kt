@@ -27,7 +27,7 @@ object BiosScan {
                     if (mime == DocumentsContract.Document.MIME_TYPE_DIR) { if (depth < 2) walk(id, depth + 1); continue }
                     if (size > MAX_SIZE || size !in wantedSizes) continue
                     val uri = DocumentsContract.buildDocumentUriUsingTree(tree, id)
-                    out += CandidateFile(name, size) { md5(context, uri) }
+                    out += CandidateFile(name, size, uri.toString()) { md5(context, uri) }
                 }
             }
         }
