@@ -26,6 +26,10 @@ class PlanDraft(
         private set
     /** The folder picked on S09; kept so a changed plan can be re-checked without asking again. */
     var biosFolder by mutableStateOf<android.net.Uri?>(null)
+    /** A folder S09 found itself and the user confirmed (read with all-files access, not a tree grant). */
+    var biosPath by mutableStateOf<String?>(null)
+    /** S09's own search, best first; null until it has run for the current systems. */
+    var biosGuesses by mutableStateOf<List<com.ramrom.emumanager.engine.BiosFolder>?>(null)
     /** S09's last scan; null until the user picks a BIOS folder. */
     var bios by mutableStateOf<List<com.ramrom.emumanager.engine.BiosCheckResult>?>(null)
     /** Systems in the plan that need a BIOS, before any scan. */
@@ -36,13 +40,13 @@ class PlanDraft(
 
     fun toggle(systemId: String) {
         systems = systems.map { if (it.systemId == systemId) it.copy(on = !it.on) else it }
-        bios = null
+        bios = null; biosGuesses = null
     }
 
     /** S08 "Add to plan": turn a system on. */
     fun addSystem(systemId: String) {
         systems = systems.map { if (it.systemId == systemId) it.copy(on = true) else it }
-        bios = null
+        bios = null; biosGuesses = null
     }
 
     fun systemName(systemId: String) = bundle.systems.firstOrNull { it.id == systemId }?.name ?: systemId

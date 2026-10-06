@@ -106,31 +106,14 @@ class DeviceStepExecutor(
         if (dir.isDirectory || dir.mkdirs()) StepResult.Ok else StepResult.Failed("Couldn't create ROMs/$folder")
     }
 
-    private suspend fun stageBios(systemId: String): StepResult = withContext(Dispatchers.IO) {
-        val copy = bios[systemId] ?: return@withContext StepResult.NeedsUser("Pick your BIOS folder on the BIOS check.")
-        val bytes = context.contentResolver.openInputStream(copy.source)?.use { it.readBytes() }
-            ?: return@withContext StepResult.Failed("Couldn't read the BIOS file again. Pick the folder once more.")
-        val dest = destOf(copy) ?: return@withContext StepResult.NeedsUser("Install the emulator first.")
-        // Android/data belongs to the emulator: only Shizuku can write there. Shared storage we can.
-        if ("/Android/data/" in dest.path) {
-            when (val r = access.access.writeFile(dest.path, bytes)) {
-                is AccessResult.Ok -> StepResult.Ok
-                is AccessResult.Denied -> StepResult.NeedsUser("Copy ${copy.fileName} into the emulator's BIOS folder (connect Shizuku to do this for you).")
-                is AccessResult.Failed -> StepResult.Failed(r.message)
-            }
-        } else {
-            ensureOwnStorageAccess(); dest.parentFile?.mkdirs(); dest.writeBytes(bytes); StepResult.Ok
-        }
+    private val copier = BiosCopier(context, bundle, access)
+
+    private suspend fun stageBios(systemId: String): StepResult {
+        val copy = bios[systemId] ?: return StepResult.NeedsUser("Pick your BIOS folder on the BIOS check.")
+        return copier.copy(copy)
     }
 
-    /** Where a BIOS copy lands; `{appData}` is the emulator's Android/data folder. Null if it isn't installed. */
-    private fun destOf(copy: BiosCopy): File? {
-        val dir = if ("{appData}" in copy.destDir) {
-            val pkg = packageOf(copy.emulatorId) ?: return null
-            copy.destDir.replace("{appData}", "${Environment.getExternalStorageDirectory()}/Android/data/$pkg")
-        } else copy.destDir
-        return File(dir, copy.fileName)
-    }
+    private fun destOf(copy: BiosCopy): File? = copier.destOf(copy)
 
     /** Android/data can't be listed by us; Shizuku can. Elsewhere a plain check works. */
     private suspend fun exists(file: File?): Boolean {
@@ -140,13 +123,7 @@ class DeviceStepExecutor(
     }
 
     /** Elevated mode may not have asked for all-files access; grant it to ourselves so folders can be made. */
-    private suspend fun ensureOwnStorageAccess() {
-        if (Environment.isExternalStorageManager()) return
-        if (access.mode.value == AccessMode.Elevated) {
-            val me = context.packageName
-            access.access.setAppOp(me, pm.getApplicationInfo(me, 0).uid, "MANAGE_EXTERNAL_STORAGE", AppOpMode.ALLOW)
-        }
-    }
+    private suspend fun ensureOwnStorageAccess() { copier.ensureOwnStorageAccess() }
 
     private fun hasAllFiles(pkg: String): Boolean {
         val uid = runCatching { pm.getApplicationInfo(pkg, 0).uid }.getOrNull() ?: return false

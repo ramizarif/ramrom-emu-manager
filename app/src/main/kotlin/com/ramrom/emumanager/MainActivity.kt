@@ -179,7 +179,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
         if (tree != null) {
             // The run copies these files later, maybe after a restart: keep read access.
             runCatching { context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            d.biosFolder = tree; scanBios(d, tree)
+            d.biosPath = null; d.biosFolder = tree; scanBios(d, tree)
         }
     }
     val startPlan = { other: String?, family: String? ->
@@ -339,12 +339,50 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     Box(Modifier.fillMaxSize()) { Toast(toast) }
                 }
                 is Route.PlanBios -> draft?.let { d ->
-                    // A changed plan clears the last result; re-check the same folder without asking.
-                    LaunchedEffect(d.bios, d.biosFolder) { val f = d.biosFolder; if (d.bios == null && f != null && !biosScanning) scanBios(d, f) }
+                    val bundle = app.knowledge.getBundle()
+                    val copier = remember { bundle?.let { com.ramrom.emumanager.run.BiosCopier(context, it, app.access) } }
+                    // S09 looks for the files itself when it may read storage (elevated mode grants that itself).
+                    var canSearch by remember { mutableStateOf(android.os.Environment.isExternalStorageManager() || mode == AccessMode.Elevated) }
+                    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { canSearch = android.os.Environment.isExternalStorageManager() || mode == AccessMode.Elevated; onPauseOrDispose { } }
+                    var searching by remember { mutableStateOf(false) }
+                    val chosen = d.chosen.map { it.systemId to it.emulatorId }
+                    val wantsBios = d.chosen.any { it.biosNeeded || d.biosFileNames(it.systemId).isNotEmpty() }
+                    LaunchedEffect(d.bios, d.biosFolder, d.biosPath, d.biosGuesses, canSearch) {
+                        val f = d.biosFolder; val p = d.biosPath
+                        if (d.bios != null || biosScanning || searching || bundle == null) return@LaunchedEffect
+                        when {
+                            // A changed plan clears the last result; re-check the same folder without asking.
+                            p != null -> { searching = true; d.bios = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { BiosScan.finder(bundle).check(p, chosen) }; searching = false }
+                            f != null -> scanBios(d, f)
+                            d.biosGuesses == null && canSearch && wantsBios -> {
+                                searching = true
+                                d.biosGuesses = runCatching {
+                                    copier?.ensureOwnStorageAccess()
+                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { BiosScan.finder(bundle).find(BiosScan.STORAGE_ROOT, chosen) }
+                                }.onFailure { app.log.w("bios", "search failed: ${it.message}") }.getOrDefault(emptyList())
+                                searching = false
+                            }
+                        }
+                    }
+                    val guesses = d.biosGuesses?.map { g ->
+                        fun and(n: List<String>) = if (n.size > 1) n.dropLast(1).joinToString(", ") + " and " + n.last() else n.joinToString()
+                        val names = g.results.filter { it.status is com.ramrom.emumanager.engine.BiosCheckStatus.Found }.map { it.system.name }
+                        val odd = g.results.filter { it.status is com.ramrom.emumanager.engine.BiosCheckStatus.WrongVersion }.map { it.system.name }
+                        com.ramrom.emumanager.screens.BiosGuess(g.path.removePrefix(BiosScan.STORAGE_ROOT + "/"), listOfNotNull(
+                            names.takeIf { it.isNotEmpty() }?.let(::and),
+                            odd.takeIf { it.isNotEmpty() }?.let { "a ${and(it)} file we don't recognise" },
+                        ).joinToString(", plus "), names.isNotEmpty())
+                    }
                     BiosCheckScreen(
-                        BiosRows.rows(d), biosScanning, d.biosFolder != null, biosError,
+                        BiosRows.rows(d), biosScanning || (searching && d.biosPath != null), d.biosFolder != null || d.biosPath != null, biosError,
                         onPickFolder = { pickBiosFolder.launch(null) },
                         onNext = { nav.push(Route.PlanReview(r.otherDevice)) },
+                        search = com.ramrom.emumanager.screens.BiosSearchState(searching && d.biosPath == null, guesses, canSearch),
+                        onUseGuess = { i -> d.biosGuesses?.getOrNull(i)?.let { g -> d.biosFolder = null; d.biosPath = g.path; d.bios = g.results } },
+                        onAllowSearch = {
+                            if (mode == AccessMode.Elevated) scope.launch { canSearch = copier?.ensureOwnStorageAccess() == true }
+                            else context.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, android.net.Uri.parse("package:${context.packageName}")))
+                        },
                     )
                 }
                 is Route.PlanReview -> Box(Modifier.fillMaxSize()) { draft?.let { d ->

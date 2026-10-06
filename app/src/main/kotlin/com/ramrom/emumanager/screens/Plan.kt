@@ -328,6 +328,12 @@ fun ImportPlanScreen(
 data class BiosRow(val systemName: String, val state: BiosRowState, val detail: String)
 enum class BiosRowState { Found, WrongVersion, Missing, Optional, InApp, NotChecked }
 
+/** A folder S09 found on its own, for the user to confirm. */
+data class BiosGuess(val label: String, val covers: String, val matched: Boolean)
+
+/** S09's own search: running, what it found (best first; empty = nothing), or not allowed to look. */
+data class BiosSearchState(val searching: Boolean, val guesses: List<BiosGuess>?, val canSearch: Boolean)
+
 /** S09 BIOS check. Names what's expected, never where to get it. */
 @Composable
 fun BiosCheckScreen(
@@ -337,20 +343,27 @@ fun BiosCheckScreen(
     error: String?,
     onPickFolder: () -> Unit,
     onNext: () -> Unit,
+    search: BiosSearchState = BiosSearchState(false, null, false),
+    onUseGuess: (Int) -> Unit = {},
+    onAllowSearch: () -> Unit = {},
 ) {
-    val focus = com.ramrom.emumanager.ui.input.initialFocus(folderPicked, scanning)
+    val guess = search.guesses?.firstOrNull()?.takeIf { !folderPicked }
+    val focus = com.ramrom.emumanager.ui.input.initialFocus(folderPicked, scanning, search.searching, guess)
     ScreenKeys(start = onNext, x = onPickFolder)
     val found = rows.count { it.state == BiosRowState.Found }
     val needed = rows.count { it.state in setOf(BiosRowState.Found, BiosRowState.WrongVersion, BiosRowState.Missing, BiosRowState.NotChecked) }
     GuidedScaffold(
         handheld = HandheldState(awake = true, face = when {
-            scanning -> Face.LookDown
+            scanning || search.searching -> Face.LookDown
+            guess != null -> Face.Happy
             !folderPicked -> Face.Look
             found == needed -> Face.Joy
             else -> Face.Look
         }),
         bubble = when {
             scanning -> "Checking your files..."
+            search.searching -> "Looking around..."
+            guess != null -> "Is it this one?"
             !folderPicked -> if (needed == 0) "No BIOS needed!" else "Show me where they are."
             needed == 0 -> "Nothing else needed."
             found == needed -> "All there!"
@@ -359,8 +372,12 @@ fun BiosCheckScreen(
         hints = listOf("A" to "Select", "X" to if (folderPicked) "Pick another folder" else "Pick folder", "START" to "Next", "B" to "Back"),
         listHeavy = true,
         actions = {
-            if (!folderPicked && needed > 0) {
-                EmuButton("Pick folder", onPickFolder, kind = ButtonKind.Go, focusRequester = focus)
+            if (guess != null && needed > 0) {
+                EmuButton("Yes, use it", { onUseGuess(0) }, kind = ButtonKind.Go, focusRequester = focus)
+                EmuButton("Pick another folder", onPickFolder)
+            } else if (!folderPicked && needed > 0) {
+                if (!search.canSearch && !search.searching) EmuButton("Look for them", onAllowSearch, kind = ButtonKind.Go, focusRequester = focus)
+                EmuButton("Pick folder", onPickFolder, kind = if (search.canSearch) ButtonKind.Go else ButtonKind.Secondary, focusRequester = if (search.canSearch) focus else null)
                 EmuButton("Skip for now", onNext)
             } else {
                 EmuButton("Next", onNext, kind = ButtonKind.Go, focusRequester = focus)
@@ -370,11 +387,28 @@ fun BiosCheckScreen(
     ) {
         PlanTrack(3, "BIOS")
         Spacer(Modifier.height(10.dp))
-        BasicText(if (folderPicked) "Your BIOS files" else "Pick the folder with your BIOS files", style = EmuType.Headline)
+        BasicText(when {
+            folderPicked -> "Your BIOS files"
+            guess != null -> if (guess.matched) "Found your BIOS files" else "Is this your BIOS folder?"
+            search.searching -> "Looking for your BIOS files"
+            else -> "Pick the folder with your BIOS files"
+        }, style = EmuType.Headline)
         Spacer(Modifier.height(8.dp))
         when {
             error != null -> InlineAlert("Can't read that folder.", error, AlertKind.Blocked)
             scanning -> BasicText("Checking files by their fingerprint, not their name.", style = EmuType.Body)
+            search.searching -> BasicText("Checking your storage for files the size of a BIOS, then their fingerprints. Nothing leaves your device.", style = EmuType.Body)
+            guess != null -> {
+                InlineAlert("In ${guess.label}", "${if (guess.matched) "Covers " else "Has "}${guess.covers}. Is this the folder you keep them in?", AlertKind.YourTurn)
+                search.guesses.drop(1).forEachIndexed { i, g ->
+                    Spacer(Modifier.height(6.dp))
+                    ListRow("Or ${g.label}", detail = g.covers, onClick = { onUseGuess(i + 1) })
+                }
+            }
+            !folderPicked && needed > 0 && search.guesses?.isEmpty() == true ->
+                InlineAlert("We didn't spot any BIOS files.", "Pick the folder you keep them in, or skip and add them later.", AlertKind.YourTurn)
+            !folderPicked && needed > 0 && !search.canSearch ->
+                BasicText("We can look for them ourselves if you let RamROM read your files, or you can pick the folder. Files are matched by fingerprint, and nothing leaves your device.", style = EmuType.Body)
             !folderPicked && needed > 0 -> BasicText("Files are matched by fingerprint, so names don't matter. Nothing leaves your device.", style = EmuType.Body)
             folderPicked && needed > 0 && found == 0 -> InlineAlert("No matching BIOS files in this folder.", "Try the folder you keep them in, or skip and add them later.", AlertKind.YourTurn)
             else -> {}

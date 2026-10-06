@@ -10,6 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -69,7 +72,24 @@ fun IssueRoute(app: EmuApplication, issueId: String, nav: Navigator, onFixWithSe
     LifecycleResumeEffect(issueId) { scope.launch { app.health.check() }; onPauseOrDispose { } }
     val elevated = app.access.mode.collectAsState().value == AccessMode.Elevated
     val recheck = { scope.launch { app.health.check() }; Unit }
-    IssueScreen(issue, fixFor(issue, context, app, elevated, recheck, onFixWithSetup, nav), handheldOf(app, report?.plan?.systems?.map { it.emulatorId }.orEmpty()), resolved, onBack = { nav.pop() })
+    // A missing BIOS: look for it first, so the fix is "copy this one in", not "go and find it".
+    val biosFix = (issue.fix as? FixAction.StageBios)?.let { f ->
+        var canRead by remember { mutableStateOf(Environment.isExternalStorageManager() || elevated) }
+        LifecycleResumeEffect(issueId) { canRead = Environment.isExternalStorageManager() || elevated; onPauseOrDispose { } }
+        val hit by produceState<BiosHit?>(null, issueId, canRead) { if (canRead) value = findBios(app, context, f.systemId) }
+        when {
+            hit?.copy != null -> hit!!.let { h -> IssueFix("Copy it in", { scope.launch {
+                val r = com.ramrom.emumanager.run.BiosCopier(context, app.knowledge.getBundle()!!, app.access).copy(h.copy!!)
+                if (r !is com.ramrom.emumanager.engine.run.StepResult.Ok) app.log.w("bios", "copy failed: $r")
+                recheck()
+            } }, value = "Found" to h.label, note = "Is this the one? We copy it; your file stays where it is.") }
+            !canRead -> IssueFix("Let RamROM look for it", { context.tryStart(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${context.packageName}"))) },
+                note = "Allow access to all files and we'll find it by fingerprint and copy it in. Nothing leaves your device.")
+            hit != null -> IssueFix("I've copied it", recheck, note = "We didn't spot one on this device. Copy one of the files above into the emulator's BIOS folder.")
+            else -> IssueFix("Looking…", {}, note = "Checking your storage for it.")
+        }
+    }
+    IssueScreen(issue, biosFix ?: fixFor(issue, context, app, elevated, recheck, onFixWithSetup, nav), handheldOf(app, report?.plan?.systems?.map { it.emulatorId }.orEmpty()), resolved, onBack = { nav.pop() })
 }
 
 private fun fixFor(issue: HealthIssue, context: Context, app: EmuApplication, elevated: Boolean, recheck: () -> Unit, setup: () -> Unit, nav: Navigator): IssueFix? {
@@ -117,6 +137,20 @@ private fun fixFor(issue: HealthIssue, context: Context, app: EmuApplication, el
         FixAction.ReconnectAccess -> IssueFix("Connect Shizuku", { nav.push(Route.Access(Route.Health)) })
         else -> null
     }
+}
+
+/** What S15 found for a missing BIOS: the copy to make, or none. */
+private data class BiosHit(val copy: com.ramrom.emumanager.run.BiosCopy?, val label: String)
+
+private suspend fun findBios(app: EmuApplication, context: Context, systemId: String): BiosHit = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    val bundle = app.knowledge.getBundle() ?: return@withContext BiosHit(null, "")
+    val emu = app.runs.lastPlan()?.systems?.firstOrNull { it.systemId == systemId }?.emulatorId ?: return@withContext BiosHit(null, "")
+    com.ramrom.emumanager.run.BiosCopier(context, bundle, app.access).ensureOwnStorageAccess()
+    val folder = runCatching { BiosScan.finder(bundle).find(BiosScan.STORAGE_ROOT, listOf(systemId to emu), limit = 1).firstOrNull() }.getOrNull()
+    val found = folder?.results?.firstOrNull()?.status as? com.ramrom.emumanager.engine.BiosCheckStatus.Found ?: return@withContext BiosHit(null, "")
+    val target = found.entry.targets.firstOrNull { it.emulatorId == emu } ?: return@withContext BiosHit(null, "")
+    BiosHit(com.ramrom.emumanager.run.BiosCopy(Uri.parse(found.file.uri), emu, target.path, target.renameTo.ifEmpty { found.entry.fileName }),
+        found.file.path.removePrefix(BiosScan.STORAGE_ROOT + "/"))
 }
 
 private fun Context.tryStart(intent: Intent): Boolean = try { startActivity(intent); true } catch (_: ActivityNotFoundException) { false }

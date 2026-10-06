@@ -4,6 +4,11 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import com.ramrom.emumanager.engine.CandidateFile
+import com.ramrom.emumanager.engine.BiosFinder
+import com.ramrom.emumanager.engine.StorageEntry
+import com.ramrom.emumanager.engine.StorageLister
+import com.ramrom.emumanager.knowledge.KnowledgeBundle
+import java.io.File
 import java.security.MessageDigest
 
 /** Lists files under a picked folder (P11's input). Hashing is deferred until a size matches. */
@@ -38,6 +43,23 @@ object BiosScan {
     private fun md5(context: Context, uri: Uri): String {
         val digest = MessageDigest.getInstance("MD5")
         context.contentResolver.openInputStream(uri)?.use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) { val n = input.read(buf); if (n < 0) break; digest.update(buf, 0, n) }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    /** Shared storage, which S09 searches when it may read all files. */
+    const val STORAGE_ROOT = "/storage/emulated/0"
+
+    /** [BiosFinder] over real files; needs all-files access. */
+    fun finder(bundle: KnowledgeBundle) = BiosFinder(bundle, StorageLister { dir ->
+        File(dir).listFiles()?.map { StorageEntry(it.name, it.isDirectory, if (it.isFile) it.length() else 0) }
+    }, ::md5File)
+
+    private fun md5File(path: String): String {
+        val digest = MessageDigest.getInstance("MD5")
+        File(path).inputStream().use { input ->
             val buf = ByteArray(64 * 1024)
             while (true) { val n = input.read(buf); if (n < 0) break; digest.update(buf, 0, n) }
         }
