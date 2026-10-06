@@ -362,6 +362,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     onAbout = { nav.push(Route.About) },
                     run = runSummary,
                     home = homeStatus,
+                    apps = { AppsSection(app, onOpen = { nav.push(Route.AppDetail(it)) }) },
                     onHealth = { nav.push(Route.Health) },
                     onOpenEsde = esdeLaunch?.let { i -> { context.startActivity(i) } },
                     accessPanel = { AccessPanel(app.access, onSetUp = { nav.push(Route.Access(r)) }) },
@@ -380,6 +381,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         nav.reset(Route.Main(Section.Home)); nav.push(Route.Health)
                     }
                 }) } ?: LaunchedEffect(Unit) { nav.pop() }
+                is Route.AppDetail -> AppDetailRoute(app, r.appId)
                 Route.Adopt -> AdoptRoute(app,
                     onKeep = { plan -> scope.launch { app.runs.savePlan(plan); app.appState.markFirstRunDone(); nav.reset(Route.Main(Section.Home)); toast = "Kept as it is" } },
                     onFix = { plan -> scope.launch {

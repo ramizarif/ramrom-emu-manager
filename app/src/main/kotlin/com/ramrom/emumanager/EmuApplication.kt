@@ -26,6 +26,8 @@ class EmuApplication : Application() {
     val runs by lazy { com.ramrom.emumanager.run.SetupRuns(this) }
     /** P13's latest report. */
     val health by lazy { com.ramrom.emumanager.run.HealthSession(this) }
+    /** S32's release checks and installs. */
+    val apps by lazy { com.ramrom.emumanager.run.AppsSession(this) }
     /** The real Lemon Squeezy client replaces this in M6. */
     val entitlements: Entitlements by lazy { FakeEntitlements() }
 

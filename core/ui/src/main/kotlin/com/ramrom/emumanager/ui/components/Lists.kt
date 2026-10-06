@@ -182,12 +182,13 @@ fun SectionLabel(text: String, count: Int? = null, modifier: Modifier = Modifier
 
 /** Key/value facts in mono (`.kv`). */
 @Composable
-fun KeyValues(pairs: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+fun KeyValues(pairs: List<Pair<String, String>>, modifier: Modifier = Modifier, mono: Boolean = true) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(5.dp)) {
         pairs.forEach { (k, v) ->
             Row {
                 BasicText(k, Modifier.width(76.dp), style = EmuType.Body.copy(fontSize = 14.sp, color = EmuColors.InkFaint))
-                BasicText(v, style = EmuType.Detail.copy(fontSize = 13.sp, color = EmuColors.Ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Mono for exact values (paths, versions); prose reads better in the body face.
+                BasicText(v, style = if (mono) EmuType.Detail.copy(fontSize = 13.sp, color = EmuColors.Ink) else EmuType.Body.copy(fontSize = 14.sp, color = EmuColors.Ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

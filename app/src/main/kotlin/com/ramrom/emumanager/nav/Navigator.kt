@@ -19,6 +19,8 @@ sealed interface Route {
     /** S12 and S13. */
     data object Wizard : Route
     data class Guided(val stepId: String) : Route
+    /** S33. */
+    data class AppDetail(val appId: String) : Route
     /** S16 What we found. */
     data object Adopt : Route
     /** S14 and S15. */

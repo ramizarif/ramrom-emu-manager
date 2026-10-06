@@ -69,6 +69,8 @@ fun MainScreen(
     home: HomeStatus? = null,
     onHealth: () -> Unit = {},
     onOpenEsde: (() -> Unit)? = null,
+    /** S32's content, supplied by the caller (it needs the app's sessions). */
+    apps: (@Composable ColumnScope.() -> Unit)? = null,
     accessPanel: @Composable ColumnScope.() -> Unit,
     banner: (@Composable () -> Unit)? = null,
     overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
@@ -89,7 +91,7 @@ fun MainScreen(
             Section.Library -> EmptyState(Face.Look, "No games yet", "Your games show up here once setup has found your ROM folders.")
             Section.Wishlist -> EmptyState(Face.Happy, "Your wishlist is empty", "Add games you want to play. We'll tell you how they run here, and spot them when they land in your library.")
             Section.Customize -> EmptyState(Face.Happy, "Make ES-DE yours", "Theme colours, backgrounds and game art, once ES-DE is set up.")
-            Section.Apps -> EmptyState(Face.Look, "No apps set up yet", "Emulators you add during setup are listed here with their versions and updates.")
+            Section.Apps -> if (apps != null) apps() else EmptyState(Face.Look, "No apps set up yet", "Emulators you add during setup are listed here with their versions and updates.")
             Section.Settings -> SettingsBody(accessPanel, onAbout)
         }
     }
