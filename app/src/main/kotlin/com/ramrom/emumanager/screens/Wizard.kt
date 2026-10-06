@@ -231,6 +231,8 @@ fun GuidedStepScreen(
     onAction: () -> Unit,
     onDidIt: () -> Unit,
     onSkip: () -> Unit,
+    /** Offered once per step in limited mode: lets the step chip float over the other app. */
+    onAllowOverlay: (() -> Unit)? = null,
 ) {
     val done = status.isSatisfied
     val checking = status == StepRunStatus.Verifying
@@ -256,7 +258,8 @@ fun GuidedStepScreen(
                 }
                 else -> EmuButton("I did it", onDidIt, kind = ButtonKind.Go, focusRequester = focus)
             }
-            if (!done) EmuButton("Skip for now", onSkip, kind = ButtonKind.Ghost)
+            // Three buttons don't fit the guided column at full labels; Y still says "Skip for now".
+            if (!done) EmuButton(if (hasAction && offerDidIt) "Skip" else "Skip for now", onSkip, kind = ButtonKind.Ghost)
         },
     ) {
         JourneyTrack(position.first.coerceAtMost(position.second).coerceAtLeast(1), position.second.coerceIn(1, 9), "${position.first} of ${position.second} for you")
@@ -288,6 +291,10 @@ fun GuidedStepScreen(
             status is StepRunStatus.Failed -> InlineAlert("It didn't work", status.reason, AlertKind.Blocked)
             status is StepRunStatus.NeedsYou && status.reason.isNotBlank() && status.reason != copy.title && !copy.instructions.contains(status.reason) ->
                 BasicText(status.reason, style = EmuType.Hint)
+        }
+        if (onAllowOverlay != null && !done) {
+            Spacer(Modifier.height(10.dp))
+            com.ramrom.emumanager.ui.components.ListRow("Keep this step on screen", detail = "Shows it over the other app. Needs \"Display over other apps\".", onClick = onAllowOverlay)
         }
     }
 }

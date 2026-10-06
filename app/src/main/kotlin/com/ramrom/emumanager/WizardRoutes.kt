@@ -11,6 +11,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import com.ramrom.emumanager.access.AccessMode
+import com.ramrom.emumanager.access.AppOpMode
+import com.ramrom.emumanager.run.StepChip
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -82,7 +85,11 @@ fun GuidedRoute(run: ActiveRun, stepId: String, nav: Navigator) {
         if (next != null) nav.replace(Route.Guided(next)) else nav.pop()
     }
     LaunchedEffect(status.isSatisfied) { if (status.isSatisfied) { delay(1000); advance() } }
+    // Overlay permission can change while we're away; read it again on every return.
+    var canOverlay by remember { mutableStateOf(StepChip.canOverlay(context)) }
     LifecycleResumeEffect(stepId) {
+        StepChip.hide(context)
+        canOverlay = StepChip.canOverlay(context)
         if (away) {
             away = false; returned = true
             scope.launch {
@@ -96,8 +103,21 @@ fun GuidedRoute(run: ActiveRun, stepId: String, nav: Navigator) {
 
     val pkg = copy.appId?.let(run.executor::packageOf)
     val goAway = { intent: Intent? ->
-        if (intent != null && context.tryStart(intent)) away = true
-        else scope.launch { run.runner.recheck(stepId) }
+        scope.launch {
+            // Elevated mode can allow the chip itself; limited mode falls back to a notification.
+            val access = (context.applicationContext as EmuApplication).access
+            if (!StepChip.canOverlay(context) && access.mode.value == AccessMode.Elevated) {
+                val me = context.packageName
+                access.access.setAppOp(me, context.packageManager.getApplicationInfo(me, 0).uid, "SYSTEM_ALERT_WINDOW", AppOpMode.ALLOW)
+            }
+            // Their own task, so "Back to setup" can bring ours forward over it.
+            if (intent != null && context.tryStart(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) {
+                away = true
+                // Our own settings pages need no chip: the user is one toggle from coming back.
+                if (copy.action != GuidedAction.OwnAllFiles) StepChip.show(context, copy.title, copy.value, copy.valueLabel)
+            } else run.runner.recheck(stepId)
+        }
+        Unit
     }
     val guided = run.plan.steps.filter { it.executor == Executor.Guided && it.status == StepStatus.Pending }
     // This step's place among the user's: the ones settled before it, plus one.
@@ -120,6 +140,8 @@ fun GuidedRoute(run: ActiveRun, stepId: String, nav: Navigator) {
         },
         onDidIt = { if (status.isSatisfied) advance() else scope.launch { run.runner.markGuidedDone(stepId) } },
         onSkip = { scope.launch { run.runner.skipStepForNow(stepId) }; advance() },
+        onAllowOverlay = if (canOverlay || copy.action == GuidedAction.None || copy.action == GuidedAction.RunNow) null
+            else ({ context.tryStart(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))) }),
     )
 }
 

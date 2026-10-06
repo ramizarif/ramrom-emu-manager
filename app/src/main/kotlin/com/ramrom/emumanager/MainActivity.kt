@@ -210,6 +210,16 @@ private fun EmuNav(app: EmuApplication, start: Route) {
         com.ramrom.emumanager.screens.HomeStatus(rep.systems.size, rep.readyCount, rep.blocking.size, rep.warnings.size, tiles)
     }
         ?: com.ramrom.emumanager.screens.HomeStatus(0, null, 0, 0) else null
+    // Progress lives in a notification while a setup run or import works in the background (P19), and
+    // Android 13+ only shows it once allowed. Ask when the first long task starts, when the reason is plain.
+    val notificationAsk = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val importJob by app.imports.job.collectAsState()
+    val longTask = activeRun != null || importJob?.finished == false
+    LaunchedEffect(longTask) {
+        if (!longTask || context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) return@LaunchedEffect
+        if (mode == AccessMode.Elevated) app.access.access.grantPermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        else notificationAsk.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
     // The import notification opens S24 wherever the user was.
     val openImport by app.imports.openRequested.collectAsState()
     LaunchedEffect(openImport) {
