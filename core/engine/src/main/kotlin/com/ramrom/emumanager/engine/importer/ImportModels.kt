@@ -45,6 +45,8 @@ data class ImportCandidate(
         ArcadeSet,
         /** The name matches a BIOS file the bundle knows. */
         Bios,
+        /** An archive of something other than games; left out of the scan. */
+        NotGames,
     }
 }
 

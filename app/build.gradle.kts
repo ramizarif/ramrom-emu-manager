@@ -25,4 +25,6 @@ dependencies {
     implementation(project(":core:engine"))
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
+    // Unpacks imports: RAR5, 7z and zip through one native decoder, bundled per ABI.
+    implementation("com.github.omicronapps:7-Zip-JBinding-4Android:Release-16.02-2.02")
 }

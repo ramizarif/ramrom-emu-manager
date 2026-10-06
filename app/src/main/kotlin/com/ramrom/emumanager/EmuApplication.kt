@@ -28,6 +28,8 @@ class EmuApplication : Application() {
     val health by lazy { com.ramrom.emumanager.run.HealthSession(this) }
     /** S32's release checks and installs. */
     val apps by lazy { com.ramrom.emumanager.run.AppsSession(this) }
+    /** P12 game import (S23/S24); outlives screens. */
+    val imports by lazy { com.ramrom.emumanager.importer.ImportSession(this) }
     /** The real Lemon Squeezy client replaces this in M6. */
     val entitlements: Entitlements by lazy { FakeEntitlements() }
 
@@ -37,6 +39,7 @@ class EmuApplication : Application() {
             access.initialize()
             // A run the process lost picks up where the device actually is.
             runCatching { runs.resumeIfAny() }.onFailure { log.e("run", "resume failed", it) }
+            runCatching { imports.resumeIfAny() }.onFailure { log.e("import", "resume failed", it) }
         }
     }
 }

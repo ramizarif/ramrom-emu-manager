@@ -1,5 +1,6 @@
 package com.ramrom.emumanager
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -76,14 +77,26 @@ class MainActivity : ComponentActivity() {
         return super.dispatchKeyEvent(event)
     }
 
-    private companion object {
-        val CONFIRM_KEYS = setOf(android.view.KeyEvent.KEYCODE_BUTTON_A, android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER, android.view.KeyEvent.KEYCODE_NUMPAD_ENTER)
+    companion object {
+        const val EXTRA_OPEN = "open"
+        const val OPEN_IMPORT = "import"
+        private val CONFIRM_KEYS = setOf(android.view.KeyEvent.KEYCODE_BUTTON_A, android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER, android.view.KeyEvent.KEYCODE_NUMPAD_ENTER)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handle(intent)
         setContent { EmuTheme { EmuApp() } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handle(intent)
+    }
+
+    private fun handle(intent: Intent?) {
+        if (intent?.getStringExtra(EXTRA_OPEN) == OPEN_IMPORT) (application as EmuApplication).imports.openRequested.value = true
     }
 }
 
@@ -197,12 +210,25 @@ private fun EmuNav(app: EmuApplication, start: Route) {
         com.ramrom.emumanager.screens.HomeStatus(rep.systems.size, rep.readyCount, rep.blocking.size, rep.warnings.size, tiles)
     }
         ?: com.ramrom.emumanager.screens.HomeStatus(0, null, 0, 0) else null
+    // The import notification opens S24 wherever the user was.
+    val openImport by app.imports.openRequested.collectAsState()
+    LaunchedEffect(openImport) {
+        if (openImport) {
+            app.imports.openRequested.value = false
+            if (app.imports.job.value != null && nav.current != Route.ImportProgress) nav.push(Route.ImportProgress)
+        }
+    }
     val esdeLaunch = remember(nav.current) {
         app.knowledge.getBundle()?.frontends?.firstOrNull()?.packages?.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
     }
     val runSummary = runState?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
 
     /** Re-run the saved plan: the compiler only plans what's still missing. */
+    // An import under way shows its progress; a finished one has been seen, so a new scan starts.
+    val openImporter: () -> Unit = {
+        if (app.imports.job.value?.finished == false) nav.push(Route.ImportProgress)
+        else { app.imports.dismiss(); nav.push(Route.ImportGames) }
+    }
     val fixWithSetup: () -> Unit = {
         scope.launch {
             if (app.runs.restartLast() != null) { nav.reset(Route.Main(Section.Home)); nav.push(Route.Wizard) }
@@ -368,7 +394,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     onAbout = { nav.push(Route.About) },
                     run = runSummary,
                     home = homeStatus,
-                    library = { LibrarySection(app, onOpen = { nav.push(Route.LibrarySystem(it)) }, onHealth = { nav.push(Route.Health) }) },
+                    library = { LibrarySection(app, onOpen = { nav.push(Route.LibrarySystem(it)) }, onImport = openImporter) },
+                    onImport = openImporter,
                     apps = { AppsSection(app, onOpen = { nav.push(Route.AppDetail(it)) }) },
                     onHealth = { nav.push(Route.Health) },
                     onOpenEsde = esdeLaunch?.let { i -> { context.startActivity(i) } },
@@ -410,6 +437,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                 Route.Health -> HealthRoute(app, nav, onFixWithSetup = fixWithSetup, onDone = { nav.pop() })
                 is Route.Issue -> IssueRoute(app, r.issueId, nav, onFixWithSetup = fixWithSetup)
                 is Route.Guided -> activeRun?.let { run -> GuidedRoute(run, r.stepId, nav) } ?: LaunchedEffect(Unit) { nav.pop() }
+                Route.ImportGames -> ImportRoute(app, nav)
+                Route.ImportProgress -> ImportProgressRoute(app, nav)
                 Route.About -> AboutScreen("${BuildConfig.VERSION_NAME} · debug")
             }
         }

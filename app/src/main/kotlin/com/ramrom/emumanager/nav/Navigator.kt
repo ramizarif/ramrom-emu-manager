@@ -23,6 +23,9 @@ sealed interface Route {
     data class LibrarySystem(val systemId: String) : Route
     /** S33. */
     data class AppDetail(val appId: String) : Route
+    /** S23 and S24. */
+    data object ImportGames : Route
+    data object ImportProgress : Route
     /** S16 What we found. */
     data object Adopt : Route
     /** S14 and S15. */

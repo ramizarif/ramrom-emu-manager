@@ -9,30 +9,17 @@ import com.ramrom.emumanager.knowledge.KnowledgeBundle
  */
 class ImportClassifier(private val bundle: KnowledgeBundle, private val probe: ImportProbe) {
 
-    /** Extensions only one system uses. */
-    private val sure = mapOf(
-        "nsp" to "switch", "xci" to "switch", "nsz" to "switch", "xcz" to "switch",
-        "nds" to "nds", "srl" to "nds",
-        "cia" to "n3ds", "3ds" to "n3ds", "cci" to "n3ds", "cxi" to "n3ds",
-        "gba" to "gba", "gbc" to "gbc", "gb" to "gb",
-        "nes" to "nes", "fds" to "nes", "sfc" to "snes", "smc" to "snes",
-        "z64" to "n64", "n64" to "n64", "v64" to "n64",
-        "md" to "genesis", "gen" to "genesis", "smd" to "genesis",
-        "gg" to "gamegear", "sms" to "mastersystem",
-        "pbp" to "psp", "cso" to "psp",
-        "gcm" to "gc", "wbfs" to "wii",
-        "gdi" to "dreamcast", "cdi" to "dreamcast",
-        "vpk" to "psvita", "wud" to "wiiu", "wux" to "wiiu", "wua" to "wiiu",
-        "ecm" to "ps1",
-    )
+    private val sure = SURE
 
     /** Disc images whose header tells us the system. */
     private val sniffable = setOf("iso", "bin", "img", "rvz", "wia", "gcz", "ciso")
     /** Other disc formats several systems share. */
-    private val ambiguous = sniffable + setOf("chd", "cue")
+    private val ambiguous = sniffable + setOf("chd", "cue", "pbp")
     private val archives = setOf("zip", "7z", "rar")
     /** Tracks that belong to a cue sheet or gdi, never a game alone. */
     private val tracks = setOf("bin", "img", "raw", "sub")
+    /** Files no game archive or arcade set holds: an archive with these is something else (drivers, apps, docs). */
+    private val foreign = setOf("so", "json", "apk", "exe", "dll", "xml", "html", "htm", "pdf", "md", "ini", "cfg", "lua", "js", "py", "sh")
 
     /** Folder names people use, beyond ES-DE's own. */
     private val aliases = mapOf(
@@ -75,7 +62,7 @@ class ImportClassifier(private val bundle: KnowledgeBundle, private val probe: I
             }
             claimed += f.path
         }
-        return out.sortedBy { it.primary.path.substringAfterLast('/').lowercase() }
+        return out.filter { ImportCandidate.Flag.NotGames !in it.flags }.sortedBy { it.primary.path.substringAfterLast('/').lowercase() }
     }
 
     /** Files a cue or gdi lists, else those whose name starts with its own. */
@@ -128,8 +115,10 @@ class ImportClassifier(private val bundle: KnowledgeBundle, private val probe: I
         val games = entries.filter { val x = ext(it.name); x in sure || x in ambiguous || x in tracks || x == "m3u" }
         val known = games.filter { ext(it.name) in sure || ext(it.name) in ambiguous }
         if (known.isEmpty()) {
-            // Many files we don't know, zipped together: what an arcade set looks like.
-            if (entries.size > 1) flags += ImportCandidate.Flag.ArcadeSet
+            // Many files we don't know, zipped together: what an arcade set looks like. Drivers,
+            // apps and documents aren't games at all, and aren't listed.
+            if (entries.any { ext(it.name) in foreign } || entries.isEmpty()) flags += ImportCandidate.Flag.NotGames
+            else if (entries.size > 1) flags += ImportCandidate.Flag.ArcadeSet
             return null
         }
         found(games)
@@ -156,6 +145,23 @@ class ImportClassifier(private val bundle: KnowledgeBundle, private val probe: I
     private fun headerReason(sys: String) = "${bundle.systems.firstOrNull { it.id == sys }?.name ?: sys} disc header"
 
     companion object {
+        /** Extensions only one system uses, whatever emulator opens them. (`.pbp` isn't: PSP and PS1 both use it.) */
+        val SURE = mapOf(
+            "nsp" to "switch", "xci" to "switch", "nsz" to "switch", "xcz" to "switch",
+            "nds" to "nds", "srl" to "nds",
+            "cia" to "n3ds", "3ds" to "n3ds", "cci" to "n3ds", "cxi" to "n3ds",
+            "gba" to "gba", "gbc" to "gbc", "gb" to "gb",
+            "nes" to "nes", "fds" to "nes", "sfc" to "snes", "smc" to "snes",
+            "z64" to "n64", "n64" to "n64", "v64" to "n64",
+            "md" to "genesis", "gen" to "genesis", "smd" to "genesis",
+            "gg" to "gamegear", "sms" to "mastersystem",
+            "cso" to "psp",
+            "gcm" to "gc", "wbfs" to "wii",
+            "gdi" to "dreamcast", "cdi" to "dreamcast",
+            "vpk" to "psvita", "wud" to "wiiu", "wux" to "wiiu", "wua" to "wiiu",
+            "ecm" to "ps1",
+        )
+
         /** Enough of a disc image to reach the ISO9660 root and SYSTEM.CNF on nearly every dump. */
         const val PEEK_BYTES = 4 * 1024 * 1024
     }

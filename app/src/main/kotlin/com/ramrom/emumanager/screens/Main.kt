@@ -69,6 +69,7 @@ fun MainScreen(
     home: HomeStatus? = null,
     onHealth: () -> Unit = {},
     onOpenEsde: (() -> Unit)? = null,
+    onImport: () -> Unit = {},
     /** S32's content, supplied by the caller (it needs the app's sessions). */
     apps: (@Composable ColumnScope.() -> Unit)? = null,
     library: (@Composable ColumnScope.() -> Unit)? = null,
@@ -84,7 +85,7 @@ fun MainScreen(
     )
     ToolScaffold(section, onSection, hints = listOf("A" to "Select", "L1/R1" to "Sections"), banner = banner, overlay = overlay) {
         when (section) {
-            Section.Home -> if (run == null && home != null) HomeBody(home, onHealth, onStartSetup, onOpenEsde) else if (run != null) EmptyState(
+            Section.Home -> if (run == null && home != null) HomeBody(home, onHealth, onStartSetup, onOpenEsde, onImport) else if (run != null) EmptyState(
                 if (run.third > 0) Face.Happy else Face.LookDown, "Setup is ${run.first} of ${run.second} done",
                 if (run.third > 0) "${run.third} thing${if (run.third == 1) "" else "s"} need you. Everything else carries on by itself." else "Still working. It keeps going while you do other things.",
                 "Carry on with setup", onStartSetup,
@@ -103,7 +104,7 @@ data class HomeStatus(val systems: Int, val ready: Int?, val blocking: Int, val 
 
 /** S17 Home: health at a glance and the few things people come back for. */
 @Composable
-private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMore: () -> Unit, onOpenEsde: (() -> Unit)?) {
+private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMore: () -> Unit, onOpenEsde: (() -> Unit)?, onImport: () -> Unit) {
     val focus = com.ramrom.emumanager.ui.input.initialFocus(h.ready)
     val good = h.ready != null && h.blocking == 0 && h.warnings == 0
     val face = when { h.ready == null -> Face.LookDown; good -> Face.Joy; h.blocking > 0 -> Face.Worried; else -> Face.Happy }
@@ -134,6 +135,7 @@ private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMor
             EmuButton(if (good || h.ready == null) "Health check" else "See what's wrong", onHealth, kind = ButtonKind.Go, focusRequester = focus)
             if (onOpenEsde != null) EmuButton("Open ES-DE", onOpenEsde)
         }
+        EmuButton("Import games", onImport)
         EmuButton("Add or change systems", onSetUpMore, kind = ButtonKind.Ghost)
     }
     if (phone) Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) { Buttons() }

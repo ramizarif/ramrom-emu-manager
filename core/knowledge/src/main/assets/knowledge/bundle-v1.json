@@ -415,7 +415,30 @@
         "bin",
         "cue",
         "iso",
-        "gdi"
+        "gdi",
+        "chd",
+        "m3u",
+        "z64",
+        "n64",
+        "v64",
+        "gba",
+        "gbc",
+        "gb",
+        "nes",
+        "fds",
+        "sfc",
+        "smc",
+        "md",
+        "gen",
+        "smd",
+        "gg",
+        "sms",
+        "cdi",
+        "pbp",
+        "cso",
+        "rvz",
+        "gcz",
+        "wbfs"
       ],
       "companionExtensions": [
         ".sav",
@@ -468,7 +491,10 @@
         "bin",
         "cue",
         "iso",
-        "ecm"
+        "ecm",
+        "chd",
+        "m3u",
+        "pbp"
       ],
       "companionExtensions": [
         ".sav"
@@ -574,7 +600,10 @@
         "iso",
         "gcm",
         "wbfs",
-        "ciso"
+        "ciso",
+        "rvz",
+        "gcz",
+        "wia"
       ],
       "companionExtensions": [
         ".sav"
@@ -676,7 +705,9 @@
       "romExtensions": [
         "iso",
         "bin",
-        "cue"
+        "cue",
+        "chd",
+        "cso"
       ],
       "companionExtensions": [
         ".sav"

@@ -36,9 +36,13 @@ class InventoryBuilder(
         s.id to bundle.emulators.filter { s.id in it.systems }.flatMap { e -> e.romExtensions.map { it.lowercase() } }.toSet()
     }
 
-    /** extension → the one system it identifies, for extensions only one system uses. */
+    /**
+     * extension → the one system it identifies. RetroArch opens most formats for many systems, so
+     * emulator lists alone say little; the import map of cartridge and disc formats says more.
+     */
     private val telltale: Map<String, String> = extensions.flatMap { (s, exts) -> exts.map { it to s } }
-        .groupBy({ it.first }, { it.second }).filterValues { it.size == 1 }.mapValues { it.value.single() }
+        .groupBy({ it.first }, { it.second }).filterValues { it.size == 1 }.mapValues { it.value.single() } +
+        com.ramrom.emumanager.engine.importer.ImportClassifier.SURE.filterValues { s -> bundle.systems.any { it.id == s } }
 
     fun build(facts: DeviceFacts): Inventory {
         val romFolders = romFolders(facts.romRoot)
@@ -160,6 +164,6 @@ class InventoryBuilder(
     }
 
     private companion object {
-        val COMPANIONS = setOf("sav", "ml1", "srm", "sta", "dsv", "txt", "nfo", "jpg", "png", "m3u")
+        val COMPANIONS = setOf("sav", "ml1", "srm", "sta", "dsv", "txt", "nfo", "jpg", "png", "m3u", "ramrom-part")
     }
 }

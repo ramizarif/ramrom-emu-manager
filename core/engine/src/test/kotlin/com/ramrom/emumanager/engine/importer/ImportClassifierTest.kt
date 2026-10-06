@@ -84,6 +84,11 @@ class ImportClassifierTest {
         assertTrue(Flag.ArcadeSet in c.flags)
     }
 
+    @Test fun archivesOfOtherThingsArentListed() {
+        val c = scan(FakeProbe(archives = mapOf("$dl/turnip.adpkg.zip" to mapOf("meta.json" to ByteArray(1), "libvulkan_freedreno.so" to ByteArray(1)))), f("turnip.adpkg.zip"))
+        assertTrue(c.isEmpty())
+    }
+
     @Test fun splitArchivesAreOneItemAndFlagged() {
         val c = scan(FakeProbe(), f("Big.part01.rar"), f("Big.part02.rar"), f("Big.part10.rar"), f("Other.7z.001"), f("Other.7z.002"))
         assertEquals(2, c.size)

@@ -31,13 +31,16 @@ data class LibrarySystemRow(val systemId: String, val name: String, val detail: 
 
 /** S18 Library: systems with game counts. [rows] null = scanning. */
 @Composable
-fun ColumnScope.LibraryBody(rows: List<LibrarySystemRow>?, onOpen: (String) -> Unit, onSetUp: () -> Unit) {
+fun ColumnScope.LibraryBody(rows: List<LibrarySystemRow>?, onOpen: (String) -> Unit, onImport: () -> Unit) {
     when {
         rows == null -> EmptyState(Face.LookDown, "Looking for your games", "One moment.")
-        rows.isEmpty() -> EmptyState(Face.Look, "No games yet", "Put your games in the ROMs folder, one folder per system (ROMs/snes, ROMs/ps2...). They show up here.", "Health check", onSetUp)
+        rows.isEmpty() -> EmptyState(Face.Look, "No games yet", "Import the games you own from Downloads or any folder, or put them in ROMs yourself, one folder per system (ROMs/snes, ROMs/ps2...).", "Import games", onImport)
         else -> {
             val focus = initialFocus(rows.size)
-            BasicText("${rows.sumOf { it.detail.substringBefore(' ').toIntOrNull() ?: 0 }} games", style = EmuType.Headline2)
+            androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                BasicText("${rows.sumOf { it.detail.substringBefore(' ').toIntOrNull() ?: 0 }} games", Modifier.weight(1f), style = EmuType.Headline2)
+                com.ramrom.emumanager.ui.components.EmuButton("Import games", onImport, small = true)
+            }
             SectionLabel("Systems", rows.size)
             rows.forEachIndexed { i, r ->
                 ListRow(r.name, if (i == 0) Modifier.focusRequester(focus) else Modifier, detail = r.detail,
