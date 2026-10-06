@@ -78,7 +78,7 @@ fun EmuButton(
             .padding(horizontal = if (kind == ButtonKind.Ghost) 8.dp else if (small) 13.dp else 19.dp),
         contentAlignment = Alignment.Center,
     ) {
-        BasicText(text, style = EmuType.Button.copy(color = fg, fontSize = if (small) 14.sp else 16.sp))
+        BasicText(text, style = EmuType.Button.copy(color = fg, fontSize = if (small) 14.sp else 16.sp), maxLines = 1, softWrap = false)
     }
 }
 

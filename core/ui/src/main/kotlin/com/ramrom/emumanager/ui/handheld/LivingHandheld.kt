@@ -237,7 +237,7 @@ private fun DrawScope.drawFace(f: Face, blink: Float, m: TextMeasurer, power: Fl
     val (lx, ly) = when (f) { Face.LookDown -> -14f to 8f; else -> 0f to 0f }
     if (f == Face.Joy) {
         listOf(180f, 214f).forEach { x ->
-            drawPath(Path().apply { moveTo(x + ox, 136f); quadraticBezierTo(x + 8f + ox, 124f, x + 16f + ox, 136f) }, white, style = stroke(4.5f))
+            drawPath(Path().apply { moveTo(x + ox, 136f); quadraticTo(x + 8f + ox, 124f, x + 16f + ox, 136f) }, white, style = stroke(4.5f))
         }
     } else {
         val sy = if (f == Face.Worried) 1f else blink
@@ -251,10 +251,10 @@ private fun DrawScope.drawFace(f: Face, blink: Float, m: TextMeasurer, power: Fl
             // Brows slope up toward the middle: worried, never angry.
             drawLine(white, Offset(178f + ox, 117f), Offset(194f + ox, 112f), 3.5f, StrokeCap.Round)
             drawLine(white, Offset(232f + ox, 117f), Offset(216f + ox, 112f), 3.5f, StrokeCap.Round)
-            drawPath(Path().apply { moveTo(192f + ox, 160f); quadraticBezierTo(205f + ox, 151f, 218f + ox, 160f) }, white, style = stroke(4f))
+            drawPath(Path().apply { moveTo(192f + ox, 160f); quadraticTo(205f + ox, 151f, 218f + ox, 160f) }, white, style = stroke(4f))
         }
-        Face.Joy -> drawPath(Path().apply { moveTo(186f + ox, 152f); quadraticBezierTo(205f + ox, 174f, 224f + ox, 152f); close() }, white)
-        Face.Happy, Face.LookDown -> drawPath(Path().apply { moveTo(190f + ox, 155f); quadraticBezierTo(205f + ox, 167f, 220f + ox, 155f) }, white, style = stroke(4f))
+        Face.Joy -> drawPath(Path().apply { moveTo(186f + ox, 152f); quadraticTo(205f + ox, 174f, 224f + ox, 152f); close() }, white)
+        Face.Happy, Face.LookDown -> drawPath(Path().apply { moveTo(190f + ox, 155f); quadraticTo(205f + ox, 167f, 220f + ox, 155f) }, white, style = stroke(4f))
         else -> drawLine(white, Offset(195f + ox, 158f), Offset(215f + ox, 158f), 4f, StrokeCap.Round)
     }
 }
@@ -314,8 +314,8 @@ private fun DrawScope.drawOffline() {
     drawCircle(Color.White, 17f, Offset(34f, 56f))
     val st = Stroke(2.2f, cap = StrokeCap.Round)
     translate(18f, 40f) {
-        drawPath(Path().apply { moveTo(7f, 14f); quadraticBezierTo(16f, 6f, 25f, 14f) }, Slate, style = st)
-        drawPath(Path().apply { moveTo(10.5f, 17.5f); quadraticBezierTo(16f, 12.5f, 21.5f, 17.5f) }, Slate, style = st)
+        drawPath(Path().apply { moveTo(7f, 14f); quadraticTo(16f, 6f, 25f, 14f) }, Slate, style = st)
+        drawPath(Path().apply { moveTo(10.5f, 17.5f); quadraticTo(16f, 12.5f, 21.5f, 17.5f) }, Slate, style = st)
         drawLine(Slate, Offset(8f, 8f), Offset(24f, 24f), 2.2f, StrokeCap.Round)
     }
 }

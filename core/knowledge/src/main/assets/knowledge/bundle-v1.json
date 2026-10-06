@@ -1,0 +1,1555 @@
+{
+  "schemaVersion": 1,
+  "dataVersion": "1.0.0",
+  "devices": [
+    {
+      "id": "ayn-thor",
+      "names": [
+        "AYN Thor",
+        "AYN Thor Max"
+      ],
+      "match": {
+        "models": [
+          "AYN Thor"
+        ],
+        "devices": [
+          "kalama"
+        ],
+        "socModels": [
+          "QCS8550"
+        ]
+      },
+      "chipFamily": "sd8gen2",
+      "displays": [
+        {
+          "role": "main",
+          "widthPx": 1920,
+          "heightPx": 1080,
+          "dpi": 369
+        },
+        {
+          "role": "secondary",
+          "widthPx": 1240,
+          "heightPx": 1080,
+          "dpi": 369
+        }
+      ],
+      "controls": {
+        "gamepad": true,
+        "extraButtons": []
+      },
+      "verification": "verified",
+      "notes": "Reference device"
+    },
+    {
+      "id": "ayn-odin-2",
+      "names": [
+        "AYN Odin 2"
+      ],
+      "match": {
+        "models": [
+          "AYN Odin 2"
+        ],
+        "devices": [],
+        "socModels": [
+          "SM8550"
+        ]
+      },
+      "chipFamily": "sd8gen2",
+      "displays": [
+        {
+          "role": "main",
+          "widthPx": 1920,
+          "heightPx": 1080,
+          "dpi": 0
+        }
+      ],
+      "controls": {
+        "gamepad": true,
+        "extraButtons": []
+      },
+      "verification": "unverified",
+      "notes": ""
+    },
+    {
+      "id": "ayn-odin-3",
+      "names": [
+        "AYN Odin 3"
+      ],
+      "match": {
+        "models": [
+          "AYN Odin 3"
+        ],
+        "devices": [],
+        "socModels": [
+          "SM8750"
+        ]
+      },
+      "chipFamily": "sd8elite",
+      "displays": [
+        {
+          "role": "main",
+          "widthPx": 1920,
+          "heightPx": 1080,
+          "dpi": 0
+        }
+      ],
+      "controls": {
+        "gamepad": true,
+        "extraButtons": []
+      },
+      "verification": "unverified",
+      "notes": ""
+    },
+    {
+      "id": "retroid-pocket-5",
+      "names": [
+        "Retroid Pocket 5"
+      ],
+      "match": {
+        "models": [
+          "Retroid Pocket 5"
+        ],
+        "devices": [],
+        "socModels": [
+          "SM8550"
+        ]
+      },
+      "chipFamily": "sd8gen2",
+      "displays": [
+        {
+          "role": "main",
+          "widthPx": 1440,
+          "heightPx": 810,
+          "dpi": 0
+        }
+      ],
+      "controls": {
+        "gamepad": true,
+        "extraButtons": []
+      },
+      "verification": "unverified",
+      "notes": ""
+    },
+    {
+      "id": "retroid-pocket-6",
+      "names": [
+        "Retroid Pocket 6"
+      ],
+      "match": {
+        "models": [
+          "Retroid Pocket 6"
+        ],
+        "devices": [],
+        "socModels": []
+      },
+      "chipFamily": "generic",
+      "displays": [
+        {
+          "role": "main",
+          "widthPx": 1440,
+          "heightPx": 810,
+          "dpi": 0
+        }
+      ],
+      "controls": {
+        "gamepad": true,
+        "extraButtons": []
+      },
+      "verification": "unverified",
+      "notes": ""
+    },
+    {
+      "id": "retroid-pocket-mini-v2",
+      "names": [
+        "Retroid Pocket Mini V2"
+      ],
+      "match": {
+        "models": [
+          "Retroid Pocket Mini V2"
+        ],
+        "devices": [],
+        "socModels": []
+      },
+      "chipFamily": "generic",
+      "displays": [
+        {
+          "role": "main",
+          "widthPx": 1024,
+          "heightPx": 600,
+          "dpi": 0
+        }
+      ],
+      "controls": {
+        "gamepad": true,
+        "extraButtons": []
+      },
+      "verification": "unverified",
+      "notes": ""
+    },
+    {
+      "id": "ayaneo-pocket-ds",
+      "names": [
+        "AYANEO Pocket DS"
+      ],
+      "match": {
+        "models": [
+          "AYANEO Pocket DS"
+        ],
+        "devices": [],
+        "socModels": []
+      },
+      "chipFamily": "generic",
+      "displays": [
+        {
+          "role": "main",
+          "widthPx": 960,
+          "heightPx": 540,
+          "dpi": 0
+        }
+      ],
+      "controls": {
+        "gamepad": true,
+        "extraButtons": []
+      },
+      "verification": "unverified",
+      "notes": ""
+    },
+    {
+      "id": "generic-android",
+      "names": [
+        "Generic Android Handheld"
+      ],
+      "match": {
+        "models": [],
+        "devices": [],
+        "socModels": []
+      },
+      "chipFamily": "generic",
+      "displays": [
+        {
+          "role": "main",
+          "widthPx": 1920,
+          "heightPx": 1080,
+          "dpi": 0
+        }
+      ],
+      "controls": {
+        "gamepad": true,
+        "extraButtons": []
+      },
+      "verification": "unverified",
+      "notes": "Fallback for unmapped devices"
+    }
+  ],
+  "chipFamilies": [
+    {
+      "id": "sd8gen2",
+      "socModels": [
+        "SM8550",
+        "QCS8550"
+      ],
+      "gpu": "Adreno 740",
+      "tier": "flagship"
+    },
+    {
+      "id": "sd8gen3",
+      "socModels": [
+        "SM8650"
+      ],
+      "gpu": "Adreno 750",
+      "tier": "flagship"
+    },
+    {
+      "id": "sd8elite",
+      "socModels": [
+        "SM8750"
+      ],
+      "gpu": "Adreno 830",
+      "tier": "flagship"
+    },
+    {
+      "id": "g3xgen2",
+      "socModels": [
+        "G3X Gen 2"
+      ],
+      "gpu": "",
+      "tier": "mid"
+    },
+    {
+      "id": "sd865",
+      "socModels": [
+        "SM8250"
+      ],
+      "gpu": "Adreno 650",
+      "tier": "mid"
+    },
+    {
+      "id": "generic",
+      "socModels": [],
+      "gpu": "",
+      "tier": "unknown"
+    }
+  ],
+  "emulators": [
+    {
+      "id": "eden",
+      "name": "Eden",
+      "systems": [
+        "switch"
+      ],
+      "packages": [
+        "dev.eden.eden_emulator",
+        "dev.eden.eden_emulator.nightly"
+      ],
+      "source": {
+        "type": "direct_url",
+        "repo": "",
+        "assetRegex": "",
+        "url": "https://github.com/yuzu-emu/yuzu-android/releases",
+        "note": "Official releases only; verify against github.com"
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "{appData}/files/config/config.ini",
+        "perGameDir": "{appData}/files/config/custom",
+        "perGameFileName": "{titleId}.ini",
+        "biosDir": "",
+        "keysDir": "{appData}/files/keys",
+        "logFile": "{appData}/files/eden_log.txt"
+      },
+      "pathsNeedElevated": true,
+      "configFormat": "qt_ini",
+      "enumMaps": {},
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "declaresAllFilesAccess": false,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch Eden",
+          "Go to Settings > System > Paths",
+          "Tap Game Directory",
+          "Select your ROMs/switch folder",
+          "Confirm selection"
+        ],
+        "verifyTreeSuffix": "switch"
+      },
+      "inAppSetup": [
+        {
+          "title": "Firmware",
+          "instruction": "Place firmware files in the keys folder"
+        }
+      ],
+      "firstLaunchCreatesDirs": true,
+      "esdeLaunch": {
+        "findRuleName": "EDEN",
+        "packageActivity": "dev.eden.eden_emulator/org.yuzu.yuzu_emu.activities.EmulationActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "nsp",
+        "xci",
+        "nsz"
+      ],
+      "companionExtensions": [],
+      "caveats": []
+    },
+    {
+      "id": "retroarch",
+      "name": "RetroArch",
+      "systems": [
+        "ps1",
+        "psp",
+        "n64",
+        "gc",
+        "wii",
+        "gba",
+        "gbc",
+        "gb",
+        "nes",
+        "snes",
+        "genesis",
+        "dreamcast",
+        "saturn",
+        "arcade",
+        "neogeo",
+        "mastersystem",
+        "gamegear"
+      ],
+      "packages": [
+        "com.retroarch"
+      ],
+      "source": {
+        "type": "direct_url",
+        "repo": "",
+        "assetRegex": "",
+        "url": "https://buildbot.libretro.com/stable/android/aarch64/",
+        "note": ""
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "",
+        "perGameFileName": "",
+        "biosDir": "{appData}/files/system",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": false,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": false,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch RetroArch",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "RETROARCH",
+        "packageActivity": "com.retroarch/com.retroarch.browser.retroactivity.RetroActivityFuture",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "zip",
+        "7z",
+        "bin",
+        "cue",
+        "iso",
+        "gdi"
+      ],
+      "companionExtensions": [
+        ".sav",
+        ".state"
+      ],
+      "caveats": []
+    },
+    {
+      "id": "duckstation",
+      "name": "DuckStation",
+      "systems": [
+        "ps1"
+      ],
+      "packages": [
+        "com.github.stenzek.duckstation"
+      ],
+      "source": {
+        "type": "direct_url",
+        "repo": "",
+        "assetRegex": "",
+        "url": "https://duckstation.org/android/",
+        "note": ""
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "{appData}/files/gamesettings",
+        "perGameFileName": "",
+        "biosDir": "{appData}/files/bios",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": true,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": true,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch DuckStation",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "DUCKSTATION",
+        "packageActivity": "com.github.stenzek.duckstation/com.github.stenzek.duckstation.MainActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "bin",
+        "cue",
+        "iso",
+        "ecm"
+      ],
+      "companionExtensions": [
+        ".sav"
+      ],
+      "caveats": []
+    },
+    {
+      "id": "ppsspp",
+      "name": "PPSSPP",
+      "systems": [
+        "psp"
+      ],
+      "packages": [
+        "org.ppsspp.ppsspp"
+      ],
+      "source": {
+        "type": "direct_url",
+        "repo": "",
+        "assetRegex": "",
+        "url": "https://ppsspp.org/",
+        "note": ""
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "",
+        "perGameFileName": "",
+        "biosDir": "",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": false,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": false,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch PPSSPP",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "PPSSPP",
+        "packageActivity": "org.ppsspp.ppsspp/org.ppsspp.ppsspp.PpssppActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "iso",
+        "cso",
+        "prx"
+      ],
+      "companionExtensions": [
+        ".sav"
+      ],
+      "caveats": []
+    },
+    {
+      "id": "dolphin",
+      "name": "Dolphin",
+      "systems": [
+        "gc",
+        "wii"
+      ],
+      "packages": [
+        "org.dolphinemu.dolphinemu"
+      ],
+      "source": {
+        "type": "direct_url",
+        "repo": "",
+        "assetRegex": "",
+        "url": "https://dolphin-emu.org/download/",
+        "note": "Official builds come from dolphin-emu.org, not GitHub releases."
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "{appData}/files/Config/Dolphin.ini",
+        "perGameDir": "{appData}/files/GameSettings",
+        "perGameFileName": "",
+        "biosDir": "",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": true,
+      "configFormat": "dolphin_ini",
+      "enumMaps": {},
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "declaresAllFilesAccess": true,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch Dolphin",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "DOLPHIN",
+        "packageActivity": "org.dolphinemu.dolphinemu/org.dolphinemu.ui.main.MainActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "iso",
+        "gcm",
+        "wbfs",
+        "ciso"
+      ],
+      "companionExtensions": [
+        ".sav"
+      ],
+      "caveats": []
+    },
+    {
+      "id": "azahar",
+      "name": "Azahar",
+      "systems": [
+        "n3ds"
+      ],
+      "packages": [
+        "org.azahar_emu.azahar"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "azahar-emu/azahar",
+        "assetRegex": ".*\\.apk$",
+        "url": "",
+        "note": "Also on Google Play. Package changed to org.azahar_emu.azahar in 2125."
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "/sdcard/Azahar/config/config.ini",
+        "perGameDir": "",
+        "perGameFileName": "",
+        "biosDir": "/sdcard/Azahar/sysdata",
+        "keysDir": "/sdcard/Azahar/keys",
+        "logFile": ""
+      },
+      "pathsNeedElevated": false,
+      "configFormat": "qt_ini",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": true,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch Azahar",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "AZAHAR",
+        "packageActivity": "com.sun.emulator.azahar/org.yuzu.yuzu_emu.activities.EmulationActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "cia",
+        "3ds",
+        "cci",
+        "cxi"
+      ],
+      "companionExtensions": [],
+      "caveats": []
+    },
+    {
+      "id": "nethersx2",
+      "name": "NetherSX2",
+      "systems": [
+        "ps2"
+      ],
+      "packages": [
+        "xyz.aethersx2.android",
+        "xyz.aethersx2.tturnip"
+      ],
+      "source": {
+        "type": "user_obtains",
+        "repo": "",
+        "assetRegex": "",
+        "url": "",
+        "note": "Community patched build; obtain from known sources"
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "{appData}/files/gamesettings",
+        "perGameFileName": "",
+        "biosDir": "{appData}/files/bios",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": true,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": true,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch NetherSX2",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "NETHERSX2-TURNIP",
+        "packageActivity": "xyz.aethersx2.tturnip/xyz.aethersx2.android.EmulationActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "iso",
+        "bin",
+        "cue"
+      ],
+      "companionExtensions": [
+        ".sav"
+      ],
+      "caveats": []
+    },
+    {
+      "id": "melonds",
+      "name": "melonDS",
+      "systems": [
+        "nds"
+      ],
+      "packages": [
+        "me.magnum.melonds"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "rafaelvcaetano/melonDS-android",
+        "assetRegex": ".*android.*\\.apk$",
+        "url": "",
+        "note": ""
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "",
+        "perGameFileName": "",
+        "biosDir": "",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": false,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": false,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch melonDS",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "MELONDS",
+        "packageActivity": "me.magnum.melonds/me.magnum.melonds.activities.EmulationActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "nds",
+        "srl"
+      ],
+      "companionExtensions": [
+        ".sav",
+        ".ml1"
+      ],
+      "caveats": []
+    },
+    {
+      "id": "vita3k",
+      "name": "Vita3K",
+      "systems": [
+        "psvita"
+      ],
+      "packages": [
+        "com.github.vita3k"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "Vita3K/Vita3K",
+        "assetRegex": ".*android.*\\.apk$",
+        "url": "",
+        "note": ""
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "",
+        "perGameFileName": "",
+        "biosDir": "",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": false,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": false,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch Vita3K",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [
+        {
+          "title": "Firmware",
+          "instruction": "Install firmware files via Vita3K settings"
+        }
+      ],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "VITA3K",
+        "packageActivity": "com.github.vita3k/com.github.vita3k.MainActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "vpk",
+        "bin",
+        "iso"
+      ],
+      "companionExtensions": [],
+      "caveats": []
+    },
+    {
+      "id": "cemu",
+      "name": "Cemu",
+      "systems": [
+        "wiiu"
+      ],
+      "packages": [
+        "info.cemu"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "SSimco/Cemu",
+        "assetRegex": ".*\\.apk$",
+        "url": "",
+        "note": "Community port; not official Cemu team"
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "",
+        "perGameFileName": "",
+        "biosDir": "",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": false,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": false,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Launch Cemu",
+          "Grant folder access when prompted"
+        ],
+        "verifyTreeSuffix": "ROMs"
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "CEMU",
+        "packageActivity": "info.cemu/MainActivity",
+        "command": "VIEW"
+      },
+      "romExtensions": [
+        "iso",
+        "wud"
+      ],
+      "companionExtensions": [],
+      "caveats": []
+    },
+    {
+      "id": "gamenative",
+      "name": "GameNative",
+      "systems": [
+        "steam"
+      ],
+      "packages": [
+        "app.gamenative"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "utkarshdalal/GameNative",
+        "assetRegex": ".*release.*\\.apk$",
+        "url": "",
+        "note": "GPL-3.0; releases tagged prerelease"
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "",
+        "perGameFileName": "",
+        "biosDir": "",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": false,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": false,
+      "folderPick": {
+        "needed": false,
+        "inAppSteps": [],
+        "verifyTreeSuffix": ""
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "GAMENATIVE",
+        "packageActivity": "app.gamenative/app.gamenative.MainActivity",
+        "command": "LAUNCHER"
+      },
+      "romExtensions": [
+        "steam"
+      ],
+      "companionExtensions": [],
+      "caveats": [
+        "Steam game integration via ES-DE launchers"
+      ]
+    },
+    {
+      "id": "winlator",
+      "name": "Winlator",
+      "systems": [
+        "pc"
+      ],
+      "packages": [
+        "com.winlator"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "brunodev85/winlator",
+        "assetRegex": ".*\\.apk$",
+        "url": "",
+        "note": ""
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "",
+        "perGameDir": "",
+        "perGameFileName": "",
+        "biosDir": "",
+        "keysDir": "",
+        "logFile": ""
+      },
+      "pathsNeedElevated": false,
+      "configFormat": "none",
+      "enumMaps": {},
+      "permissions": [],
+      "declaresAllFilesAccess": false,
+      "folderPick": {
+        "needed": false,
+        "inAppSteps": [],
+        "verifyTreeSuffix": ""
+      },
+      "inAppSetup": [],
+      "firstLaunchCreatesDirs": false,
+      "esdeLaunch": {
+        "findRuleName": "WINLATOR",
+        "packageActivity": "com.winlator/MainActivity",
+        "command": "LAUNCHER"
+      },
+      "romExtensions": [
+        "exe"
+      ],
+      "companionExtensions": [],
+      "caveats": [
+        "Windows game layer; not a traditional emulator"
+      ]
+    }
+  ],
+  "frontends": [
+    {
+      "id": "es-de",
+      "packages": [
+        "org.es_de.frontend"
+      ],
+      "source": {
+        "type": "user_obtains",
+        "note": "Paid (Patreon/Galaxy Store); never redistributed"
+      },
+      "paths": {
+        "settings": "/sdcard/ES-DE/settings/es_settings.xml",
+        "customSystems": "/sdcard/ES-DE/custom_systems/",
+        "mediaRoot": "/sdcard/ES-DE/downloaded_media",
+        "gamelists": "/sdcard/ES-DE/gamelists",
+        "scripts": "/sdcard/ES-DE/scripts",
+        "themes": "{appData}/files/themes"
+      },
+      "systemFolders": {
+        "switch": "switch",
+        "nds": "nds",
+        "n3ds": "n3ds",
+        "psp": "psp",
+        "ps1": "ps1",
+        "ps2": "ps2",
+        "n64": "n64",
+        "gc": "gc",
+        "wii": "wii",
+        "gba": "gba",
+        "gbc": "gbc",
+        "gb": "gb",
+        "nes": "nes",
+        "snes": "snes",
+        "genesis": "genesis",
+        "dreamcast": "dreamcast",
+        "gamegear": "gamegear",
+        "mastersystem": "mastersystem",
+        "saturn": "saturn",
+        "arcade": "arcade",
+        "neogeo": "neogeo",
+        "psvita": "psvita",
+        "wiiu": "wiiu",
+        "pc": "pc",
+        "steam": "steam"
+      },
+      "mediaTypes": [
+        {
+          "folder": "covers",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg"
+          ],
+          "aspect": "3:4"
+        },
+        {
+          "folder": "backcovers",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg"
+          ],
+          "aspect": "3:4"
+        },
+        {
+          "folder": "3dboxes",
+          "extensions": [
+            "png"
+          ],
+          "aspect": "1:1"
+        },
+        {
+          "folder": "physicalmedia",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg"
+          ],
+          "aspect": "16:9"
+        },
+        {
+          "folder": "marquees",
+          "extensions": [
+            "png"
+          ],
+          "aspect": "16:9"
+        },
+        {
+          "folder": "screenshots",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg"
+          ],
+          "aspect": "16:9"
+        },
+        {
+          "folder": "titlescreens",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg"
+          ],
+          "aspect": "16:9"
+        },
+        {
+          "folder": "fanart",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg"
+          ],
+          "aspect": "16:9"
+        },
+        {
+          "folder": "miximages",
+          "extensions": [
+            "png"
+          ],
+          "aspect": "16:9"
+        },
+        {
+          "folder": "videos",
+          "extensions": [
+            "mp4"
+          ],
+          "aspect": "16:9"
+        },
+        {
+          "folder": "manuals",
+          "extensions": [
+            "pdf"
+          ],
+          "aspect": "16:9"
+        }
+      ],
+      "mustBeClosedToWrite": true,
+      "knownCompanions": [
+        "com.esde.companion"
+      ]
+    }
+  ],
+  "themes": [
+    {
+      "themeId": "superstation-one-menu-es-de",
+      "customization": {
+        "supported": true,
+        "folder": "theme-customizations",
+        "file": "colors.xml",
+        "template": "resources/colors.xml",
+        "settingKey": "ThemeColorScheme",
+        "settingValue": "custom",
+        "survivesUpdates": true
+      },
+      "variables": [
+        {
+          "name": "backgroundPath",
+          "type": "image",
+          "default": "./theme-customizations/background.png"
+        },
+        {
+          "name": "fontColorBase",
+          "type": "color",
+          "default": "ffffff"
+        },
+        {
+          "name": "fontColorSelected",
+          "type": "color",
+          "default": "000000"
+        },
+        {
+          "name": "iconColorBase",
+          "type": "color",
+          "default": "ffffff"
+        },
+        {
+          "name": "selectorColor",
+          "type": "color",
+          "default": "ffffff"
+        }
+      ],
+      "imageTargets": {
+        "background": "1920x1080"
+      }
+    }
+  ],
+  "systems": [
+    {
+      "id": "switch",
+      "name": "Nintendo Switch",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "eden",
+        "sd8gen3": "eden",
+        "sd8elite": "eden",
+        "generic": "eden"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "nds",
+      "name": "Nintendo DS",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "melonds",
+        "sd8gen3": "melonds",
+        "sd8elite": "melonds",
+        "generic": "melonds"
+      },
+      "alternatives": [
+        "retroarch"
+      ]
+    },
+    {
+      "id": "n3ds",
+      "name": "Nintendo 3DS",
+      "maker": "Nintendo",
+      "biosRequired": true,
+      "recommended": {
+        "sd8gen2": "azahar",
+        "sd8gen3": "azahar",
+        "sd8elite": "azahar",
+        "generic": "azahar"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "ps1",
+      "name": "PlayStation 1",
+      "maker": "Sony",
+      "biosRequired": true,
+      "recommended": {
+        "sd8gen2": "duckstation",
+        "sd8gen3": "duckstation",
+        "sd8elite": "duckstation",
+        "generic": "duckstation"
+      },
+      "alternatives": [
+        "retroarch"
+      ]
+    },
+    {
+      "id": "ps2",
+      "name": "PlayStation 2",
+      "maker": "Sony",
+      "biosRequired": true,
+      "recommended": {
+        "sd8gen2": "nethersx2",
+        "sd8gen3": "nethersx2",
+        "sd8elite": "nethersx2",
+        "generic": "nethersx2"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "psp",
+      "name": "PlayStation Portable",
+      "maker": "Sony",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "ppsspp",
+        "sd8gen3": "ppsspp",
+        "sd8elite": "ppsspp",
+        "generic": "ppsspp"
+      },
+      "alternatives": [
+        "retroarch"
+      ]
+    },
+    {
+      "id": "psvita",
+      "name": "PlayStation Vita",
+      "maker": "Sony",
+      "biosRequired": true,
+      "recommended": {
+        "sd8gen2": "vita3k",
+        "sd8gen3": "vita3k",
+        "sd8elite": "vita3k",
+        "generic": "vita3k"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "gc",
+      "name": "GameCube",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "dolphin",
+        "sd8gen3": "dolphin",
+        "sd8elite": "dolphin",
+        "generic": "dolphin"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "wii",
+      "name": "Wii",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "dolphin",
+        "sd8gen3": "dolphin",
+        "sd8elite": "dolphin",
+        "generic": "dolphin"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "wiiu",
+      "name": "Wii U",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "cemu",
+        "sd8gen3": "cemu",
+        "sd8elite": "cemu",
+        "generic": "cemu"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "gba",
+      "name": "Game Boy Advance",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "gbc",
+      "name": "Game Boy Color",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "gb",
+      "name": "Game Boy",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "nes",
+      "name": "NES",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "snes",
+      "name": "Super Nintendo",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "n64",
+      "name": "Nintendo 64",
+      "maker": "Nintendo",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "genesis",
+      "name": "Genesis",
+      "maker": "Sega",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "dreamcast",
+      "name": "Dreamcast",
+      "maker": "Sega",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "gamegear",
+      "name": "Game Gear",
+      "maker": "Sega",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "mastersystem",
+      "name": "Master System",
+      "maker": "Sega",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "saturn",
+      "name": "Saturn",
+      "maker": "Sega",
+      "biosRequired": true,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "arcade",
+      "name": "Arcade",
+      "maker": "Multiple",
+      "biosRequired": true,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "neogeo",
+      "name": "Neo Geo",
+      "maker": "SNK",
+      "biosRequired": true,
+      "recommended": {
+        "sd8gen2": "retroarch",
+        "sd8gen3": "retroarch",
+        "sd8elite": "retroarch",
+        "generic": "retroarch"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "steam",
+      "name": "Steam",
+      "maker": "Valve",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "gamenative",
+        "sd8gen3": "gamenative",
+        "sd8elite": "gamenative",
+        "generic": "gamenative"
+      },
+      "alternatives": []
+    },
+    {
+      "id": "pc",
+      "name": "PC",
+      "maker": "PC",
+      "biosRequired": false,
+      "recommended": {
+        "sd8gen2": "winlator",
+        "sd8gen3": "winlator",
+        "sd8elite": "winlator",
+        "generic": "winlator"
+      },
+      "alternatives": []
+    }
+  ],
+  "bios": [],
+  "settingsProfiles": [],
+  "guidedSteps": [
+    {
+      "id": "eden-folder-pick",
+      "title": "Eden Game Folder",
+      "why": "Eden needs to know where your game files are stored.",
+      "value": "",
+      "steps": [
+        "Launch Eden",
+        "Go to Settings, then System, then Paths",
+        "Tap Game Directory",
+        "Select your ROMs/switch folder",
+        "Confirm the selection"
+      ],
+      "screenshot": "",
+      "verify": "folderGrant"
+    },
+    {
+      "id": "duckstation-folder-pick",
+      "title": "DuckStation Game Folder",
+      "why": "DuckStation needs access to your PS1 game files.",
+      "value": "",
+      "steps": [
+        "Launch DuckStation",
+        "Grant folder access when the system prompts you"
+      ],
+      "screenshot": "",
+      "verify": "folderGrant"
+    },
+    {
+      "id": "retroarch-folder-pick",
+      "title": "RetroArch Game Folder",
+      "why": "RetroArch needs access to your game files for multiple systems.",
+      "value": "",
+      "steps": [
+        "Launch RetroArch",
+        "Grant folder access when the system prompts you"
+      ],
+      "screenshot": "",
+      "verify": "folderGrant"
+    }
+  ],
+  "healthRules": []
+}

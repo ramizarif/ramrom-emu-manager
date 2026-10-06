@@ -1,0 +1,283 @@
+package com.ramrom.emumanager.access
+
+import android.content.ComponentName
+import android.content.Context
+import android.content.ServiceConnection
+import android.os.IBinder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeoutOrNull
+import rikka.shizuku.Shizuku
+import kotlin.coroutines.resume
+
+/**
+ * Elevated access via Shizuku UserService running as shell uid 2000.
+ * All paths must be absolute (e.g., /storage/emulated/0/Android/data/...).
+ */
+class ShizukuAccess(
+    private val context: Context,
+    private val probe: CapabilityProbe,
+) : Access {
+
+    override var capabilities: Set<Capability> = emptySet()
+        private set
+
+    private var service: IAccessService? = null
+    private var connectContinuation: ((Boolean) -> Unit)? = null
+
+    private val conn = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+            service = IAccessService.Stub.asInterface(binder)
+            connectContinuation?.invoke(true)
+            connectContinuation = null
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+            service = null
+        }
+    }
+
+    /**
+     * Connect to Shizuku UserService.
+     * Suspends until onServiceConnected (or timeout 5s).
+     * Returns true if successful and probed, false otherwise.
+     */
+    suspend fun connect(): Boolean = withContext(Dispatchers.Main) {
+        if (service != null) return@withContext true // Already connected
+
+        return@withContext (withTimeoutOrNull(5000L) {
+            suspendCancellableCoroutine { cont ->
+                connectContinuation = { success ->
+                    cont.resume(success)
+                }
+
+                try {
+                    val args = Shizuku.UserServiceArgs(
+                        ComponentName(context.packageName, AccessService::class.java.name)
+                    ).daemon(false).processNameSuffix("access").version(1)
+
+                    Shizuku.bindUserService(args, conn)
+                } catch (e: Exception) {
+                    connectContinuation = null
+                    cont.resume(false)
+                }
+            }
+        } ?: false) && probeCapabilities()
+    }
+
+    private suspend fun probeCapabilities(): Boolean = withContext(Dispatchers.IO) {
+        val svc = service ?: return@withContext false
+        return@withContext try {
+            capabilities = probe.probe(svc)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun disconnect() {
+        try {
+            if (service != null) {
+                Shizuku.unbindUserService(
+                    Shizuku.UserServiceArgs(
+                        ComponentName(context.packageName, AccessService::class.java.name)
+                    ),
+                    conn,
+                    true
+                )
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+        service = null
+    }
+
+    override suspend fun readFile(path: String): AccessResult<ByteArray?> = withContext(Dispatchers.IO) {
+        if (Capability.READ_SHARED_STORAGE !in capabilities && Capability.WRITE_APP_DATA !in capabilities) {
+            return@withContext AccessResult.Denied("Read capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            val bytes = svc.readFile(path)
+            AccessResult.Ok(bytes)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Read failed")
+        }
+    }
+
+    override suspend fun writeFile(path: String, bytes: ByteArray): AccessResult<Unit> = withContext(Dispatchers.IO) {
+        if (Capability.WRITE_APP_DATA !in capabilities) {
+            return@withContext AccessResult.Denied("Write capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            svc.writeFile(path, bytes)
+            AccessResult.Ok(Unit)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Write failed")
+        }
+    }
+
+    override suspend fun deleteFile(path: String): AccessResult<Unit> = withContext(Dispatchers.IO) {
+        if (Capability.WRITE_APP_DATA !in capabilities) {
+            return@withContext AccessResult.Denied("Delete capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            svc.deleteFile(path)
+            AccessResult.Ok(Unit)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Delete failed")
+        }
+    }
+
+    override suspend fun listDir(path: String): AccessResult<List<String>> = withContext(Dispatchers.IO) {
+        if (Capability.READ_SHARED_STORAGE !in capabilities && Capability.WRITE_APP_DATA !in capabilities) {
+            return@withContext AccessResult.Denied("List capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            val entries = svc.listDir(path)
+            AccessResult.Ok(entries?.toList() ?: emptyList())
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "List failed")
+        }
+    }
+
+    override suspend fun stat(path: String): AccessResult<FileStat> = withContext(Dispatchers.IO) {
+        val result = readFile(path)
+        return@withContext when (result) {
+            is AccessResult.Ok -> {
+                try {
+                    val f = java.io.File(path)
+                    AccessResult.Ok(FileStat(
+                        size = f.length(),
+                        mtime = f.lastModified(),
+                        isDir = f.isDirectory
+                    ))
+                } catch (e: Exception) {
+                    AccessResult.Failed(e.message ?: "Stat failed")
+                }
+            }
+            is AccessResult.Denied -> AccessResult.Denied(result.reason)
+            is AccessResult.Failed -> AccessResult.Failed(result.message)
+        }
+    }
+
+    override suspend fun exists(path: String): AccessResult<Boolean> = withContext(Dispatchers.IO) {
+        val result = readFile(path)
+        return@withContext when (result) {
+            is AccessResult.Ok -> AccessResult.Ok(result.value != null)
+            is AccessResult.Denied -> AccessResult.Denied(result.reason)
+            is AccessResult.Failed -> AccessResult.Ok(false)
+        }
+    }
+
+    override suspend fun forceStop(pkg: String): AccessResult<Unit> = withContext(Dispatchers.IO) {
+        if (Capability.FORCE_STOP !in capabilities) {
+            return@withContext AccessResult.Denied("Force-stop capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            svc.exec(arrayOf("am", "force-stop", pkg))
+            AccessResult.Ok(Unit)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Force-stop failed")
+        }
+    }
+
+    override suspend fun installApk(file: String): AccessResult<Unit> = withContext(Dispatchers.IO) {
+        if (Capability.INSTALL_SILENT !in capabilities) {
+            return@withContext AccessResult.Denied("Install capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            svc.exec(arrayOf("pm", "install", "-r", "-t", file))
+            AccessResult.Ok(Unit)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Install failed")
+        }
+    }
+
+    override suspend fun uninstall(pkg: String): AccessResult<Unit> = withContext(Dispatchers.IO) {
+        if (Capability.INSTALL_SILENT !in capabilities) {
+            return@withContext AccessResult.Denied("Uninstall capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            svc.exec(arrayOf("pm", "uninstall", pkg))
+            AccessResult.Ok(Unit)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Uninstall failed")
+        }
+    }
+
+    override suspend fun grantPermission(pkg: String, perm: String): AccessResult<Unit> = withContext(Dispatchers.IO) {
+        if (Capability.GRANT_RUNTIME_PERMISSION !in capabilities) {
+            return@withContext AccessResult.Denied("Grant permission capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            svc.exec(arrayOf("pm", "grant", pkg, perm))
+            AccessResult.Ok(Unit)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Grant failed")
+        }
+    }
+
+    override suspend fun revokePermission(pkg: String, perm: String): AccessResult<Unit> = withContext(Dispatchers.IO) {
+        if (Capability.GRANT_RUNTIME_PERMISSION !in capabilities) {
+            return@withContext AccessResult.Denied("Revoke permission capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            svc.exec(arrayOf("pm", "revoke", pkg, perm))
+            AccessResult.Ok(Unit)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Revoke failed")
+        }
+    }
+
+    override suspend fun setAppOp(pkg: String, uid: Int, op: String, mode: AppOpMode): AccessResult<Unit> = withContext(Dispatchers.IO) {
+        if (Capability.SET_APPOP !in capabilities) {
+            return@withContext AccessResult.Denied("AppOp capability not available")
+        }
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            val modeStr = when (mode) {
+                AppOpMode.ALLOW -> "allow"
+                AppOpMode.DENY -> "deny"
+                AppOpMode.IGNORE -> "ignore"
+            }
+            svc.exec(arrayOf("appops", "set", "--uid", uid.toString(), pkg, op, modeStr))
+            AccessResult.Ok(Unit)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "SetAppOp failed")
+        }
+    }
+
+    override suspend fun dumpsys(service: String, args: String): AccessResult<String> = withContext(Dispatchers.IO) {
+        if (Capability.READ_URI_GRANTS !in capabilities) {
+            return@withContext AccessResult.Denied("Dumpsys capability not available")
+        }
+        val svc = this@ShizukuAccess.service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            val output = svc.exec(arrayOf("dumpsys", service) + args.split(" ").filter { it.isNotEmpty() })
+            AccessResult.Ok(output)
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Dumpsys failed")
+        }
+    }
+
+    override suspend fun isRunning(pkg: String): AccessResult<Boolean> = withContext(Dispatchers.IO) {
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            val output = svc.exec(arrayOf("pidof", pkg))
+            AccessResult.Ok(output.isNotBlank())
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "IsRunning failed")
+        }
+    }
+}
