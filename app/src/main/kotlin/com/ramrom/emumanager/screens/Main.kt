@@ -106,19 +106,27 @@ data class HomeStatus(val systems: Int, val ready: Int?, val blocking: Int, val 
 private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMore: () -> Unit, onOpenEsde: (() -> Unit)?) {
     val focus = com.ramrom.emumanager.ui.input.initialFocus(h.ready)
     val good = h.ready != null && h.blocking == 0 && h.warnings == 0
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        LivingHandheld(HandheldState(awake = true, tiles = h.tiles, face = when { h.ready == null -> Face.LookDown; good -> Face.Joy; h.blocking > 0 -> Face.Worried; else -> Face.Happy }), Modifier.size(250.dp, 180.dp))
+    val face = when { h.ready == null -> Face.LookDown; good -> Face.Joy; h.blocking > 0 -> Face.Worried; else -> Face.Happy }
+    val title = when { h.ready == null -> "Checking your setup"; good -> "Ready to play"; h.blocking > 0 -> "Some games won't start"; else -> "Ready, with a few notes" }
+    val line = if (h.ready == null) "One moment." else "${h.ready} of ${h.systems} systems ready" + if (h.blocking + h.warnings > 0) "  ·  ${h.blocking + h.warnings} to look at" else ""
+    if (LocalSizeClass.current == SizeClass.Phone) {
+        // Portrait: stacked and centred, so the screen isn't a strip of content over empty space.
+        Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LivingHandheld(HandheldState(awake = true, tiles = h.tiles, face = face), Modifier.size(280.dp, 200.dp))
+            BasicText(title, style = EmuType.Headline2.copy(textAlign = TextAlign.Center))
+            BasicText(line, style = EmuType.Body.copy(textAlign = TextAlign.Center))
+        }
+    } else Row(verticalAlignment = Alignment.CenterVertically) {
+        LivingHandheld(HandheldState(awake = true, tiles = h.tiles, face = face), Modifier.size(250.dp, 180.dp))
         Spacer(Modifier.width(20.dp))
         Column(Modifier.weight(1f)) {
-            BasicText(when { h.ready == null -> "Checking your setup"; good -> "Ready to play"; h.blocking > 0 -> "Some games won't start"; else -> "Ready, with a few notes" }, style = EmuType.Headline2)
-            BasicText(when {
-                h.ready == null -> "One moment."
-                else -> "${h.ready} of ${h.systems} systems ready" + if (h.blocking + h.warnings > 0) "  ·  ${h.blocking + h.warnings} to look at" else ""
-            }, style = EmuType.Body)
+            BasicText(title, style = EmuType.Headline2)
+            BasicText(line, style = EmuType.Body)
         }
     }
     Spacer(Modifier.height(6.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    val phone = LocalSizeClass.current == SizeClass.Phone
+    @Composable fun Buttons() {
         if (onOpenEsde != null && good) {
             EmuButton("Open ES-DE", onOpenEsde, kind = ButtonKind.Go, focusRequester = focus)
             EmuButton("Health check", onHealth)
@@ -128,6 +136,8 @@ private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMor
         }
         EmuButton("Add or change systems", onSetUpMore, kind = ButtonKind.Ghost)
     }
+    if (phone) Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) { Buttons() }
+    else Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Buttons() }
 }
 
 private enum class SettingsPane(val title: String) { Device("Device"), Access("Access"), Updates("Updates"), Notifications("Notifications"), Report("Report a problem"), About("About") }

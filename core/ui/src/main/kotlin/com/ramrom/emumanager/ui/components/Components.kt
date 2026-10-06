@@ -217,7 +217,10 @@ fun HintBar(hints: List<Pair<String, String>>, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        hints.forEach { (glyph, verb) ->
+        // A phone is too narrow for every hint: keep the first two, and Back if there is one.
+        val shown = if (com.ramrom.emumanager.ui.theme.LocalSizeClass.current == com.ramrom.emumanager.ui.theme.SizeClass.Phone && hints.size > 3)
+            hints.filter { it.first != "B" }.take(2) + hints.filter { it.first == "B" } else hints
+        shown.forEach { (glyph, verb) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 BasicText(
                     glyph,
@@ -225,7 +228,7 @@ fun HintBar(hints: List<Pair<String, String>>, modifier: Modifier = Modifier) {
                     style = TextStyle(color = EmuColors.Surface, fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, textAlign = TextAlign.Center, fontFamily = com.ramrom.emumanager.ui.theme.Figtree),
                 )
                 Spacer(Modifier.width(7.dp))
-                BasicText(verb, style = EmuType.Hint)
+                BasicText(verb, style = EmuType.Hint, maxLines = 1, softWrap = false)
             }
         }
     }

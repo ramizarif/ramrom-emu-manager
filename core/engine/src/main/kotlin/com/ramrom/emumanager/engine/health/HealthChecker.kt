@@ -40,14 +40,18 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                 "It's the frontend in your plan: your games show up there.", emptyList(), FixAction.InstallApp(frontend.id))
             else if (!inventory.esdeConfig.installed) issues += HealthIssue("frontend_first_run", IssueSeverity.WARNING, "Open ES-DE once",
                 "It finishes setting itself up the first time it runs.", listOf("Not found yet: ${inventory.esdeConfig.configPath}"), FixAction.OpenAppSetup(frontend.id))
+        }
 
-            // ROM folders, named the frontend's way.
+        // ROM folders, named the ES-DE way even without ES-DE: it's the layout emulators get pointed at too.
+        val layout = frontend ?: bundle.frontends.firstOrNull()
+        val looksHere = if (frontend != null) "ES-DE looks for" else "Keep your"
+        if (layout != null) {
             for (s in chosen) {
-                val folderName = frontend.systemFolders[s.systemId] ?: s.systemId
+                val folderName = layout.systemFolders[s.systemId] ?: s.systemId
                 val folder = inventory.romFolders.firstOrNull { it.folderName == folderName }
                 val path = "${inventory.esdeConfig.romDirectory}/$folderName"
                 if (folder == null) issues += HealthIssue("folder_missing_${s.systemId}", IssueSeverity.WARNING, "No ${name(s.systemId)} folder",
-                    "ES-DE looks for ${name(s.systemId)} games in ROMs/$folderName.", listOf("Missing: $path"), FixAction.CreateFolder(path), s.systemId)
+                    "$looksHere ${name(s.systemId)} games in ROMs/$folderName.", listOf("Missing: $path"), FixAction.CreateFolder(path), s.systemId)
                 else {
                     // Judged against the emulator chosen for this system, not every emulator that could run it.
                     val emu = emulators[s.emulatorId]
@@ -66,10 +70,10 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                     } else if (games == 0) issues += HealthIssue("folder_empty_${s.systemId}", IssueSeverity.INFO, "No ${name(s.systemId)} games yet",
                         "Put your ${name(s.systemId)} games in ROMs/$folderName and they'll show up.", listOf("Folder: ${folder.folderPath}"), FixAction.None, s.systemId)
                     folder.strays.groupBy { it.belongsTo }.forEach { (other, files) ->
-                        val otherFolder = frontend.systemFolders[other] ?: other
+                        val otherFolder = layout.systemFolders[other] ?: other
                         issues += HealthIssue("stray_${s.systemId}_$other", IssueSeverity.WARNING,
                             "${files.size} ${name(other)} file${if (files.size == 1) "" else "s"} in ROMs/$folderName",
-                            "ES-DE won't find ${if (files.size == 1) "it" else "them"} there. Move ${if (files.size == 1) "it" else "them"} to ROMs/$otherFolder.",
+                            "${if (frontend != null) "ES-DE won't find" else "Its emulator won't open"} ${if (files.size == 1) "it" else "them"} there. Move ${if (files.size == 1) "it" else "them"} to ROMs/$otherFolder.",
                             files.take(5).map { it.fileName } + listOfNotNull(if (files.size > 5) "and ${files.size - 5} more" else null), FixAction.None, s.systemId)
                     }
                 }

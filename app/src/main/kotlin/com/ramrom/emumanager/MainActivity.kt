@@ -69,9 +69,15 @@ class MainActivity : ComponentActivity() {
         // spent on this, so it never triggers something the user can't see.
         if (event.action == android.view.KeyEvent.ACTION_DOWN && window.decorView.isInTouchMode) {
             (findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) ?: window.decorView).requestFocusFromTouch()
-            return true
+            // Only confirm keys are spent: they'd act on a focus the user can't see. B, Start and
+            // the shoulders mean the same thing whatever is focused, so they go through.
+            if (event.keyCode in CONFIRM_KEYS) return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private companion object {
+        val CONFIRM_KEYS = setOf(android.view.KeyEvent.KEYCODE_BUTTON_A, android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER, android.view.KeyEvent.KEYCODE_NUMPAD_ENTER)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

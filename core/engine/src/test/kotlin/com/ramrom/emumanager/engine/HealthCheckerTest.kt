@@ -20,7 +20,9 @@ class HealthCheckerTest {
     ), null)
     private val all = listOf("org.es_de.frontend", "dev.eden.eden_emulator", "org.dolphinemu.dolphinemu", "com.github.stenzek.duckstation")
 
-    private fun inv(vararg files: String, installed: List<String> = all, facts: DeviceFacts.() -> DeviceFacts = { this }) =
+    private fun inv(vararg files: String, installed: List<String> = all, facts: DeviceFacts.() -> DeviceFacts = { this }) = inv(installed, files = arrayOf(*files), facts = facts)
+
+    private fun inv(installed: List<String>, files: Array<String>, facts: DeviceFacts.() -> DeviceFacts = { this }) =
         InventoryBuilder(testBundle, FakeFiles(*files)).build(DeviceFacts(
             installed = installed.associateWith { InstalledApp(it) },
             allFilesAccess = installed.associateWith { true },
@@ -94,5 +96,14 @@ class HealthCheckerTest {
         assertEquals(IssueSeverity.WARNING, u.severity)
         assertTrue(u.detail.contains("unpacking"))
         assertFalse(issues.any { it.id == "folder_empty_gc" })
+    }
+
+    /** Adopted setups often have no frontend; their folders still matter. */
+    @Test fun foldersAreCheckedWithoutAFrontend() {
+        val noFrontend = plan.copy(frontendId = null)
+        val issues = HealthChecker(testBundle).check(noFrontend, inv(installed = all - "org.es_de.frontend", files = arrayOf("$r/gc/Game.7z")))
+        assertTrue(issues.any { it.id == "folder_unplayable_gc" })
+        assertTrue(issues.first { it.id == "folder_missing_wii" }.detail.startsWith("Keep your"))
+        assertFalse(issues.any { it.id.startsWith("frontend_") })
     }
 }
