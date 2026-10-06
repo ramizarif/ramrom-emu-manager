@@ -19,6 +19,7 @@ class EmuApplication : Application() {
     val access by lazy { AccessManager(this) }
     val db by lazy { EmuDatabase.create(this) }
     val log by lazy { EmuLog(this) }
+    val appState by lazy { com.ramrom.emumanager.data.AppStateRepository(db.appStateDao()) }
     /** The real Lemon Squeezy client replaces this in M6. */
     val entitlements: Entitlements by lazy { FakeEntitlements() }
 

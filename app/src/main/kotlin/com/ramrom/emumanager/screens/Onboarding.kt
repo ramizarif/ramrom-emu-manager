@@ -2,6 +2,10 @@ package com.ramrom.emumanager.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -147,3 +151,23 @@ fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onPick:
         }
     }
 }
+
+/** S02 picker: every known device plus a catch-all by chip. Shown in a sheet. */
+@Composable
+fun ColumnScope.DevicePickerContent(devices: List<Pair<String, String>>, onPick: (String?) -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    BasicText("Which handheld is this?", style = EmuType.Headline2)
+    Column(Modifier.androidxVerticalScroll(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        devices.forEachIndexed { i, (id, name) ->
+            OptionCard(name, null, { onPick(id) }, if (i == 0) Modifier.focusRequester(focus) else Modifier,
+                icon = { TileIcon("◧", listOf(EmuColors.Berry, EmuColors.Sky, EmuColors.Tangerine, EmuColors.Grape)[i % 4], 38.dp) })
+        }
+        OptionCard("Another Snapdragon handheld", "Recommendations by chip, marked as best guesses.", { onPick(null) },
+            icon = { TileIcon("?", EmuColors.InkSoft, 38.dp) })
+    }
+}
+
+@Composable
+private fun Modifier.androidxVerticalScroll(): Modifier =
+    this.then(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()))

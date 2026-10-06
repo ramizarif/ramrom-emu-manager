@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import com.ramrom.emumanager.knowledge.DeviceDetector
 import com.ramrom.emumanager.knowledge.KnowledgeStore
+import com.ramrom.emumanager.knowledge.MatchKind
 import com.ramrom.emumanager.screens.DeviceSummary
 import com.ramrom.emumanager.screens.ExistingSetup
 import com.ramrom.emumanager.ui.handheld.HandheldTile
@@ -19,7 +20,7 @@ object Detection {
         val m = DeviceDetector.match(info, bundle)
         val detail = listOfNotNull(info.socModel, m.chipFamily?.let { familyName(it.id) }).joinToString(" · ")
         return when {
-            m.matchKind == "model" -> DeviceSummary(
+            m.matchKind == MatchKind.MODEL -> DeviceSummary(
                 "This looks like an ${m.profile!!.names.firstOrNull() ?: info.model}", detail,
                 listOfNotNull(if (info.hasGamepad) "Controller detected" else null),
                 if (m.isVerified) DeviceSummary.Kind.Verified else DeviceSummary.Kind.BestGuess,

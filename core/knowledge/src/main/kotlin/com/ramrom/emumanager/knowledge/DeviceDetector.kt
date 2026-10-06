@@ -17,13 +17,13 @@ object DeviceDetector {
         // codename ("kalama" on every 8 Gen 2 handheld), so it must never pick a profile on its own.
         val byModel = info.model?.let { m -> bundle.devices.find { d -> d.match.models.any { it.equals(m, ignoreCase = true) } } }
         val family = info.socModel?.let { soc -> bundle.chipFamilies.find { f -> f.socModels.any { it.equals(soc, ignoreCase = true) } } }
-        if (byModel != null) return DeviceMatchResult(byModel, info, chipFamily = family ?: bundle.chipFamilies.find { it.id == byModel.chipFamily }, matchKind = "model")
+        if (byModel != null) return DeviceMatchResult(byModel, info, chipFamily = family ?: bundle.chipFamilies.find { it.id == byModel.chipFamily }, matchKind = MatchKind.MODEL)
         val generic = bundle.devices.find { it.id == "generic-android" }
         return DeviceMatchResult(
             generic, info,
             isPhoneDetected = !info.hasGamepad,
             chipFamily = family,
-            matchKind = if (family != null) "family" else "none",
+            matchKind = if (family != null) MatchKind.FAMILY else MatchKind.NONE,
         )
     }
 
@@ -40,18 +40,34 @@ object DeviceDetector {
             null
         }
 
-        val displayCount = try {
+        val displays = try {
             val dm = context.getSystemService(Context.DISPLAY_SERVICE)
                 as? android.hardware.display.DisplayManager
-            dm?.displays?.size ?: 0
+            val metrics = android.util.DisplayMetrics()
+            dm?.displays?.map { display ->
+                display.getMetrics(metrics)
+                Display(
+                    role = if (display.displayId == 0) "main" else "secondary",
+                    widthPx = display.width,
+                    heightPx = display.height,
+                    dpi = metrics.densityDpi
+                )
+            } ?: emptyList()
         } catch (e: Exception) {
-            0
+            emptyList()
         }
 
         val hasGamepad = detectGamepad(context)
 
-        val runtime = Runtime.getRuntime()
-        val ramMb = runtime.totalMemory() / (1024 * 1024)
+        val ramMb = try {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+            val memInfo = android.app.ActivityManager.MemoryInfo()
+            am?.getMemoryInfo(memInfo)
+            memInfo.totalMem / (1024 * 1024)
+        } catch (e: Exception) {
+            0L
+        }
+
         val storageGb = try {
             val stat = android.os.StatFs("/storage/emulated/0")
             stat.blockSize * stat.blockCount / (1024L * 1024 * 1024)
@@ -64,7 +80,7 @@ object DeviceDetector {
             device = device,
             socModel = socModel,
             manufacturer = Build.MANUFACTURER,
-            displayCount = displayCount,
+            displays = displays,
             hasGamepad = hasGamepad,
             ramMb = ramMb,
             storageGb = storageGb,
@@ -74,23 +90,18 @@ object DeviceDetector {
 
     private fun detectGamepad(context: Context): Boolean {
         return try {
-            @Suppress("DEPRECATION")
-            val inputManager = Class.forName("android.hardware.input.InputManager")
-                .getMethod("getInstance")
-                .invoke(null) ?: return false
-            val listInputDevices = inputManager.javaClass.getMethod("getInputDevices")
-            @Suppress("UNCHECKED_CAST")
-            val devices = listInputDevices.invoke(inputManager) as? Array<Any> ?: return false
-
-            devices.any { dev ->
-                try {
-                    val sources = dev.javaClass.getMethod("getSources").invoke(dev) as? Int ?: return@any false
-                    // Check for JOYSTICK (0x01000000) or DPAD (0x00000010)
-                    (sources and 0x01000000) != 0 || (sources and 0x00000010) != 0
-                } catch (e: Exception) {
-                    false
+            val im = context.getSystemService(Context.INPUT_SERVICE) as? android.hardware.input.InputManager
+            im?.let {
+                it.inputDeviceIds.any { id ->
+                    val device = android.view.InputDevice.getDevice(id)
+                    if (device != null) {
+                        val sources = device.sources
+                        (sources and 0x00000401) != 0 // GAMEPAD | DPAD
+                    } else {
+                        false
+                    }
                 }
-            }
+            } ?: false
         } catch (e: Exception) {
             false
         }
@@ -107,9 +118,9 @@ data class DeviceMatchResult(
     val isPhoneDetected: Boolean = false,
     /** Chip family by SoC; drives best-guess recommendations when the model is unknown. */
     val chipFamily: ChipFamily? = null,
-    /** "model" (exact device), "family" (best guess by chip) or "none". */
-    val matchKind: String = "none",
+    /** model (exact device), family (best guess by chip) or none. */
+    val matchKind: MatchKind = MatchKind.NONE,
 ) {
     val deviceId: String? = profile?.id
-    val isVerified: Boolean = matchKind == "model" && profile?.verification == "verified"
+    val isVerified: Boolean = matchKind == MatchKind.MODEL && profile?.verification == DeviceVerification.VERIFIED
 }

@@ -93,7 +93,7 @@ data class DeviceInfo(
     val device: String? = null,
     val socModel: String? = null,
     val manufacturer: String? = null,
-    val displayCount: Int = 0,
+    val displays: List<Display> = emptyList(),
     val hasGamepad: Boolean = false,
     val ramMb: Long = 0,
     val storageGb: Long = 0,

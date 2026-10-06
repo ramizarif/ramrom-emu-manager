@@ -190,17 +190,26 @@ internal fun capabilityLabels(caps: Set<Capability>): List<String> = buildList {
     if (Capability.FORCE_STOP in caps) add("Close apps before editing")
 }
 
-/** Limited mode: what stays automatic and what becomes guided, side by side. */
+/**
+ * Limited mode: what stays automatic and what becomes guided, side by side. The automatic parts
+ * need "All files access", so that is asked for here, before continuing.
+ */
 @Composable
 private fun LimitedModeView(onUse: () -> Unit, onConnect: () -> Unit) {
+    val context = LocalContext.current
+    var filesOk by remember { mutableStateOf(android.os.Environment.isExternalStorageManager()) }
+    LifecycleResumeEffect(Unit) { filesOk = android.os.Environment.isExternalStorageManager(); onPauseOrDispose { } }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    LaunchedEffect(filesOk) { runCatching { focus.requestFocus() } }
     GuidedScaffold(
         handheld = HandheldState(awake = true, face = Face.Happy),
         bubble = "No problem, I'll guide you.",
         hints = listOf("A" to "Select", "B" to "Back"),
         actions = {
-            EmuButton("Use limited mode", onUse, kind = ButtonKind.Go, focusRequester = focus)
+            if (filesOk) EmuButton("Use limited mode", onUse, kind = ButtonKind.Go, focusRequester = focus)
+            else EmuButton("Allow file access", {
+                open(context, Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${context.packageName}")))
+            }, kind = ButtonKind.Go, focusRequester = focus)
             EmuButton("Connect instead", onConnect)
         },
     ) {
@@ -210,13 +219,19 @@ private fun LimitedModeView(onUse: () -> Unit, onConnect: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                BasicText("Still automatic", style = EmuType.Title.copy(fontSize = androidx.compose.ui.unit.TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp)))
+                BasicText("Still automatic", style = EmuType.Title)
                 listOf("Folders and importing", "BIOS check", "ES-DE game art").forEach { BasicText("• $it", style = EmuType.Body) }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                BasicText("Guided instead", style = EmuType.Title.copy(fontSize = androidx.compose.ui.unit.TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp)))
+                BasicText("Guided instead", style = EmuType.Title)
                 listOf("Emulator settings", "Installing apps", "Theme changes").forEach { BasicText("• $it", style = EmuType.Body) }
             }
+        }
+        Spacer(Modifier.height(14.dp))
+        CheckItem("Allow access to your files", if (filesOk) CheckState.Done else CheckState.Now)
+        if (!filesOk) {
+            Spacer(Modifier.height(6.dp))
+            BasicText("Android will ask in Settings. Turn on “Allow access to manage all files”, then come back.", style = EmuType.Body)
         }
     }
 }

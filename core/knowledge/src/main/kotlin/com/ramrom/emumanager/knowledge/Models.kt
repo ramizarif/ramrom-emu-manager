@@ -1,39 +1,110 @@
 package com.ramrom.emumanager.knowledge
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // ============ Enums ============
 
+@Serializable
 enum class DeviceVerification {
-    VERIFIED, COMMUNITY, UNVERIFIED
+    @SerialName("verified")
+    VERIFIED,
+    @SerialName("community")
+    COMMUNITY,
+    @SerialName("unverified")
+    UNVERIFIED
 }
 
+@Serializable
 enum class SourceType {
-    GITHUB_RELEASE, DIRECT_URL, PLAY_STORE, USER_OBTAINS, COMMUNITY_PORT
+    @SerialName("github_release")
+    GITHUB_RELEASE,
+    @SerialName("direct_url")
+    DIRECT_URL,
+    @SerialName("play_store")
+    PLAY_STORE,
+    @SerialName("user_obtains")
+    USER_OBTAINS,
+    @SerialName("community_port")
+    COMMUNITY_PORT
 }
 
+@Serializable
 enum class SupportLevel {
-    L1, L2, L3
+    @SerialName("L1")
+    L1,
+    @SerialName("L2")
+    L2,
+    @SerialName("L3")
+    L3
 }
 
+@Serializable
 enum class ConfigFormat {
-    QT_INI, DOLPHIN_INI, XML, NONE
+    @SerialName("qt_ini")
+    QT_INI,
+    @SerialName("dolphin_ini")
+    DOLPHIN_INI,
+    @SerialName("xml")
+    XML,
+    @SerialName("none")
+    NONE
 }
 
+@Serializable
 enum class VerifyKind {
-    FOLDER_GRANT, FILE_EXISTS, PERMISSION, APP_INSTALLED, NONE
+    @SerialName("folderGrant")
+    FOLDER_GRANT,
+    @SerialName("fileExists")
+    FILE_EXISTS,
+    @SerialName("permission")
+    PERMISSION,
+    @SerialName("appInstalled")
+    APP_INSTALLED,
+    @SerialName("none")
+    NONE
 }
 
+@Serializable
 enum class ThemeVariableType {
-    IMAGE, COLOR, FONT, ENUM
+    @SerialName("image")
+    IMAGE,
+    @SerialName("color")
+    COLOR,
+    @SerialName("font")
+    FONT,
+    @SerialName("enum")
+    ENUM
 }
 
+@Serializable
 enum class BiosSource {
-    ES_DE_DOCS, NO_INTRO, REDUMP
+    @SerialName("es-de-docs")
+    ES_DE_DOCS,
+    @SerialName("no-intro")
+    NO_INTRO,
+    @SerialName("redump")
+    REDUMP
 }
 
+@Serializable
 enum class GameSource {
-    VERIFIED, COMMUNITY, HEURISTIC
+    @SerialName("verified")
+    VERIFIED,
+    @SerialName("community")
+    COMMUNITY,
+    @SerialName("heuristic")
+    HEURISTIC
+}
+
+@Serializable
+enum class MatchKind {
+    @SerialName("model")
+    MODEL,
+    @SerialName("family")
+    FAMILY,
+    @SerialName("none")
+    NONE
 }
 
 // ============ Knowledge Data Classes ============
@@ -62,7 +133,7 @@ data class DeviceProfile(
     val chipFamily: String,
     val displays: List<Display> = emptyList(),
     val controls: Controls = Controls(),
-    val verification: String = "unverified",
+    val verification: DeviceVerification = DeviceVerification.UNVERIFIED,
     val notes: String = ""
 )
 
@@ -103,10 +174,10 @@ data class EmulatorProfile(
     val packages: List<String> = emptyList(),
     val source: InstallSource = InstallSource(),
     val minAndroid: Int = 0,
-    val supportLevel: String = "L1",
+    val supportLevel: SupportLevel = SupportLevel.L1,
     val paths: EmulatorPaths = EmulatorPaths(),
     val pathsNeedElevated: Boolean = false,
-    val configFormat: String = "none",
+    val configFormat: ConfigFormat = ConfigFormat.NONE,
     val enumMaps: Map<String, Map<String, String>> = emptyMap(),
     val permissions: List<String> = emptyList(),
     val declaresAllFilesAccess: Boolean = false,
@@ -121,7 +192,7 @@ data class EmulatorProfile(
 
 @Serializable
 data class InstallSource(
-    val type: String = "user_obtains",
+    val type: SourceType = SourceType.USER_OBTAINS,
     val repo: String = "",
     val assetRegex: String = "",
     val url: String = "",
@@ -142,7 +213,8 @@ data class EmulatorPaths(
 data class FolderPickSpec(
     val needed: Boolean = true,
     val inAppSteps: List<String> = emptyList(),
-    val verifyTreeSuffix: String = ""
+    val verifyTreeSuffix: String = "",
+    val verify: VerifyKind = VerifyKind.NONE
 )
 
 @Serializable
@@ -172,7 +244,7 @@ data class FrontendProfile(
 
 @Serializable
 data class FrontendSource(
-    val type: String = "user_obtains",
+    val type: SourceType = SourceType.USER_OBTAINS,
     val note: String = ""
 )
 
@@ -215,7 +287,7 @@ data class ThemeCustomization(
 @Serializable
 data class ThemeVariable(
     val name: String = "",
-    val type: String = "", // image, color, font, enum
+    val type: ThemeVariableType = ThemeVariableType.COLOR,
     val default: String = ""
 )
 
@@ -239,7 +311,7 @@ data class BiosEntry(
     val variant: String = "",
     val required: Boolean = false,
     val targets: List<BiosTarget> = emptyList(),
-    val source: String = "" // es-de-docs, no-intro, redump
+    val source: BiosSource? = null
 )
 
 @Serializable
@@ -255,12 +327,12 @@ data class GameSettingsProfile(
     val emulatorId: String = "",
     val emulatorVersionRange: String = "",
     val chipFamily: String = "",
-    val name: String = "", // Recommended/Performance/Quality
+    val name: String = "",
     val settings: List<GameSetting> = emptyList(),
     val tradeoff: String = "",
-    val verdict: String = "", // great, playable, poor, unknown
+    val verdict: String = "",
     val verifiedOn: List<String> = emptyList(),
-    val source: String = "", // verified, community, heuristic
+    val source: GameSource? = null,
     val notes: String = "",
     val updated: String = ""
 )
@@ -299,7 +371,7 @@ data class GuidedStepContent(
     val value: String = "",
     val steps: List<String> = emptyList(),
     val screenshot: String = "",
-    val verify: String = "none"
+    val verify: VerifyKind = VerifyKind.NONE
 )
 
 @Serializable

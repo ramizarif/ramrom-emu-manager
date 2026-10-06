@@ -78,7 +78,7 @@ class BundleParsingTest {
         val bundle = json.decodeFromString<KnowledgeBundle>(data)
         val thor = bundle.devices.find { it.id == "ayn-thor" }
         assertNotNull(thor)
-        assertEquals("verified", thor!!.verification)
+        assertEquals(DeviceVerification.VERIFIED, thor!!.verification)
         assertEquals("AYN Thor", thor.match.models.first())
         assertEquals("kalama", thor.match.devices.first())
         assertEquals("QCS8550", thor.match.socModels.first())
@@ -116,7 +116,7 @@ class BundleParsingTest {
         assertTrue("switch" in eden.systems)
         assertNotNull(eden.folderPick)
         assertTrue(eden.folderPick!!.needed)
-        assertEquals("qt_ini", eden.configFormat)
+        assertEquals(ConfigFormat.QT_INI, eden.configFormat)
     }
 
     @Test
@@ -140,6 +140,51 @@ class BundleParsingTest {
         assertTrue(theme!!.customization.supported)
         assertEquals("colors.xml", theme.customization.file)
         assertTrue(theme.customization.survivesUpdates)
+    }
+
+    @Test
+    fun emulatorDataIsValid() {
+        val data = bundleAsString()
+        val bundle = json.decodeFromString<KnowledgeBundle>(data)
+
+        for (emu in bundle.emulators) {
+            assertTrue(
+                "Emulator ${emu.id} has no packages",
+                emu.packages.isNotEmpty()
+            )
+            assertTrue(
+                "Emulator ${emu.id} has empty name",
+                emu.name.isNotEmpty()
+            )
+            assertNotNull("Emulator ${emu.id} has no source", emu.source)
+
+            // Validate source type consistency
+            when (emu.source.type) {
+                SourceType.GITHUB_RELEASE -> {
+                    assertTrue(
+                        "Emulator ${emu.id} github_release missing repo",
+                        emu.source.repo.isNotEmpty()
+                    )
+                    assertTrue(
+                        "Emulator ${emu.id} github_release missing assetRegex",
+                        emu.source.assetRegex.isNotEmpty()
+                    )
+                }
+                SourceType.DIRECT_URL -> {
+                    assertTrue(
+                        "Emulator ${emu.id} direct_url missing url",
+                        emu.source.url.isNotEmpty()
+                    )
+                }
+                SourceType.USER_OBTAINS -> {
+                    assertTrue(
+                        "Emulator ${emu.id} user_obtains missing note",
+                        emu.source.note.isNotEmpty()
+                    )
+                }
+                else -> {} // PLAY_STORE, COMMUNITY_PORT handled elsewhere
+            }
+        }
     }
 
     private fun bundleAsString(): String {

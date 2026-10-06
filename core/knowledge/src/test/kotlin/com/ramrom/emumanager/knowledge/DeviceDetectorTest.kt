@@ -20,8 +20,8 @@ class DeviceDetectorTest {
         )
         val result = DeviceDetector.match(info, bundle)
         assertEquals("ayn-thor", result.deviceId)
-        assertEquals("verified", result.profile!!.verification)
-        assertEquals("model", result.matchKind)
+        assertEquals(DeviceVerification.VERIFIED, result.profile!!.verification)
+        assertEquals(MatchKind.MODEL, result.matchKind)
         assertTrue(result.isVerified)
     }
 
@@ -36,7 +36,7 @@ class DeviceDetectorTest {
         )
         val result = DeviceDetector.match(info, bundle)
         assertEquals("retroid-pocket-5", result.deviceId)
-        assertEquals("model", result.matchKind)
+        assertEquals(MatchKind.MODEL, result.matchKind)
     }
 
     @Test
@@ -60,7 +60,7 @@ class DeviceDetectorTest {
         val info = DeviceInfo(model = "KT-R1", device = "kalama", socModel = "SM8550", hasGamepad = true, apiLevel = 33)
         val result = DeviceDetector.match(info, bundle)
         assertNotEquals("ayn-thor", result.deviceId)
-        assertEquals("family", result.matchKind)
+        assertEquals(MatchKind.FAMILY, result.matchKind)
         assertEquals("sd8gen2", result.chipFamily?.id)
         assertFalse(result.isVerified)
         assertFalse(result.isPhoneDetected)
@@ -100,7 +100,7 @@ class DeviceDetectorTest {
         )
         val result = DeviceDetector.match(info, bundle)
         assertEquals("generic-android", result.deviceId)
-        assertEquals("none", result.matchKind)
+        assertEquals(MatchKind.NONE, result.matchKind)
     }
 
     private fun loadBundle(): KnowledgeBundle {

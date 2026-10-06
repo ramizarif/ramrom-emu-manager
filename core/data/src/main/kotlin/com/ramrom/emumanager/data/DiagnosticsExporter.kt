@@ -12,7 +12,7 @@ class DiagnosticsExporter(
     private val includeGameFileNames: Boolean = false
 ) {
     /**
-     * Redact a file path: any segment under a ROM folder becomes ROMs/<system>/<file>.
+     * Redact a file path: any segment under a ROM folder becomes ROMs/<system>/<n files>.
      */
     fun redactPath(path: String): String {
         val normalized = path.replace("\\", "/")
@@ -28,7 +28,7 @@ class DiagnosticsExporter(
             if (includeGameFileNames) {
                 "${resultPrefix}ROMs/$system/${match.groupValues[3]}"
             } else {
-                "${resultPrefix}ROMs/$system/<file>"
+                "${resultPrefix}ROMs/$system/<n files>"
             }
         } else {
             normalized

@@ -18,7 +18,7 @@ class DiagnosticsExporterTest {
         val path = "/sdcard/ROMs/nes/SuperMarioBros.nes"
         val redacted = exporter.redactPath(path)
 
-        assertEquals("/sdcard/ROMs/nes/<file>", redacted)
+        assertEquals("/sdcard/ROMs/nes/<n files>", redacted)
     }
 
     @Test
@@ -34,9 +34,9 @@ class DiagnosticsExporterTest {
         val redacted3 = exporter.redactPath(path3)
 
         // All should contain the redacted pattern
-        assertTrue(redacted1.contains("ROMs/nes/<file>"))
-        assertTrue(redacted2.contains("ROMs/nes/<file>"))
-        assertTrue(redacted3.contains("ROMs/nes/<file>"))
+        assertTrue(redacted1.contains("ROMs/nes/<n files>"))
+        assertTrue(redacted2.contains("ROMs/nes/<n files>"))
+        assertTrue(redacted3.contains("ROMs/nes/<n files>"))
     }
 
     @Test
@@ -56,7 +56,7 @@ class DiagnosticsExporterTest {
         val path = "/sdcard/ROMs/switch/game.nsp"
         val redacted = exporter.redactPath(path)
 
-        assertTrue(redacted.contains("ROMs/switch/<file>"))
+        assertTrue(redacted.contains("ROMs/switch/<n files>"))
     }
 
     @Test
@@ -81,7 +81,7 @@ class DiagnosticsExporterTest {
         val bundle = exporter.buildRedactedBundle(data)
 
         assertTrue(bundle.contains("ROM Folder"))
-        assertTrue(bundle.contains("ROMs/nes/<file>"))
+        assertTrue(bundle.contains("ROMs/nes/<n files>"))
         assertTrue(bundle.contains("/etc/config.txt"))
     }
 }
