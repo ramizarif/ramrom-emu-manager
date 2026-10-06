@@ -134,6 +134,14 @@ private fun fixFor(issue: HealthIssue, context: Context, app: EmuApplication, el
             launch?.let { IssueFix("Open it", { context.tryStart(it) }, note = "Come back when it's done its first-run screens.") }
         }
         is FixAction.StageBios -> IssueFix("I've copied it", recheck, note = "Copy one of the files above into the emulator's BIOS folder. Setup copies it for you when you pick your BIOS folder on the BIOS check.")
+        is FixAction.ConfigureInEsde -> {
+            val emuId = app.health.report.value?.plan?.systems?.firstOrNull { it.systemId == f.systemId }?.emulatorId
+            val emu = bundle?.emulators?.firstOrNull { it.id == emuId }
+            emu?.let { e ->
+                IssueFix("Set it in ES-DE", { scope.launch { app.settings.setEsdeChoice(f.systemId, e)?.let { app.log.w("health", it) }; recheck() } },
+                    note = "ES-DE is closed while we write. Undo from Change history.")
+            }
+        }
         FixAction.ReconnectAccess -> IssueFix("Connect Shizuku", { nav.push(Route.Access(Route.Health)) })
         else -> null
     }

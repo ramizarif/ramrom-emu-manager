@@ -21,7 +21,9 @@ object AllowList {
             "appops" -> validateAppopsSubcommand(argv)
             "dumpsys" -> validateDumpsysSubcommand(argv)
             "pidof" -> true // pidof <pkg>; safe
-            "ls", "stat" -> validateFileCommand(argv)
+            "ls" -> validateFileCommand(argv)
+            "stat" -> if (argv.size == 4 && argv[1] == "-c") argv[2] == "%s %Y %F" && isPathAllowed(argv[3]) else validateFileCommand(argv)
+            "md5sum" -> argv.size == 2 && validateFileCommand(argv)
             "cmd" -> validateCmdSubcommand(argv)
             else -> false
         }

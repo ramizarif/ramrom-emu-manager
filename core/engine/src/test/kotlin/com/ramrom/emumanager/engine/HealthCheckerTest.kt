@@ -73,7 +73,29 @@ class HealthCheckerTest {
         assertFalse(check(inv(esdeSettings)).any { it.id.startsWith("folder_pick_") })
         val known = check(inv(esdeSettings) { copy(folderGrants = mapOf("dev.eden.eden_emulator" to listOf("$r/switch"), "org.dolphinemu.dolphinemu" to listOf(r))) })
         assertFalse(known.any { it.id == "folder_pick_eden" || it.id == "folder_pick_dolphin" })
-        assertTrue(known.any { it.id == "folder_pick_duckstation" && it.severity == IssueSeverity.BLOCKER })
+        // ES-DE opens the game in DuckStation itself, so a missing pick only costs the in-app list.
+        assertTrue(known.any { it.id == "folder_pick_duckstation" && it.severity == IssueSeverity.INFO })
+        val noEsde = check(inv(esdeSettings, installed = all - "org.es_de.frontend") { copy(folderGrants = mapOf("dev.eden.eden_emulator" to listOf("$r/switch"))) })
+        assertTrue(noEsde.any { it.id == "folder_pick_duckstation" && it.severity == IssueSeverity.BLOCKER })
+    }
+
+    @Test fun esdeChoiceIsFlaggedWhereItsDefaultIsACore() {
+        // Unread gamelists: silent.
+        assertFalse(check(inv(esdeSettings)).any { it.id.startsWith("esde_choice_") })
+        // Switch has Eden Nightly (still Eden); gc has Dolphin's standalone; wii and psx have nothing set.
+        val issues = check(inv(esdeSettings) { copy(esdeChoices = mapOf("switch" to "Eden Nightly (Standalone)", "gc" to "Dolphin (Standalone)", "wii" to null, "psx" to null)) })
+        assertEquals(setOf("esde_choice_wii", "esde_choice_ps1"), issues.filter { it.id.startsWith("esde_choice_") }.map { it.id }.toSet())
+        val ps1 = issues.single { it.id == "esde_choice_ps1" }
+        assertTrue(ps1.title, ps1.title.endsWith("games in RetroArch (Beetle PSX)"))
+        assertEquals(FixAction.ConfigureInEsde("ps1"), ps1.fix)
+        // The Thor: a custom es_systems.xml whose wii and psx systems start with the standalone app.
+        val custom = check(inv(esdeSettings) { copy(esdeChoices = mapOf("switch" to null, "gc" to "Dolphin (Standalone)", "wii" to null, "psx" to null),
+            esdeCustomDefaults = mapOf("wii" to "Dolphin (Standalone)", "psx" to "DuckStation (Standalone)")) })
+        assertFalse(custom.any { it.id.startsWith("esde_choice_") })
+        // The Thor as it is: PS1 under a custom "ps1" system, not "psx".
+        val alias = check(inv(esdeSettings) { copy(esdeChoices = mapOf("switch" to null, "gc" to "Dolphin (Standalone)", "wii" to null, "psx" to null, "ps1" to null),
+            esdeCustomDefaults = mapOf("wii" to "Dolphin (Standalone)", "ps1" to "DuckStation (Standalone)")) })
+        assertFalse(alias.any { it.id == "esde_choice_ps1" })
     }
 
     @Test fun aGrantOnAnyInstalledBuildCounts() {

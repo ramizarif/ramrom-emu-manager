@@ -42,6 +42,30 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                 "It finishes setting itself up the first time it runs.", listOf("Not found yet: ${inventory.esdeConfig.configPath}"), FixAction.OpenAppSetup(frontend.id))
         }
 
+        // ES-DE's per-system choice: its defaults are RetroArch cores for several systems, so a plan
+        // that picks a standalone emulator needs one, or games open in the wrong app.
+        val choices = inventory.esdeChoices
+        if (frontend != null && choices != null && frontend.packages.any { it in installed }) {
+            for (s in chosen) {
+                val emu = emulators[s.emulatorId] ?: continue
+                if (!isInstalled(emu.id)) continue
+                val pkg = emu.packages.firstOrNull { it in installed }
+                val folder = com.ramrom.emumanager.engine.config.EsdeLaunch.folderFor(frontend, s.systemId,
+                    inventory.esdeCustomDefaults.keys + choices.filterValues { it != null }.keys)
+                val custom = inventory.esdeCustomDefaults[folder]
+                val wanted = com.ramrom.emumanager.engine.config.EsdeLaunch.wanted(frontend, s.systemId, emu, pkg, custom) ?: continue
+                val current = choices[folder]
+                if (com.ramrom.emumanager.engine.config.EsdeLaunch.opens(current, emu, frontend)) continue
+                val opensIn = current ?: custom ?: frontend.defaultLabels[s.systemId] ?: "ES-DE's default"
+                // Labels without "(Standalone)" are RetroArch cores; "in Dolphin" alone would read as fine.
+                val opensInApp = if ("(Standalone)" in opensIn || opensIn == "ES-DE's default") opensIn.removeSuffix(" (Standalone)") else "RetroArch ($opensIn)"
+                issues += HealthIssue("esde_choice_${s.systemId}", IssueSeverity.WARNING, "ES-DE opens ${name(s.systemId)} games in $opensInApp",
+                    "Your plan plays them in ${emu.name}. ES-DE needs to be told once, per system.",
+                    listOf("Now: $opensIn", "Should be: $wanted", "File: ES-DE/gamelists/$folder/gamelist.xml"),
+                    FixAction.ConfigureInEsde(s.systemId), s.systemId)
+            }
+        }
+
         // ROM folders, named the ES-DE way even without ES-DE: it's the layout emulators get pointed at too.
         val layout = frontend ?: bundle.frontends.firstOrNull()
         val looksHere = if (frontend != null) "ES-DE looks for" else "Keep your"
@@ -112,8 +136,12 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                     // Any installed build will do: on the Thor ES-DE launches Eden Nightly, which holds the grant.
                     inventory.folderGrants.none { g -> g.packageId in emu.packages && g.packageId in installed && g.granted && (g.systemId == s.systemId || g.systemId.isEmpty()) }
                 }
-                if (missing.isNotEmpty()) issues += HealthIssue("folder_pick_$emuId", IssueSeverity.BLOCKER, "${emu.name} can't see your games folder",
-                    "Android only lets you choose it inside ${emu.name}.", missing.map { "ROMs/${frontend?.systemFolders?.get(it.systemId) ?: it.systemId}" },
+                // ES-DE hands the emulator the game itself, so the pick only matters for browsing inside the emulator.
+                val viaEsde = frontend != null && frontend.packages.any { it in installed }
+                if (missing.isNotEmpty()) issues += HealthIssue("folder_pick_$emuId", if (viaEsde) IssueSeverity.INFO else IssueSeverity.BLOCKER,
+                    if (viaEsde) "${emu.name} doesn't list your games itself" else "${emu.name} can't see your games folder",
+                    if (viaEsde) "Games still open from ES-DE. To see them inside ${emu.name} too, choose the folder there."
+                    else "Android only lets you choose it inside ${emu.name}.", missing.map { "ROMs/${frontend?.systemFolders?.get(it.systemId) ?: it.systemId}" },
                     FixAction.GrantFolder(pkg, missing.first().systemId), missing.singleOrNull()?.systemId)
             }
         }

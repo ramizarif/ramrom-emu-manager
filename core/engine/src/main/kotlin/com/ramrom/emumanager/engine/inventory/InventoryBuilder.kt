@@ -17,6 +17,10 @@ data class DeviceFacts(
     val appDataRoot: String = "/storage/emulated/0/Android/data",
     /** True when [FileLister] can see inside Android/data (elevated). */
     val canReadAppData: Boolean = false,
+    /** ES-DE's system-wide emulator choice per gamelist folder (null: none set); null map when unread. */
+    val esdeChoices: Map<String, String?>? = null,
+    /** First command of each system the user's custom es_systems.xml defines, by system name. */
+    val esdeCustomDefaults: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -58,6 +62,8 @@ class InventoryBuilder(
             esdeConfigured = esde.installed,
             installedApps = facts.installed.values.sortedBy { it.packageId },
             romFolders = romFolders,
+            esdeChoices = facts.esdeChoices,
+            esdeCustomDefaults = facts.esdeCustomDefaults,
             folderGrants = grants,
             biosFiles = bios.first,
             appPermissions = permissions(facts),
@@ -116,6 +122,8 @@ class InventoryBuilder(
     private fun bios(facts: DeviceFacts): Pair<List<BiosFile>, Set<String>> {
         val found = mutableListOf<BiosFile>()
         val unchecked = mutableSetOf<String>()
+        val listing = mutableMapOf<String, List<String>>()
+        val hashes = mutableMapOf<String, String?>()
         for (entry in bundle.bios) for (t in entry.targets) {
             val emu = bundle.emulators.firstOrNull { it.id == t.emulatorId } ?: continue
             val dir = if ("{appData}" in t.path) {
@@ -124,8 +132,17 @@ class InventoryBuilder(
                 t.path.replace("{appData}", "${facts.appDataRoot}/$pkg")
             } else t.path
             val name = t.renameTo.ifEmpty { entry.fileName }
-            val path = "${dir.trimEnd('/')}/$name"
-            if (files.exists(path)) found += BiosFile(entry.system, emu.id, name, path)
+            val folder = dir.trimEnd('/')
+            val path = "$folder/$name"
+            if (files.exists(path)) { found += BiosFile(entry.system, emu.id, name, path); continue }
+            // Emulators rename what they import: DuckStation to its MD5 (924e….bin), NetherSX2 to a
+            // short code (7EBD68DE.bin). So also look at what's in the folder.
+            if (entry.md5.isEmpty() || !files.isDirectory(folder) && !files.exists(folder)) continue
+            val here = listing.getOrPut(folder) { files.listFiles(folder).filter { '/' !in it } }
+            val match = here.firstOrNull { it.substringBeforeLast('.').equals(entry.md5, ignoreCase = true) }
+                ?: here.firstOrNull { f -> hashes.getOrPut("$folder/$f") { files.md5("$folder/$f") }.equals(entry.md5, ignoreCase = true) }
+                ?: if (entry.anyDump && entry.size > 0) here.firstOrNull { it.endsWith(".bin", true) && files.size("$folder/$it") == entry.size } else null
+            if (match != null) found += BiosFile(entry.system, emu.id, match, "$folder/$match")
         }
         return found.distinct() to (unchecked - found.map { it.systemId }.toSet())
     }

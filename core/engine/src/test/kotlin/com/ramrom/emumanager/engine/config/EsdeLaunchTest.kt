@@ -84,4 +84,26 @@ class EsdeLaunchTest {
         assertTrue(out.endsWith(plain.substringAfter("?>\n")))
         assertEquals("Azahar (Standalone)", EsdeLaunch.systemLabel(EsdeLaunch.withSystemLabel("", "Azahar (Standalone)")))
     }
+
+    @Test fun customSystemsReplaceTheDefault() {
+        val xml = """<systemList><system><name>psp</name><path>%ROMPATH%/psp</path>
+            <command label="PPSSPP (Standalone)">%EMULATOR_PPSSPP%</command></system></systemList>"""
+        val custom = EsdeLaunch.customDefaults(xml)
+        assertEquals(mapOf("psp" to "PPSSPP (Standalone)"), custom)
+        assertNull(EsdeLaunch.wanted(esde, "psp", emu("ppsspp"), null, custom["psp"]))
+    }
+
+    @Test fun aCustomLabelNamingTheEmulatorCounts() {
+        val fe = testBundle.frontends.first()
+        val nether = testBundle.emulators.first { it.id == "nethersx2" }
+        assertNull(EsdeLaunch.wanted(fe, "ps2", nether, "xyz.aethersx2.tturnip", "NetherSX2-Turnip (Standalone)"))
+        // A RetroArch core is never taken for the standalone app, whatever its name.
+        assertEquals("Dolphin (Standalone)", EsdeLaunch.wanted(fe, "gc", testBundle.emulators.first { it.id == "dolphin" }, "org.dolphinemu.dolphinemu", "Dolphin"))
+    }
+
+    @Test fun folderFollowsTheAliasInUse() {
+        val fe = testBundle.frontends.first()
+        assertEquals("psx", EsdeLaunch.folderFor(fe, "ps1", emptySet()))
+        assertEquals("ps1", EsdeLaunch.folderFor(fe, "ps1", setOf("ps1", "wii")))
+    }
 }

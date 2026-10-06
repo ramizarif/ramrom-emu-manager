@@ -66,4 +66,21 @@ class InventoryBuilderTest {
         assertTrue(inv.esdeConfig.installed)
         assertEquals(listOf("$e/downloaded_media/nds/covers/Gone.png"), inv.orphanedMedia.map { it.filePath })
     }
+
+    @Test fun findsBiosTheEmulatorRenamed() {
+        val data = "/storage/emulated/0/Android/data"
+        val elevated = DeviceFacts(installed = installed + listOf("xyz.aethersx2.tturnip", "org.dolphinemu.dolphinemu").associateWith { InstalledApp(it) }, canReadAppData = true)
+        // DuckStation names an import after its MD5; NetherSX2 after a short code, and any PS2 dump will do.
+        val duck = "$data/com.github.stenzek.duckstation/files/bios/924e392ed05558ffdb115408c263dccf.bin"
+        val ps2 = "$data/xyz.aethersx2.tturnip/files/bios/7EBD68DE.bin"
+        val found = InventoryBuilder(testBundle, FakeFiles(duck, ps2, "$data/xyz.aethersx2.tturnip/files/bios/7EBD68DE.nvm", sizes = mapOf(ps2 to 4194304L))).build(elevated).biosFiles
+        assertTrue(found.any { it.systemId == "ps1" && it.filePath == duck })
+        assertTrue(found.any { it.systemId == "ps2" && it.filePath == ps2 })
+        // Matched by content when the name says nothing.
+        val ipl = "$data/org.dolphinemu.dolphinemu/files/GC/USA/gc-ntsc.bin"
+        val gc = testBundle.bios.first { it.system == "gc" && "/USA/" in it.targets.first().path }
+        assertTrue(InventoryBuilder(testBundle, FakeFiles(ipl, hashes = mapOf(ipl to gc.md5))).build(elevated).biosFiles.any { it.systemId == "gc" })
+        // A wrong-size file is not a PS2 BIOS.
+        assertFalse(InventoryBuilder(testBundle, FakeFiles(ps2, sizes = mapOf(ps2 to 512L))).build(elevated).biosFiles.any { it.systemId == "ps2" })
+    }
 }

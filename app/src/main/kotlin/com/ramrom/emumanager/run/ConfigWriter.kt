@@ -185,6 +185,28 @@ class ConfigWriter(private val app: EmuApplication) {
         null
     }
 
+    /**
+     * Tell ES-DE to open [systemId] in [emu] (S12's frontend step and S15's fix). Null on success,
+     * including when its choice already opens [emu] or its default does.
+     */
+    suspend fun setEsdeChoice(systemId: String, emu: EmulatorProfile): String? {
+        val bundle = app.knowledge.getBundle() ?: return null
+        val fe = bundle.frontends.firstOrNull() ?: return null
+        val pkg = fe.packages.firstOrNull { p -> runCatching { app.packageManager.getPackageInfo(p, 0) }.isSuccess } ?: return "Install ES-DE first."
+        val dir = fe.paths.gamelists.ifEmpty { return null }
+        val customs = withContext(Dispatchers.IO) {
+            runCatching { File(fe.paths.customSystems, "es_systems.xml").takeIf { it.exists() }?.readText() }.getOrNull()
+        }?.let { EsdeLaunch.customDefaults(it) }.orEmpty()
+        val folder = EsdeLaunch.folderFor(fe, systemId, customs.keys)
+        val custom = customs[folder]
+        val label = EsdeLaunch.wanted(fe, systemId, emu, installed(emu).firstOrNull(), custom) ?: return null
+        val path = "$dir/$folder/gamelist.xml"
+        val current = withContext(Dispatchers.IO) { runCatching { File(path).readText() }.getOrDefault("") }
+        if (EsdeLaunch.opens(EsdeLaunch.systemLabel(current), emu, fe)) return null
+        val system = bundle.systems.firstOrNull { it.id == systemId }?.name ?: systemId
+        return writeText(pkg, "ES-DE", path, "$system opens in ${emu.name}", mapOf("alternativeEmulator" to label)) { EsdeLaunch.withSystemLabel(it, label) }
+    }
+
     /** Put the file back as it was. Unless [force], refuses when the file changed since our write. */
     suspend fun undo(change: ConfigChange, force: Boolean = false): UndoOutcome = withContext(Dispatchers.IO) {
         // Undo restores whole files; the codec only matters for emulators' INI files.

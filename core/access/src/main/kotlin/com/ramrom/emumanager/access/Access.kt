@@ -30,6 +30,13 @@ interface Access {
     /** Check if a path exists. */
     suspend fun exists(path: String): AccessResult<Boolean>
 
+    /** MD5 of a file, lowercase hex, or null if it isn't there. Reads it whole unless an implementation can hash in place. */
+    suspend fun md5(path: String): AccessResult<String?> = when (val r = readFile(path)) {
+        is AccessResult.Ok -> AccessResult.Ok(r.value?.let { b -> java.security.MessageDigest.getInstance("MD5").digest(b).joinToString("") { "%02x".format(it) } })
+        is AccessResult.Denied -> r
+        is AccessResult.Failed -> r
+    }
+
     /** Force-stop a package. */
     suspend fun forceStop(pkg: String): AccessResult<Unit>
 

@@ -43,9 +43,40 @@ object EsdeLaunch {
      * The label ES-DE needs for [systemId] to open games in [emu], or null when its default already
      * does. [pkg] is the installed build (Eden Nightly has its own label).
      */
-    fun wanted(frontend: FrontendProfile, systemId: String, emu: EmulatorProfile, pkg: String?): String? {
+    fun wanted(frontend: FrontendProfile, systemId: String, emu: EmulatorProfile, pkg: String?, customDefault: String? = null): String? {
         val label = pkg?.let { frontend.packageLabels[it] } ?: frontend.emulatorLabels[emu.id] ?: return null
+        // A custom system the user wrote is trusted to open the emulator if its first command names
+        // it; ES-DE's own default only when it's exactly the label this build needs.
+        if (customDefault != null) return label.takeUnless { customDefault == label || opens(customDefault, emu, frontend) || names(customDefault, emu) }
         return label.takeIf { it != frontend.defaultLabels[systemId] }
+    }
+
+    /**
+     * Systems a custom `es_systems.xml` (ES-DE/custom_systems) defines, by name, with the label of
+     * their first command: that replaces ES-DE's own default for the system.
+     */
+    fun customDefaults(esSystems: String): Map<String, String> =
+        Regex("""<system>(.*?)</system>""", RegexOption.DOT_MATCHES_ALL).findAll(esSystems).mapNotNull { m ->
+            val body = m.groupValues[1]
+            val name = Regex("""<name>([^<]+)</name>""").find(body)?.groupValues?.get(1)?.trim() ?: return@mapNotNull null
+            val label = Regex("""<command label="([^"]+)"""").find(body)?.groupValues?.get(1) ?: return@mapNotNull null
+            name to unescape(label)
+        }.toMap()
+
+    /**
+     * A label the user wrote themselves that names the emulator, as "NetherSX2-Turnip (Standalone)"
+     * names NetherSX2. Trusted only for custom systems: ES-DE's own labels are matched exactly.
+     */
+    fun names(label: String, emu: EmulatorProfile): Boolean =
+        "(Standalone)" in label && label.substringBefore(" (").contains(emu.name, ignoreCase = true)
+
+    /**
+     * The gamelist folder ES-DE uses for [systemId] here: an alias the setup already uses (the
+     * Thor's custom `ps1` system), else the standard one (`psx`).
+     */
+    fun folderFor(frontend: FrontendProfile, systemId: String, inUse: Set<String>): String {
+        val all = listOf(frontend.systemFolders[systemId] ?: systemId) + frontend.folderAliases[systemId].orEmpty()
+        return all.firstOrNull { it in inUse } ?: all.first()
     }
 
     /** True when [current] already opens [emu]: "Eden Nightly (Standalone)" is still Eden. */

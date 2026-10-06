@@ -1542,7 +1542,7 @@
       "targets": [
         {
           "emulatorId": "duckstation",
-          "path": "{appData}/bios/",
+          "path": "{appData}/files/bios/",
           "renameTo": "scph1001.bin"
         },
         {
@@ -1563,7 +1563,7 @@
       "targets": [
         {
           "emulatorId": "duckstation",
-          "path": "{appData}/bios/",
+          "path": "{appData}/files/bios/",
           "renameTo": "scph5501.bin"
         },
         {
@@ -1584,7 +1584,7 @@
       "targets": [
         {
           "emulatorId": "duckstation",
-          "path": "{appData}/bios/",
+          "path": "{appData}/files/bios/",
           "renameTo": "scph7001.bin"
         }
       ]
@@ -1597,10 +1597,11 @@
       "size": 4194304,
       "variant": "v12 USA (Model 2/Slim standard)",
       "required": true,
+      "anyDump": true,
       "targets": [
         {
           "emulatorId": "nethersx2",
-          "path": "{appData}/bios/",
+          "path": "{appData}/files/bios/",
           "renameTo": "SCPH-70012_BIOS_V12_USA_200.bin"
         }
       ]
@@ -1680,7 +1681,7 @@
       "targets": [
         {
           "emulatorId": "dolphin",
-          "path": "{appData}/GC/USA/",
+          "path": "{appData}/files/GC/USA/",
           "renameTo": "IPL.bin"
         }
       ]
@@ -1696,7 +1697,7 @@
       "targets": [
         {
           "emulatorId": "dolphin",
-          "path": "{appData}/GC/EUR/",
+          "path": "{appData}/files/GC/EUR/",
           "renameTo": "IPL.bin"
         }
       ]
@@ -1712,7 +1713,7 @@
       "targets": [
         {
           "emulatorId": "dolphin",
-          "path": "{appData}/GC/JAP/",
+          "path": "{appData}/files/GC/JAP/",
           "renameTo": "IPL.bin"
         }
       ]
@@ -1725,13 +1726,7 @@
       "size": 262144,
       "variant": "NDS Firmware (256KB standard)",
       "required": false,
-      "targets": [
-        {
-          "emulatorId": "melonds",
-          "path": "{appData}/melonDS/",
-          "renameTo": "firmware.bin"
-        }
-      ]
+      "targets": []
     },
     {
       "system": "nds",
@@ -1741,13 +1736,7 @@
       "size": 16384,
       "variant": "ARM7 BIOS",
       "required": false,
-      "targets": [
-        {
-          "emulatorId": "melonds",
-          "path": "{appData}/melonDS/",
-          "renameTo": "bios7.bin"
-        }
-      ]
+      "targets": []
     },
     {
       "system": "nds",
@@ -1757,13 +1746,7 @@
       "size": 4096,
       "variant": "ARM9 BIOS",
       "required": false,
-      "targets": [
-        {
-          "emulatorId": "melonds",
-          "path": "{appData}/melonDS/",
-          "renameTo": "bios9.bin"
-        }
-      ]
+      "targets": []
     },
     {
       "system": "gba",

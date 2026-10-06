@@ -99,21 +99,10 @@ class DeviceStepExecutor(
      */
     private suspend fun frontendChoices(frontendId: String): StepResult {
         val writer = settings ?: return StepResult.Ok
-        val fe = bundle.frontends.firstOrNull { it.id == frontendId } ?: return StepResult.Ok
-        val pkg = fe.packages.firstOrNull { p -> runCatching { pm.getPackageInfo(p, 0) }.isSuccess } ?: return StepResult.NeedsUser("Install ES-DE first.")
-        val dir = fe.paths.gamelists.ifEmpty { return StepResult.Ok }
+        if (bundle.frontends.none { it.id == frontendId }) return StepResult.Ok
         for (s in systems) {
             val emu = bundle.emulators.firstOrNull { it.id == s.emulatorId } ?: continue
-            val installed = emu.packages.firstOrNull { p -> runCatching { pm.getPackageInfo(p, 0) }.isSuccess }
-            val label = com.ramrom.emumanager.engine.config.EsdeLaunch.wanted(fe, s.systemId, emu, installed) ?: continue
-            val folder = fe.systemFolders[s.systemId] ?: s.systemId
-            val path = "$dir/$folder/gamelist.xml"
-            val current = withContext(Dispatchers.IO) { runCatching { File(path).readText() }.getOrDefault("") }
-            if (com.ramrom.emumanager.engine.config.EsdeLaunch.opens(com.ramrom.emumanager.engine.config.EsdeLaunch.systemLabel(current), emu, fe)) continue
-            val system = bundle.systems.firstOrNull { it.id == s.systemId }?.name ?: s.systemId
-            writer.writeText(pkg, "ES-DE", path, "$system opens in ${emu.name}", mapOf("alternativeEmulator" to label)) {
-                com.ramrom.emumanager.engine.config.EsdeLaunch.withSystemLabel(it, label)
-            }?.let { return StepResult.Failed(it) }
+            writer.setEsdeChoice(s.systemId, emu)?.let { return if (it.startsWith("Install")) StepResult.NeedsUser(it) else StepResult.Failed(it) }
         }
         return StepResult.Ok
     }

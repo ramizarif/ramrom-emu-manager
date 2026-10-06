@@ -334,6 +334,8 @@ data class BiosEntry(
     val size: Long = 0,
     val variant: String = "",
     val required: Boolean = false,
+    /** Any console dump of [size] works (PS2), not only this one; the emulator renames what it imports. */
+    val anyDump: Boolean = false,
     val targets: List<BiosTarget> = emptyList(),
     val source: BiosSource? = null
 )

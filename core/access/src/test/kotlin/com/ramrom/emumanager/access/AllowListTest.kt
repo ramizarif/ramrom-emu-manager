@@ -153,4 +153,18 @@ class AllowListTest {
     fun commandWithInvalidCharsDenied() {
         assertFalse(AllowList.isCommandAllowed(listOf("p\nm", "install")))
     }
+
+    @Test
+    fun md5sumTakesOnePathOnly() {
+        assertTrue(AllowList.isCommandAllowed(listOf("md5sum", "/storage/emulated/0/Android/data/xyz.aethersx2.tturnip/files/bios/7EBD68DE.bin")))
+        assertFalse(AllowList.isCommandAllowed(listOf("md5sum", "/data/system/packages.xml")))
+        assertFalse(AllowList.isCommandAllowed(listOf("md5sum", "ROMs/a.bin", "ROMs/b.bin")))
+    }
+
+    @Test
+    fun statTakesOnlyTheSizeFormat() {
+        assertTrue(AllowList.isCommandAllowed(listOf("stat", "-c", "%s %Y %F", "ROMs/n64/game.z64")))
+        assertFalse(AllowList.isCommandAllowed(listOf("stat", "-c", "%n", "/data/system/packages.xml")))
+        assertFalse(AllowList.isCommandAllowed(listOf("stat", "-c", "%s %Y %F", "/data/system/packages.xml")))
+    }
 }

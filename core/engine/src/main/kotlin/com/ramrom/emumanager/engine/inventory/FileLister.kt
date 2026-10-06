@@ -22,4 +22,10 @@ interface FileLister {
      * Check if a path is a directory.
      */
     fun isDirectory(path: String): Boolean
+
+    /** MD5 of a file, lowercase hex; null when it can't be read. Only BIOS candidates are hashed. */
+    fun md5(path: String): String? = null
+
+    /** Size in bytes; null when it can't be read. */
+    fun size(path: String): Long? = null
 }

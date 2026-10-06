@@ -56,7 +56,7 @@ class ShizukuAccess(
                 try {
                     val args = Shizuku.UserServiceArgs(
                         ComponentName(context.packageName, AccessService::class.java.name)
-                    ).daemon(false).processNameSuffix("access").version(1)
+                    ).daemon(false).processNameSuffix("access").version(2) // bump when AccessService or AllowList changes
 
                     Shizuku.bindUserService(args, conn)
                 } catch (e: Exception) {
@@ -147,22 +147,14 @@ class ShizukuAccess(
     }
 
     override suspend fun stat(path: String): AccessResult<FileStat> = withContext(Dispatchers.IO) {
-        val result = readFile(path)
-        return@withContext when (result) {
-            is AccessResult.Ok -> {
-                try {
-                    val f = java.io.File(path)
-                    AccessResult.Ok(FileStat(
-                        size = f.length(),
-                        mtime = f.lastModified(),
-                        isDir = f.isDirectory
-                    ))
-                } catch (e: Exception) {
-                    AccessResult.Failed(e.message ?: "Stat failed")
-                }
-            }
-            is AccessResult.Denied -> AccessResult.Denied(result.reason)
-            is AccessResult.Failed -> AccessResult.Failed(result.message)
+        // On the device, as shell: this side can't see Android/data, and reading a big file to size it overflows binder.
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            val parts = svc.exec(arrayOf("stat", "-c", "%s %Y %F", path)).trim().split(' ', limit = 3)
+            val size = parts.getOrNull(0)?.toLongOrNull() ?: return@withContext AccessResult.Failed("Not found: $path")
+            AccessResult.Ok(FileStat(size = size, mtime = (parts.getOrNull(1)?.toLongOrNull() ?: 0) * 1000, isDir = parts.getOrNull(2) == "directory"))
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "Stat failed")
         }
     }
 
@@ -275,6 +267,16 @@ class ShizukuAccess(
             AccessResult.Ok(output)
         } catch (e: Exception) {
             AccessResult.Failed(e.message ?: "Dumpsys failed")
+        }
+    }
+
+    /** Hashed by toybox on the device: a 4 MB PS2 BIOS is too big to pass over binder. */
+    override suspend fun md5(path: String): AccessResult<String?> = withContext(Dispatchers.IO) {
+        val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
+        return@withContext try {
+            AccessResult.Ok(svc.exec(arrayOf("md5sum", path)).trim().substringBefore(' ').lowercase().takeIf { it.matches(Regex("[0-9a-f]{32}")) })
+        } catch (e: Exception) {
+            AccessResult.Failed(e.message ?: "md5 failed")
         }
     }
 

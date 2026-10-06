@@ -43,6 +43,10 @@ data class Inventory(
     // Extended fields for full inventory data
     val installedApps: List<com.ramrom.emumanager.engine.inventory.InstalledApp> = emptyList(),
     val romFolders: List<com.ramrom.emumanager.engine.inventory.RomFolder> = emptyList(),
+    /** ES-DE's emulator choice per system folder; null when gamelists weren't read. */
+    val esdeChoices: Map<String, String?>? = null,
+    /** Systems the user's custom es_systems.xml redefines: name → first command's label. */
+    val esdeCustomDefaults: Map<String, String> = emptyMap(),
     val folderGrants: List<com.ramrom.emumanager.engine.inventory.FolderGrant> = emptyList(),
     val biosFiles: List<com.ramrom.emumanager.engine.inventory.BiosFile> = emptyList(),
     val appPermissions: List<com.ramrom.emumanager.engine.inventory.AppPermissionState> = emptyList(),
