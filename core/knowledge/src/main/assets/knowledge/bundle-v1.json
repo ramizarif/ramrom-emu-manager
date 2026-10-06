@@ -1508,7 +1508,258 @@
       "alternatives": []
     }
   ],
-  "bios": [],
+  "bios": [
+    {
+      "system": "ps1",
+      "fileName": "scph1001.bin",
+      "md5": "924e392ed05558ffdb115408c263dccf",
+      "sha1": "",
+      "size": 524288,
+      "variant": "v2.0 05/07/95 A (oldest)",
+      "required": true,
+      "targets": [
+        {
+          "emulatorId": "duckstation",
+          "path": "{appData}/bios/",
+          "renameTo": "scph1001.bin"
+        },
+        {
+          "emulatorId": "retroarch",
+          "path": "/storage/emulated/0/RetroArch/system/",
+          "renameTo": "scph1001.bin"
+        }
+      ]
+    },
+    {
+      "system": "ps1",
+      "fileName": "scph5501.bin",
+      "md5": "490f666e1afb15b7362b406ed1cea246",
+      "sha1": "",
+      "size": 524288,
+      "variant": "v3.0 11/18/96 (USA standard)",
+      "required": true,
+      "targets": [
+        {
+          "emulatorId": "duckstation",
+          "path": "{appData}/bios/",
+          "renameTo": "scph5501.bin"
+        },
+        {
+          "emulatorId": "retroarch",
+          "path": "/storage/emulated/0/RetroArch/system/",
+          "renameTo": "scph5501.bin"
+        }
+      ]
+    },
+    {
+      "system": "ps1",
+      "fileName": "scph7001.bin",
+      "md5": "1e68c231d0896b7eadcad1d7d8e76129",
+      "sha1": "",
+      "size": 524288,
+      "variant": "v4.1 (later USA revision)",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "duckstation",
+          "path": "{appData}/bios/",
+          "renameTo": "scph7001.bin"
+        }
+      ]
+    },
+    {
+      "system": "ps2",
+      "fileName": "SCPH-70012_BIOS_V12_USA_200.bin",
+      "md5": "8221b32c7c1aaebb04c98e1f33fffb45",
+      "sha1": "",
+      "size": 4194304,
+      "variant": "v12 USA (Model 2/Slim standard)",
+      "required": true,
+      "targets": [
+        {
+          "emulatorId": "nethersx2",
+          "path": "{appData}/bios/",
+          "renameTo": "SCPH-70012_BIOS_V12_USA_200.bin"
+        }
+      ]
+    },
+    {
+      "system": "saturn",
+      "fileName": "sega_101.bin",
+      "md5": "85ec9ca47d8f6807718151cbcca8b964",
+      "sha1": "",
+      "size": 524288,
+      "variant": "v1.01 941228 (Japan)",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "retroarch",
+          "path": "/storage/emulated/0/RetroArch/system/",
+          "renameTo": "sega_101.bin"
+        }
+      ]
+    },
+    {
+      "system": "saturn",
+      "fileName": "mpr-17933.bin",
+      "md5": "3240872c70984b6cbfda1586cab68dbe",
+      "sha1": "",
+      "size": 524288,
+      "variant": "v1.01a 941115 (USA/PAL)",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "retroarch",
+          "path": "/storage/emulated/0/RetroArch/system/",
+          "renameTo": "mpr-17933.bin"
+        }
+      ]
+    },
+    {
+      "system": "dreamcast",
+      "fileName": "dc_boot.bin",
+      "md5": "e10c53c2f8b90bab96ead2d368858623",
+      "sha1": "",
+      "size": 2097152,
+      "variant": "Boot ROM (region-free primary)",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "retroarch",
+          "path": "/storage/emulated/0/RetroArch/system/dc/",
+          "renameTo": "dc_boot.bin"
+        }
+      ]
+    },
+    {
+      "system": "dreamcast",
+      "fileName": "dc_boot.bin",
+      "md5": "d407fcf70b56acb84b8c77c93b0e5327",
+      "sha1": "",
+      "size": 2097152,
+      "variant": "Boot ROM (alt region-free)",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "retroarch",
+          "path": "/storage/emulated/0/RetroArch/system/dc/",
+          "renameTo": "dc_boot.bin"
+        }
+      ]
+    },
+    {
+      "system": "gc",
+      "fileName": "ipl.bin",
+      "md5": "fae2b558ffc344467170520d62177e5c",
+      "sha1": "",
+      "size": 2097152,
+      "variant": "IPL USA v1.1",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "dolphin",
+          "path": "{appData}/GC/USA/",
+          "renameTo": "IPL.bin"
+        }
+      ]
+    },
+    {
+      "system": "gc",
+      "fileName": "ipl.bin",
+      "md5": "85e7f7fdeff9fa6ecb52aa0a38cd2eb4",
+      "sha1": "",
+      "size": 2097152,
+      "variant": "IPL EUR v1.1",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "dolphin",
+          "path": "{appData}/GC/EUR/",
+          "renameTo": "IPL.bin"
+        }
+      ]
+    },
+    {
+      "system": "gc",
+      "fileName": "ipl.bin",
+      "md5": "00cff6ae2938bb37ef355385add3dc16",
+      "sha1": "",
+      "size": 2097152,
+      "variant": "IPL JAP v1.1",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "dolphin",
+          "path": "{appData}/GC/JAP/",
+          "renameTo": "IPL.bin"
+        }
+      ]
+    },
+    {
+      "system": "nds",
+      "fileName": "firmware.bin",
+      "md5": "145eaef5bd3037cbc247c213bb3da1b3",
+      "sha1": "",
+      "size": 262144,
+      "variant": "NDS Firmware (256KB standard)",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "melonds",
+          "path": "{appData}/melonDS/",
+          "renameTo": "firmware.bin"
+        }
+      ]
+    },
+    {
+      "system": "nds",
+      "fileName": "bios7.bin",
+      "md5": "df692a80a5b1bc90728bc3dfc76cd948",
+      "sha1": "",
+      "size": 16384,
+      "variant": "ARM7 BIOS",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "melonds",
+          "path": "{appData}/melonDS/",
+          "renameTo": "bios7.bin"
+        }
+      ]
+    },
+    {
+      "system": "nds",
+      "fileName": "bios9.bin",
+      "md5": "a392174eb3e572fed6447e956bde4b25",
+      "sha1": "",
+      "size": 4096,
+      "variant": "ARM9 BIOS",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "melonds",
+          "path": "{appData}/melonDS/",
+          "renameTo": "bios9.bin"
+        }
+      ]
+    },
+    {
+      "system": "gba",
+      "fileName": "gba_bios.bin",
+      "md5": "a860e8c0b6d573d191e4ec7db1b1e4f6",
+      "sha1": "",
+      "size": 16384,
+      "variant": "GBA/GBA SP/Game Boy Micro BIOS",
+      "required": false,
+      "targets": [
+        {
+          "emulatorId": "retroarch",
+          "path": "/storage/emulated/0/RetroArch/system/",
+          "renameTo": "gba_bios.bin"
+        }
+      ]
+    }
+  ],
   "settingsProfiles": [],
   "guidedSteps": [
     {

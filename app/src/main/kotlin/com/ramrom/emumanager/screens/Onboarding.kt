@@ -116,15 +116,16 @@ enum class SetupPath { Adopt, SetUp, PlanOther, Restore }
 
 /** S03. The scan's result decides which option is recommended and focused. */
 @Composable
-fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onPick: (SetupPath) -> Unit) {
+fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onOpenPlanFile: () -> Unit, onPick: (SetupPath) -> Unit) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     val found = existing != null && (existing.frontendInstalled || existing.emulatorTiles.isNotEmpty())
     val count = existing?.emulatorTiles?.size ?: 0
+    com.ramrom.emumanager.ui.input.ScreenKeys(y = onOpenPlanFile)
     GuidedScaffold(
         handheld = HandheldState(awake = true, face = if (found) Face.LookDown else Face.Happy, tiles = existing?.emulatorTiles.orEmpty()),
         bubble = if (found) "I already have some emulators!" else null,
-        hints = listOf("A" to "Select", "B" to "Back"),
+        hints = listOf("A" to "Select", "Y" to "Open a plan file", "B" to "Back"),
         listHeavy = true,
     ) {
         BasicText("What would you like to do?", style = EmuType.Headline)
@@ -148,6 +149,7 @@ fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onPick:
                 icon = { TileIcon("→", EmuColors.Tangerine, 38.dp) })
             OptionCard("Restore from backup", null, { onPick(SetupPath.Restore) }, dimmed = !restoreUnlocked,
                 icon = { TileIcon("↺", EmuColors.InkSoft, 38.dp) }) { if (!restoreUnlocked) Tag("Unlock", TagKind.Lock) }
+            EmuButton("I have a plan file", onOpenPlanFile, small = true, kind = ButtonKind.Ghost)
         }
     }
 }

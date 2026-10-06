@@ -267,3 +267,63 @@ private fun StatTile(label: String, value: String, detail: String, modifier: Mod
         }
     }
 }
+
+/** S11 Import a plan. Shows how the plan reads on this device before anything is used. */
+@Composable
+fun ImportPlanScreen(
+    import: com.ramrom.emumanager.PlanImport?,
+    tiles: List<HandheldTile>,
+    error: String?,
+    onAccept: () -> Unit,
+    onEdit: () -> Unit,
+    onPickAgain: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(import, error) { runCatching { focus.requestFocus() } }
+    ScreenKeys(start = if (import != null) onAccept else null)
+    GuidedScaffold(
+        handheld = HandheldState(
+            awake = true, face = when { error != null -> Face.Worried; import?.changes?.isNotEmpty() == true -> Face.Look; else -> Face.Happy },
+            tiles = tiles, carts = import?.systems.orEmpty().take(3).map { cartLabel(it.systemId) },
+            moreCarts = ((import?.systems?.size ?: 0) - 3).coerceAtLeast(0),
+        ),
+        bubble = when { error != null -> "Hmm, I can't read that one."; import?.changes?.isEmpty() == true -> "It fits me already!"; else -> "A few tweaks for me." },
+        hints = if (import != null) listOf("START" to "Accept", "A" to "Select", "B" to "Cancel") else listOf("A" to "Select", "B" to "Cancel"),
+        listHeavy = import?.changes?.isNotEmpty() == true,
+        actions = {
+            if (import != null) {
+                EmuButton("Accept", onAccept, kind = ButtonKind.Go, focusRequester = focus)
+                EmuButton("Edit", onEdit)
+                EmuButton("Cancel", onCancel, kind = ButtonKind.Ghost)
+            } else {
+                EmuButton("Choose another file", onPickAgain, kind = ButtonKind.Go, focusRequester = focus)
+                EmuButton("Cancel", onCancel, kind = ButtonKind.Ghost)
+            }
+        },
+    ) {
+        com.ramrom.emumanager.ui.components.Eyebrow("Plan file")
+        Spacer(Modifier.height(8.dp))
+        if (import == null) {
+            BasicText("This plan can't be opened", style = EmuType.Headline)
+            Spacer(Modifier.height(12.dp))
+            InlineAlert(error ?: "The file isn't a plan.", "Plans end in .emuplan and come from RamROM Emu Manager's Export.", AlertKind.Blocked)
+            return@GuidedScaffold
+        }
+        BasicText("Made for the ${import.madeFor}", style = EmuType.Headline)
+        Spacer(Modifier.height(8.dp))
+        BasicText(
+            "${import.systems.size} system${if (import.systems.size == 1) "" else "s"}${if (import.useEsde) " with ES-DE" else ""}. " +
+                if (import.changes.isEmpty()) "Nothing needs changing for this device." else "${import.changes.size} change${if (import.changes.size == 1) "" else "s"} for this device:",
+            style = EmuType.Lead,
+        )
+        if (import.changes.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                import.changes.forEach { c ->
+                    ListRow(c.systemName, detail = listOfNotNull(c.from, c.to).joinToString("  →  ").ifEmpty { null }?.let { "$it · ${c.why}" } ?: c.why)
+                }
+            }
+        }
+    }
+}

@@ -45,6 +45,14 @@ class PlanDraft(
 
     val chosen: List<SystemChoice> get() = systems.filter { it.on }
 
+    /** Loads an imported plan: exactly its systems on, with its emulator choices. */
+    fun apply(import: PlanImport) {
+        useEsde = import.useEsde
+        val wanted = import.systems.associate { it.systemId to it.emulatorId }
+        systems = systems.map { it.copy(on = it.systemId in wanted) }
+        wanted.forEach { (sys, emu) -> if (systems.first { it.systemId == sys }.emulatorId != emu) pickEmulator(sys, emu) }
+    }
+
     /** What the engine compiles. ES-DE is the only frontend in v1. */
     fun toPlan(targetDeviceId: String?) = com.ramrom.emumanager.engine.Plan(
         targetDeviceId = targetDeviceId,

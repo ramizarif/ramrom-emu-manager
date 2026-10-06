@@ -21,7 +21,8 @@ data class PlanFile(
 ) {
     companion object {
         private const val CURRENT_FORMAT_VERSION = 1
-        private val json = Json { prettyPrint = false }
+        // Defaults are written too: formatVersion must be in every file so newer readers can tell.
+        private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
 
         fun encode(plan: PlanFile): String {
             require(plan.formatVersion == CURRENT_FORMAT_VERSION) {

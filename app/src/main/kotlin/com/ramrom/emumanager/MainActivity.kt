@@ -42,6 +42,11 @@ import com.ramrom.emumanager.screens.WelcomeScreen
 import com.ramrom.emumanager.screens.FrontendScreen
 import com.ramrom.emumanager.screens.SystemsScreen
 import com.ramrom.emumanager.screens.PlanReviewScreen
+import com.ramrom.emumanager.screens.ImportPlanScreen
+import com.ramrom.emumanager.ui.layout.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import com.ramrom.emumanager.ui.handheld.Face
 import com.ramrom.emumanager.ui.handheld.HandheldState
 import com.ramrom.emumanager.ui.handheld.HandheldTile
@@ -92,6 +97,36 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     // One draft per plan flow; recreated when the flow starts again.
     var draft by remember { mutableStateOf<PlanDraft?>(null) }
     var otherPickerOpen by remember { mutableStateOf(false) }
+    var planImport by remember { mutableStateOf<PlanImport?>(null) }
+    var planImportError by remember { mutableStateOf<String?>(null) }
+    var toast by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(toast) { if (toast != null) { kotlinx.coroutines.delay(2500); toast = null } }
+    val pickPlan = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val bundle = app.knowledge.getBundle() ?: return@rememberLauncherForActivityResult
+        val text = runCatching { context.contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() } }
+        val file = text.mapCatching { com.ramrom.emumanager.data.PlanFile.decode(it).getOrThrow() }
+        val d = PlanDraft.create(context, bundle)
+        file.onSuccess { f ->
+            planImport = PlanFiles.read(f, bundle, d.familyId); planImportError = null
+            draft = d.also { it.apply(planImport!!) }
+        }.onFailure { e ->
+            app.log.w("plan", "import failed: ${e.message}")
+            planImport = null
+            planImportError = if (e is com.ramrom.emumanager.data.PlanFileVersionError) e.message else "The file isn't a plan, or it's damaged."
+        }
+        if (nav.current != Route.PlanImport) nav.push(Route.PlanImport)
+    }
+    var exportFor by remember { mutableStateOf<String?>(null) }
+    val savePlan = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PlanFiles.MIME)) { uri ->
+        val d = draft
+        if (uri == null || d == null) return@rememberLauncherForActivityResult
+        val targetId = app.knowledge.getBundle()?.devices?.firstOrNull { it.names.firstOrNull() == exportFor }?.id
+        runCatching { context.contentResolver.openOutputStream(uri)!!.use { it.write(PlanFiles.export(d, targetId, BuildConfig.VERSION_NAME).encodeToByteArray()) } }
+            .onSuccess { toast = "Plan saved" }
+            .onFailure { app.log.e("plan", "export failed", it); toast = "Couldn't save the plan" }
+    }
+    val openPlanFile = { pickPlan.launch(arrayOf("*/*")) }
     val startPlan = { other: String?, family: String? ->
         draft = app.knowledge.getBundle()?.let { PlanDraft.create(context, it, family) }
         if (draft != null) nav.push(Route.PlanFrontend(other))
@@ -120,11 +155,12 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     }
                 }
                 Route.ChoosePath -> Box(Modifier.fillMaxSize()) {
-                    ChoosePathScreen(existing, restoreUnlocked = false) { path ->
+                    ChoosePathScreen(existing, restoreUnlocked = false, onOpenPlanFile = openPlanFile) { path ->
                         when (path) {
-                            SetupPath.SetUp ->
+                            SetupPath.SetUp -> {
                                 if (mode == AccessMode.Elevated || mode == AccessMode.Limited) startPlan(null, null)
                                 else nav.push(Route.Access(Route.PlanFrontend()))
+                            }
                             // Adopt (S12) lands in M3; Home shows what's here until then.
                             SetupPath.Adopt ->
                                 if (mode == AccessMode.Elevated || mode == AccessMode.Limited) finishOnboarding(Route.Main(Section.Home))
@@ -146,6 +182,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         is Route.Main -> finishOnboarding(next)
                         // Replace the access step so B from S06 goes back to S03, not to S04.
                         is Route.PlanFrontend -> { nav.pop(); startPlan(next.otherDevice, null) }
+                        is Route.PlanReview -> { nav.pop(); nav.push(next) }
                         else -> nav.reset(next)
                     }
                 })
@@ -160,7 +197,16 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         onCloseSheet = { d.changing = null }, onNext = { nav.push(Route.PlanReview(r.otherDevice)) },
                     )
                 }
-                is Route.PlanReview -> draft?.let { d ->
+                Route.PlanImport -> ImportPlanScreen(
+                    planImport,
+                    draft?.chosen.orEmpty().distinctBy { it.emulatorId }.mapIndexed { i, c -> HandheldTile(c.emulatorId, c.tileLabel, Detection.tileColor(i)) },
+                    planImportError,
+                    onAccept = { if (mode == AccessMode.Elevated || mode == AccessMode.Limited) nav.push(Route.PlanReview()) else nav.push(Route.Access(Route.PlanReview())) },
+                    onEdit = { nav.push(Route.PlanSystems()) },
+                    onPickAgain = openPlanFile,
+                    onCancel = { nav.pop() },
+                )
+                is Route.PlanReview -> Box(Modifier.fillMaxSize()) { draft?.let { d ->
                     val limited = mode != AccessMode.Elevated
                     val summary = remember(d.systems, d.useEsde, limited) { PlanSummaries.review(app, d, r.otherDevice, limited) }
                     PlanReviewScreen(
@@ -174,13 +220,19 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         // Running a plan (S13) lands in M3; until then Start and Save both finish onboarding.
                         onStart = { finishOnboarding(Route.Main(Section.Home)) },
                         onSave = { finishOnboarding(Route.Main(Section.Home)) },
-                        onExport = { },
+                        onExport = {
+                            exportFor = r.otherDevice
+                            savePlan.launch("ramrom-plan${r.otherDevice?.let { "-" + it.lowercase().replace(' ', '-') } ?: ""}.${PlanFiles.EXTENSION}")
+                        },
                         onConnect = { nav.push(Route.Access(r)) },
                     )
-                }
+                }; Toast(toast) }
                 is Route.Main -> MainScreen(
                     r.section, onSection = nav::switchSection,
-                    onStartSetup = { nav.push(Route.Access(Route.Main(Section.Home))) },
+                    onStartSetup = {
+                        if (mode == AccessMode.Elevated || mode == AccessMode.Limited) startPlan(null, null)
+                        else nav.push(Route.Access(Route.PlanFrontend()))
+                    },
                     onAbout = { nav.push(Route.About) },
                     accessPanel = { AccessPanel(app.access, onSetUp = { nav.push(Route.Access(r)) }) },
                     banner = if (mode == AccessMode.Disconnected) { { Box(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) { AccessLostBanner { reconnectOpen = true } } } } else null,

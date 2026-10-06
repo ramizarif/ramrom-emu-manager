@@ -28,9 +28,13 @@ class AccessManager(private val context: Context) {
     private val limitedAccess = LimitedAccess(context)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private val _mode = MutableStateFlow<AccessMode>(AccessMode.NotSetUp)
+    // A saved limited choice needs no probing, so it holds from the first frame; otherwise screens
+    // read NotSetUp until initialize() finishes and send the user back through access setup.
+    private val _mode = MutableStateFlow(
+        if (prefs.getString(PREF_CHOICE, null) == CHOICE_LIMITED) AccessMode.Limited else AccessMode.NotSetUp
+    )
     private val _setup = MutableStateFlow<ShizukuSetup>(ShizukuSetup(false, false, false, ShizukuPermission.NotAsked))
-    private val _capabilities = MutableStateFlow<Set<Capability>>(emptySet())
+    private val _capabilities = MutableStateFlow(if (_mode.value == AccessMode.Limited) limitedAccess.capabilities else emptySet())
 
     val mode: StateFlow<AccessMode> = _mode.asStateFlow()
     val setup: StateFlow<ShizukuSetup> = _setup.asStateFlow()
