@@ -173,6 +173,27 @@ private fun EmuNav(app: EmuApplication, start: Route) {
 
     val activeRun by app.runs.active.collectAsState()
     val runState by remember(activeRun) { activeRun?.runner?.state ?: kotlinx.coroutines.flow.MutableStateFlow(null) }.collectAsState()
+    // S17: health of the saved plan, refreshed whenever Home comes back to the front.
+    val healthReport by app.health.report.collectAsState()
+    var hasPlan by remember { mutableStateOf<Boolean?>(null) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(nav.current) {
+        if (nav.current is Route.Main) scope.launch {
+            hasPlan = app.runs.lastPlan() != null
+            if (hasPlan == true) runCatching { app.health.check() }
+        }
+        onPauseOrDispose { }
+    }
+    val homeStatus = if (hasPlan == true) healthReport?.let { rep ->
+        val names = app.knowledge.getBundle()?.emulators?.associate { it.id to it.name }.orEmpty()
+        val tiles = rep.plan.systems.map { it.emulatorId }.distinct().mapIndexed { i, id ->
+            HandheldTile(id, (names[id] ?: id).filter { it.isLetterOrDigit() }.take(2).replaceFirstChar { it.uppercase() }, Detection.tileColor(i))
+        }
+        com.ramrom.emumanager.screens.HomeStatus(rep.systems.size, rep.readyCount, rep.blocking.size, rep.warnings.size, tiles)
+    }
+        ?: com.ramrom.emumanager.screens.HomeStatus(0, null, 0, 0) else null
+    val esdeLaunch = remember(nav.current) {
+        app.knowledge.getBundle()?.frontends?.firstOrNull()?.packages?.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
+    }
     val runSummary = runState?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
 
     /** Re-run the saved plan: the compiler only plans what's still missing. */
@@ -213,10 +234,9 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                                 if (mode == AccessMode.Elevated || mode == AccessMode.Limited) startPlan(null, null)
                                 else nav.push(Route.Access(Route.PlanFrontend()))
                             }
-                            // Adopt (S12) lands in M3; Home shows what's here until then.
                             SetupPath.Adopt ->
-                                if (mode == AccessMode.Elevated || mode == AccessMode.Limited) finishOnboarding(Route.Main(Section.Home))
-                                else nav.push(Route.Access(Route.Main(Section.Home)))
+                                if (mode == AccessMode.Elevated || mode == AccessMode.Limited) nav.push(Route.Adopt)
+                                else nav.push(Route.Access(Route.Adopt))
                             SetupPath.PlanOther -> otherPickerOpen = true
                             SetupPath.Restore -> Unit
                         }
@@ -234,7 +254,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         is Route.Main -> finishOnboarding(next)
                         // Replace the access step so B from S06 goes back to S03, not to S04.
                         is Route.PlanFrontend -> { nav.pop(); startPlan(next.otherDevice, null) }
-                        is Route.PlanReview -> { nav.pop(); nav.push(next) }
+                        is Route.PlanReview, Route.Adopt -> { nav.pop(); nav.push(next) }
                         else -> nav.reset(next)
                     }
                 })
@@ -327,11 +347,23 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     r.section, onSection = nav::switchSection,
                     onStartSetup = {
                         if (activeRun != null) nav.push(Route.Wizard)
+                        else if (hasPlan == true) scope.launch {
+                            // Start from what the device already has, not a blank plan.
+                            val plan = app.runs.lastPlan() ?: return@launch
+                            val bundle = app.knowledge.getBundle() ?: return@launch
+                            draft = PlanDraft.create(context, bundle).also { d ->
+                                d.apply(PlanImport("this device", plan.systems.map { com.ramrom.emumanager.data.PlanSystem(it.systemId, it.emulatorId) }, plan.frontendId != null, emptyList()))
+                            }
+                            nav.push(Route.PlanSystems())
+                        }
                         else if (mode == AccessMode.Elevated || mode == AccessMode.Limited) startPlan(null, null)
                         else nav.push(Route.Access(Route.PlanFrontend()))
                     },
                     onAbout = { nav.push(Route.About) },
                     run = runSummary,
+                    home = homeStatus,
+                    onHealth = { nav.push(Route.Health) },
+                    onOpenEsde = esdeLaunch?.let { i -> { context.startActivity(i) } },
                     accessPanel = { AccessPanel(app.access, onSetUp = { nav.push(Route.Access(r)) }) },
                     banner = if (mode == AccessMode.Disconnected) { { Box(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) { AccessLostBanner { reconnectOpen = true } } } } else null,
                     overlay = {
@@ -348,6 +380,23 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         nav.reset(Route.Main(Section.Home)); nav.push(Route.Health)
                     }
                 }) } ?: LaunchedEffect(Unit) { nav.pop() }
+                Route.Adopt -> AdoptRoute(app,
+                    onKeep = { plan -> scope.launch { app.runs.savePlan(plan); app.appState.markFirstRunDone(); nav.reset(Route.Main(Section.Home)); toast = "Kept as it is" } },
+                    onFix = { plan -> scope.launch {
+                        app.runs.savePlan(plan); app.appState.markFirstRunDone()
+                        if (app.runs.restartLast() != null) { nav.reset(Route.Main(Section.Home)); nav.push(Route.Wizard) }
+                    } },
+                    onAddSystems = { plan ->
+                        val bundle = app.knowledge.getBundle()
+                        if (bundle != null) {
+                            draft = PlanDraft.create(context, bundle).also { d ->
+                                d.apply(PlanImport("this device", plan.systems.map { com.ramrom.emumanager.data.PlanSystem(it.systemId, it.emulatorId) }, plan.frontendId != null, emptyList()))
+                            }
+                            nav.push(Route.PlanSystems())
+                        }
+                    },
+                    onSetUpInstead = { nav.pop(); startPlan(null, null) },
+                )
                 Route.Health -> HealthRoute(app, nav, onFixWithSetup = fixWithSetup, onDone = { nav.pop() })
                 is Route.Issue -> IssueRoute(app, r.issueId, nav, onFixWithSetup = fixWithSetup)
                 is Route.Guided -> activeRun?.let { run -> GuidedRoute(run, r.stepId, nav) } ?: LaunchedEffect(Unit) { nav.pop() }

@@ -65,6 +65,10 @@ fun MainScreen(
     onAbout: () -> Unit,
     /** A setup run in progress: (done, total, things waiting for the user). */
     run: Triple<Int, Int, Int>? = null,
+    /** Set once the device has a plan (set up or adopted); null shows the first-run empty state. */
+    home: HomeStatus? = null,
+    onHealth: () -> Unit = {},
+    onOpenEsde: (() -> Unit)? = null,
     accessPanel: @Composable ColumnScope.() -> Unit,
     banner: (@Composable () -> Unit)? = null,
     overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
@@ -77,7 +81,7 @@ fun MainScreen(
     )
     ToolScaffold(section, onSection, hints = listOf("A" to "Select", "L1/R1" to "Sections"), banner = banner, overlay = overlay) {
         when (section) {
-            Section.Home -> if (run != null) EmptyState(
+            Section.Home -> if (run == null && home != null) HomeBody(home, onHealth, onStartSetup, onOpenEsde) else if (run != null) EmptyState(
                 if (run.third > 0) Face.Happy else Face.LookDown, "Setup is ${run.first} of ${run.second} done",
                 if (run.third > 0) "${run.third} thing${if (run.third == 1) "" else "s"} need you. Everything else carries on by itself." else "Still working. It keeps going while you do other things.",
                 "Carry on with setup", onStartSetup,
@@ -88,6 +92,38 @@ fun MainScreen(
             Section.Apps -> EmptyState(Face.Look, "No apps set up yet", "Emulators you add during setup are listed here with their versions and updates.")
             Section.Settings -> SettingsBody(accessPanel, onAbout)
         }
+    }
+}
+
+/** What S17 shows once the device is set up. [ready] null = health still checking. */
+data class HomeStatus(val systems: Int, val ready: Int?, val blocking: Int, val warnings: Int, val tiles: List<com.ramrom.emumanager.ui.handheld.HandheldTile> = emptyList())
+
+/** S17 Home: health at a glance and the few things people come back for. */
+@Composable
+private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMore: () -> Unit, onOpenEsde: (() -> Unit)?) {
+    val focus = com.ramrom.emumanager.ui.input.initialFocus(h.ready)
+    val good = h.ready != null && h.blocking == 0 && h.warnings == 0
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        LivingHandheld(HandheldState(awake = true, tiles = h.tiles, face = when { h.ready == null -> Face.LookDown; good -> Face.Joy; h.blocking > 0 -> Face.Worried; else -> Face.Happy }), Modifier.size(250.dp, 180.dp))
+        Spacer(Modifier.width(20.dp))
+        Column(Modifier.weight(1f)) {
+            BasicText(when { h.ready == null -> "Checking your setup"; good -> "Ready to play"; h.blocking > 0 -> "Some games won't start"; else -> "Ready, with a few notes" }, style = EmuType.Headline2)
+            BasicText(when {
+                h.ready == null -> "One moment."
+                else -> "${h.ready} of ${h.systems} systems ready" + if (h.blocking + h.warnings > 0) "  ·  ${h.blocking + h.warnings} to look at" else ""
+            }, style = EmuType.Body)
+        }
+    }
+    Spacer(Modifier.height(6.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (onOpenEsde != null && good) {
+            EmuButton("Open ES-DE", onOpenEsde, kind = ButtonKind.Go, focusRequester = focus)
+            EmuButton("Health check", onHealth)
+        } else {
+            EmuButton(if (good || h.ready == null) "Health check" else "See what's wrong", onHealth, kind = ButtonKind.Go, focusRequester = focus)
+            if (onOpenEsde != null) EmuButton("Open ES-DE", onOpenEsde)
+        }
+        EmuButton("Add or change systems", onSetUpMore, kind = ButtonKind.Ghost)
     }
 }
 

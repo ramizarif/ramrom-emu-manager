@@ -76,6 +76,11 @@ class SetupRuns(private val app: EmuApplication) {
         planFile.takeIf { it.exists() }?.let { f -> runCatching { json.decodeFromString(RunRecord.serializer(), f.readText()).plan() }.getOrNull() }
     }
 
+    /** Keep a plan as the device's own without running anything (S16 "Keep as is"). */
+    suspend fun savePlan(plan: Plan) = withContext(Dispatchers.IO) {
+        planFile.writeText(json.encodeToString(RunRecord.serializer(), RunRecord.of("adopted", plan, emptyMap())))
+    }
+
     /** Run the last plan again (S14 "Fix what we can"), with the BIOS picks it had. */
     suspend fun restartLast(): ActiveRun? {
         val record = withContext(Dispatchers.IO) {
