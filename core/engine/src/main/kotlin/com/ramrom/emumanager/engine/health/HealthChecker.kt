@@ -97,7 +97,7 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                             if (archives) "Compressed files need unpacking first." else "$emuName opens ${opens.joinToString(", ") { ".$it" }} files.",
                             unplayable.take(5) + listOfNotNull(if (unplayable.size > 5) "and ${unplayable.size - 5} more" else null), FixAction.None, s.systemId)
                     } else if (games == 0) issues += HealthIssue("folder_empty_${s.systemId}", IssueSeverity.INFO, "No ${name(s.systemId)} games yet",
-                        "Put your ${name(s.systemId)} games in ROMs/$folderName and they'll show up.", listOf("Folder: ${folder.folderPath}"), FixAction.None, s.systemId)
+                        emulators[s.emulatorId]?.romFolderNote?.ifEmpty { null } ?: "Put your ${name(s.systemId)} games in ROMs/$folderName and they'll show up.", listOf("Folder: ${folder.folderPath}"), FixAction.None, s.systemId)
                     folder.strays.groupBy { it.belongsTo }.forEach { (other, files) ->
                         val otherFolder = layout.systemFolders[other] ?: other
                         issues += HealthIssue("stray_${s.systemId}_$other", IssueSeverity.WARNING,

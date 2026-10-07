@@ -879,12 +879,11 @@
       ],
       "firstLaunchCreatesDirs": false,
       "romExtensions": [
-        "vpk",
-        "bin",
-        "iso"
+        "psvita"
       ],
       "companionExtensions": [],
-      "caveats": []
+      "caveats": [],
+      "romFolderNote": "Install games in Vita3K first. For ES-DE, add a Game Name.psvita file in ROMs/psvita for each one, containing its title ID (like PCSE00000)."
     },
     {
       "id": "cemu",

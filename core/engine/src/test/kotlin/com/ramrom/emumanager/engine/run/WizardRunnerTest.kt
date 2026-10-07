@@ -144,6 +144,14 @@ class WizardRunnerTest {
         assertTrue(r.state.value.isComplete)
     }
 
+    @Test fun theFinalCheckRunsAfterASkip() = runTest {
+        val check = Step("check", StepType.HealthCheck, "check", listOf("firmware"), Executor.Auto, estimatedSeconds = 5)
+        val r = WizardRunner(CompiledPlan(listOf(guided("firmware"), check)), FakeExecutor(unverifiable = setOf("firmware")), InMemoryRunStore(), "run")
+        r.start(runnerScope()); advanceUntilIdle()
+        r.skipStepForNow("firmware"); advanceUntilIdle()
+        assertTrue(status(r, "check").toString(), status(r, "check") is StepRunStatus.Done)
+    }
+
     @Test fun pauseHoldsNewStepsAndResumeContinues() = runTest {
         val exec = FakeExecutor()
         val r = WizardRunner(CompiledPlan(listOf(auto("a"), auto("b", "b", "a"))), exec, InMemoryRunStore(), "run")

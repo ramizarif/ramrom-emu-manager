@@ -156,7 +156,9 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     val savePlan = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PlanFiles.MIME)) { uri ->
         val d = draft
         if (uri == null || d == null) return@rememberLauncherForActivityResult
-        val targetId = app.knowledge.getBundle()?.devices?.firstOrNull { it.names.firstOrNull() == exportFor }?.id
+        // A plan made for another device names it; otherwise it's this device's own plan, and says so,
+        // so importing elsewhere can tell its recommendations from choices made on purpose.
+        val targetId = app.knowledge.getBundle()?.devices?.firstOrNull { it.names.firstOrNull() == exportFor }?.id ?: d.deviceId
         runCatching { context.contentResolver.openOutputStream(uri)!!.use { it.write(PlanFiles.export(d, targetId, BuildConfig.VERSION_NAME).encodeToByteArray()) } }
             .onSuccess { toast = "Plan saved" }
             .onFailure { app.log.e("plan", "export failed", it); toast = "Couldn't save the plan" }
@@ -236,8 +238,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     val esdeLaunch = remember(nav.current) {
         app.knowledge.getBundle()?.frontends?.firstOrNull()?.packages?.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
     }
-    // A finished run hands Home back to the health view; "Still working" at 30 of 30 read wrong.
-    val runSummary = runState?.takeUnless { it.isComplete }?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
+    // A finished or settled run (some steps skipped) hands Home back to the health view.
+    val runSummary = runState?.takeUnless { it.isComplete || it.isSettled }?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
 
     /** Re-run the saved plan: the compiler only plans what's still missing. */
     // An import under way shows its progress; a finished one has been seen, so a new scan starts.
@@ -431,9 +433,10 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                 }; Toast(toast) }
                 is Route.Main -> MainScreen(
                     r.section, onSection = nav::switchSection,
+                    onOpenPlan = openPlanFile,
                     onStartSetup = {
                         // A finished run is history: "Add or change systems" starts a new plan.
-                        if (activeRun != null && runState?.isComplete != true) nav.push(Route.Wizard)
+                        if (activeRun != null && runState?.isComplete != true && runState?.isSettled != true) nav.push(Route.Wizard)
                         else if (hasPlan == true) scope.launch {
                             // Start from what the device already has, not a blank plan.
                             val plan = app.runs.lastPlan() ?: return@launch

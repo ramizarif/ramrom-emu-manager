@@ -191,6 +191,8 @@ data class EmulatorProfile(
     val inAppSetup: List<InAppSetupStep> = emptyList(),
     val firstLaunchCreatesDirs: Boolean = false,
     val esdeLaunch: EsdeLaunchConfig? = null,
+    /** How games reach ES-DE when they don't live as files in ROMs (Vita3K installs them itself). */
+    val romFolderNote: String = "",
     val romExtensions: List<String> = emptyList(),
     val companionExtensions: List<String> = emptyList(),
     val caveats: List<String> = emptyList(),

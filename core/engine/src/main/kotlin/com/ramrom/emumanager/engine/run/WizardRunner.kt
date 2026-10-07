@@ -3,6 +3,7 @@ package com.ramrom.emumanager.engine.run
 import com.ramrom.emumanager.engine.CompiledPlan
 import com.ramrom.emumanager.engine.Executor
 import com.ramrom.emumanager.engine.Step
+import com.ramrom.emumanager.engine.StepType
 import com.ramrom.emumanager.engine.StepStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -142,9 +143,7 @@ class WizardRunner(
         for (signal in wake) {
             val (toStart, asked) = lock.withLock {
                 if (_state.value.isPaused) return@withLock emptyList<Step>() to emptyList()
-                val ready = plan.steps.filter { s ->
-                    status(s.id) is StepRunStatus.Pending && s.dependsOn.all { status(it)?.isSatisfied == true }
-                }
+                val ready = plan.steps.filter(::isReady)
                 ready.forEach { s ->
                     // Guided steps don't need a slot: they wait on the user, not the device.
                     set(s.id, if (s.executor == Executor.Guided) StepRunStatus.NeedsYou(s.userFacingText) else StepRunStatus.Running())
@@ -223,8 +222,20 @@ class WizardRunner(
         )))
     }
 
+    /**
+     * Ready to start. The final check runs once everything before it has settled, done or not: a
+     * skipped Vita3K step left "Check everything works" waiting forever.
+     */
+    private fun isReady(st: Step): Boolean {
+        val now = status(st.id)
+        if (st.type == StepType.HealthCheck) return (now is StepRunStatus.Pending || now is StepRunStatus.Blocked) &&
+            st.dependsOn.all { status(it).let { d -> d?.isSatisfied == true || d is StepRunStatus.Skipped || d is StepRunStatus.Blocked || d is StepRunStatus.Failed } }
+        return now is StepRunStatus.Pending && st.dependsOn.all { status(it)?.isSatisfied == true }
+    }
+
     private fun block(skipped: String, from: String) {
         dependents[from].orEmpty().forEach { d ->
+            if (steps[d]?.type == StepType.HealthCheck) return@forEach
             if (status(d) !is StepRunStatus.Done && status(d) !is StepRunStatus.AlreadyDone) { set(d, StepRunStatus.Blocked(skipped)); block(skipped, d) }
         }
     }
@@ -240,7 +251,8 @@ class WizardRunner(
         val moving = plan.steps.any { st ->
             when (status(st.id)) {
                 is StepRunStatus.Running, StepRunStatus.Verifying -> true
-                StepRunStatus.Pending -> st.dependsOn.all { status(it)?.isSatisfied == true }
+                StepRunStatus.Pending -> isReady(st)
+                is StepRunStatus.Blocked -> isReady(st)
                 else -> false
             }
         }

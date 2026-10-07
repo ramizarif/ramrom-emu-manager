@@ -71,6 +71,7 @@ fun MainScreen(
     onHealth: () -> Unit = {},
     onOpenEsde: (() -> Unit)? = null,
     onImport: () -> Unit = {},
+    onOpenPlan: () -> Unit = {},
     /** S32's content, supplied by the caller (it needs the app's sessions). */
     apps: (@Composable ColumnScope.() -> Unit)? = null,
     library: (@Composable ColumnScope.() -> Unit)? = null,
@@ -95,7 +96,7 @@ fun MainScreen(
             Section.Wishlist -> EmptyState(Face.Happy, "Your wishlist is empty", "Add games you want to play. We'll tell you how they run here, and spot them when they land in your library.")
             Section.Customize -> EmptyState(Face.Happy, "Make ES-DE yours", "Theme colours, backgrounds and game art, once ES-DE is set up.")
             Section.Apps -> if (apps != null) apps() else EmptyState(Face.Look, "No apps set up yet", "Emulators you add during setup are listed here with their versions and updates.")
-            Section.Settings -> SettingsBody(accessPanel, onAbout, onHistory)
+            Section.Settings -> SettingsBody(accessPanel, onAbout, onHistory, onOpenPlan)
         }
     }
 }
@@ -145,23 +146,38 @@ private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMor
 
 private enum class SettingsPane(val title: String) { Device("Device"), Access("Access"), Updates("Updates"), Notifications("Notifications"), Report("Report a problem"), History("Change history"), About("About") }
 
-/** S38 skeleton: sections on the left, the chosen one on the right (Wide); list only elsewhere. */
+/** S38 skeleton: sections on the left, the chosen one on the right (Wide); elsewhere a pane replaces the list. */
 @Composable
-private fun ColumnScope.SettingsBody(accessPanel: @Composable ColumnScope.() -> Unit, onAbout: () -> Unit, onHistory: () -> Unit) {
-    var pane by remember { mutableStateOf(SettingsPane.Access) }
+private fun ColumnScope.SettingsBody(accessPanel: @Composable ColumnScope.() -> Unit, onAbout: () -> Unit, onHistory: () -> Unit, onOpenPlan: () -> Unit) {
     val wide = LocalSizeClass.current == SizeClass.Wide
+    // Wide always shows a pane; narrower screens show one only once it's picked (it had no way to open).
+    var picked by remember { mutableStateOf<SettingsPane?>(null) }
+    val pane = picked ?: SettingsPane.Access.takeIf { wide }
+    @Composable fun ColumnScope.content(p: SettingsPane) = when (p) {
+        SettingsPane.Access -> accessPanel()
+        SettingsPane.Device -> {
+            BasicText("Set this device up from a plan made on another one, or restore one you exported.", style = EmuType.Body)
+            EmuButton("Open a plan file", onOpenPlan, small = true)
+        }
+        else -> BasicText("Arrives with its milestone.", style = EmuType.Body)
+    }
+    if (!wide && pane != null) {
+        ListRow("‹  Settings", onClick = { picked = null })
+        Spacer(Modifier.height(8.dp))
+        BasicText(pane.title, style = EmuType.Headline2)
+        Spacer(Modifier.height(10.dp))
+        content(pane)
+        return
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(Modifier.width(if (wide) 200.dp else 520.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             SettingsPane.entries.forEach { p ->
-                ListRow(p.title, onClick = { when (p) { SettingsPane.About -> onAbout(); SettingsPane.History -> onHistory(); else -> pane = p } }) { BasicText("›", style = EmuType.Body) }
+                ListRow(p.title, onClick = { when (p) { SettingsPane.About -> onAbout(); SettingsPane.History -> onHistory(); else -> picked = p } }) { BasicText("›", style = EmuType.Body) }
             }
         }
-        if (wide) Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (wide && pane != null) Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             BasicText(pane.title, style = EmuType.Headline2)
-            when (pane) {
-                SettingsPane.Access -> accessPanel()
-                else -> BasicText("Arrives with its milestone.", style = EmuType.Body)
-            }
+            content(pane)
         }
     }
 }

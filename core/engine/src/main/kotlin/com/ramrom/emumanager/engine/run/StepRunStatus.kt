@@ -47,4 +47,6 @@ data class RunState(
     val overallProgress: Float get() = if (stepProgress.isEmpty()) 1f else doneCount.toFloat() / stepProgress.size
     /** Everything the plan asked for is in place. */
     val isComplete: Boolean get() = stepProgress.values.all { it.status.isSatisfied }
+    /** Nothing left that will move on its own or is waiting on the user: done, skipped or failed. */
+    val isSettled: Boolean get() = stepProgress.values.all { it.status.isSettled }
 }
