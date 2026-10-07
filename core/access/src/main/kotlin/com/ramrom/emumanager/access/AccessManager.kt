@@ -121,12 +121,12 @@ class AccessManager(private val context: Context) {
         val binderAlive = shizukuStatus.isServerRunning()
         val permissionGranted = setup.value.permission == ShizukuPermission.Granted
 
-        _mode.value = computeAccessMode(savedChoice, binderAlive, permissionGranted)
-
-        when (_mode.value) {
+        // Elevated only once the service is bound (connect() sets it): reads made before that came
+        // back empty, and a health check at startup reported BIOS files missing that were there.
+        when (val target = computeAccessMode(savedChoice, binderAlive, permissionGranted)) {
             AccessMode.Elevated -> if (!connect()) _mode.value = AccessMode.Disconnected
-            AccessMode.Limited -> _capabilities.value = limitedAccess.capabilities
-            else -> {} // NotSetUp or Disconnected
+            AccessMode.Limited -> { _mode.value = target; _capabilities.value = limitedAccess.capabilities }
+            else -> _mode.value = target // NotSetUp or Disconnected
         }
     }
 

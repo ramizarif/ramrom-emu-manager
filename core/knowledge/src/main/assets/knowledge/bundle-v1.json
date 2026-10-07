@@ -776,7 +776,7 @@
         "psvita"
       ],
       "packages": [
-        "com.github.vita3k"
+        "org.vita3k.emulator"
       ],
       "source": {
         "type": "github_release",
@@ -801,17 +801,18 @@
       "permissions": [],
       "declaresAllFilesAccess": false,
       "folderPick": {
-        "needed": true,
-        "inAppSteps": [
-          "Launch Vita3K",
-          "Grant folder access when prompted"
-        ],
+        "needed": false,
+        "inAppSteps": [],
         "verifyTreeSuffix": "ROMs"
       },
       "inAppSetup": [
         {
-          "title": "Firmware",
-          "instruction": "Install firmware files via Vita3K settings"
+          "title": "Install Firmware",
+          "instruction": "On Vita3K's first-run Install Firmware page (or Install Firmware in its app list), install Main Firmware and Font Package from your own console. Pre-Install Package is optional."
+        },
+        {
+          "title": "Add your games",
+          "instruction": "In Vita3K, Install App, then pick the .zip or .vpk you dumped from your own console. Vita3K keeps games in its own storage, not in ROMs."
         }
       ],
       "firstLaunchCreatesDirs": false,
@@ -830,7 +831,7 @@
         "wiiu"
       ],
       "packages": [
-        "info.cemu"
+        "info.cemu.cemu"
       ],
       "source": {
         "type": "github_release",

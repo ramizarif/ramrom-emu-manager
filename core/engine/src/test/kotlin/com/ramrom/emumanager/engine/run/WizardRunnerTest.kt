@@ -30,6 +30,7 @@ class WizardRunnerTest {
         val results: MutableMap<String, MutableList<StepResult>> = mutableMapOf(),
         val verified: MutableSet<String> = mutableSetOf(),
         val workMs: Long = 100,
+        val unverifiable: Set<String> = emptySet(),
     ) : StepExecutor {
         val started = mutableListOf<String>()
         var running = 0; var maxRunning = 0
@@ -44,7 +45,8 @@ class WizardRunnerTest {
             if (r == StepResult.Ok) verified += step.id
             return r
         }
-        override suspend fun verify(step: Step) = step.id in verified
+        override suspend fun verify(step: Step) = step.id in verified || step.id in unverifiable
+        override suspend fun canVerify(step: Step) = step.id !in unverifiable
     }
 
     /**
@@ -121,6 +123,24 @@ class WizardRunnerTest {
         assertTrue("not verified yet", status(r, "pick") is StepRunStatus.NeedsYou)
         exec.verified += "pick"
         r.markGuidedDone("pick"); advanceUntilIdle()
+        assertTrue(r.state.value.isComplete)
+    }
+
+    @Test fun aStepWeCantCheckWaitsForTheUsersWord() = runTest {
+        // Vita3K's firmware: coming back from the app must not count, "I did it" must.
+        val r = WizardRunner(CompiledPlan(listOf(guided("firmware"))), FakeExecutor(unverifiable = setOf("firmware")), InMemoryRunStore(), "run")
+        r.start(runnerScope()); advanceUntilIdle()
+        r.recheck("firmware"); advanceUntilIdle()
+        assertTrue(status(r, "firmware") is StepRunStatus.NeedsYou)
+        r.markGuidedDone("firmware"); advanceUntilIdle()
+        assertTrue(r.state.value.isComplete)
+    }
+
+    @Test fun aGuidedStepAlreadyTrueNeedsNobody() = runTest {
+        // Eden's keys are already in: the step settles without asking.
+        val exec = FakeExecutor(verified = mutableSetOf("keys"))
+        val r = WizardRunner(CompiledPlan(listOf(guided("keys"))), exec, InMemoryRunStore(), "run")
+        r.start(runnerScope()); advanceUntilIdle()
         assertTrue(r.state.value.isComplete)
     }
 

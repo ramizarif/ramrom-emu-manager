@@ -101,7 +101,7 @@ fun GuidedRoute(run: ActiveRun, stepId: String, nav: Navigator) {
         onPauseOrDispose { }
     }
 
-    val pkg = copy.appId?.let(run.executor::packageOf)
+    val pkg = copy.appId?.let(run.executor::launchPackageOf)
     val goAway = { intent: Intent? ->
         scope.launch {
             // Elevated mode can allow the chip itself; limited mode falls back to a notification.

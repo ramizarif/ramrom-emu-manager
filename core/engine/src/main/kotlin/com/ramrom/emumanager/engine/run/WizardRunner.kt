@@ -80,8 +80,16 @@ class WizardRunner(
     }
 
     /** The user says a guided step is done. It counts only if the device agrees. */
-    suspend fun markGuidedDone(stepId: String) =
+    suspend fun markGuidedDone(stepId: String) {
+        val step = steps[stepId] ?: return
+        // Nothing to look at: their word is all there is.
+        if (!safeCanVerify(step)) {
+            lock.withLock { set(stepId, StepRunStatus.Done); updateRunning(); persist() }
+            wake.trySend(Unit)
+            return
+        }
         reverify(stepId, fallback = StepRunStatus.NeedsYou("We couldn't see that change yet. Check it and try again."))
+    }
 
     /**
      * Run a guided step's automatic part now, because the user asked: in limited mode we download
@@ -97,6 +105,8 @@ class WizardRunner(
     suspend fun recheck(stepId: String) {
         val before = lock.withLock { status(stepId) } ?: return
         if (before !is StepRunStatus.NeedsYou) return
+        // Coming back from an app proves nothing by itself: only a step we can check completes here.
+        if (!safeCanVerify(steps[stepId] ?: return)) return
         reverify(stepId, fallback = before)
     }
 
@@ -130,8 +140,8 @@ class WizardRunner(
 
     private suspend fun schedule() {
         for (signal in wake) {
-            val toStart = lock.withLock {
-                if (_state.value.isPaused) return@withLock emptyList()
+            val (toStart, asked) = lock.withLock {
+                if (_state.value.isPaused) return@withLock emptyList<Step>() to emptyList()
                 val ready = plan.steps.filter { s ->
                     status(s.id) is StepRunStatus.Pending && s.dependsOn.all { status(it)?.isSatisfied == true }
                 }
@@ -141,9 +151,11 @@ class WizardRunner(
                 }
                 updateRunning()
                 persist()
-                ready.filter { it.executor == Executor.Auto }
+                ready.filter { it.executor == Executor.Auto } to ready.filter { it.executor == Executor.Guided }
             }
             toStart.forEach { s -> scope.launch { run(s) } }
+            // A guided step that's already true on this device (Eden's keys are in) needs nobody.
+            asked.forEach { s -> scope.launch { recheck(s.id) } }
         }
     }
 
@@ -195,6 +207,8 @@ class WizardRunner(
         }
         wake.trySend(Unit)
     }
+
+    private suspend fun safeCanVerify(step: Step) = try { executor.canVerify(step) } catch (e: CancellationException) { throw e } catch (_: Exception) { false }
 
     private suspend fun safeVerify(step: Step) = try { executor.verify(step) } catch (e: CancellationException) { throw e } catch (_: Exception) { false }
 

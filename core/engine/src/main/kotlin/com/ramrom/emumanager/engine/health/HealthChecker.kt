@@ -71,8 +71,12 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
         val looksHere = if (frontend != null) "ES-DE looks for" else "Keep your"
         if (layout != null) {
             for (s in chosen) {
-                val folderName = layout.systemFolders[s.systemId] ?: s.systemId
-                val folder = inventory.romFolders.firstOrNull { it.folderName == folderName }
+                // The standard folder or an alias the setup uses (the Thor keeps PS1 in ROMs/ps1, not psx):
+                // the one a custom ES-DE system points at first, else the one with the most files.
+                val names = listOf(layout.systemFolders[s.systemId] ?: s.systemId) + layout.folderAliases[s.systemId].orEmpty()
+                val present = names.mapNotNull { n -> inventory.romFolders.firstOrNull { it.folderName == n } }
+                val folder = present.firstOrNull { it.folderName in inventory.esdeCustomDefaults } ?: present.maxByOrNull { it.files.size }
+                val folderName = folder?.folderName ?: names.first()
                 val path = "${inventory.esdeConfig.romDirectory}/$folderName"
                 if (folder == null) issues += HealthIssue("folder_missing_${s.systemId}", IssueSeverity.WARNING, "No ${name(s.systemId)} folder",
                     "$looksHere ${name(s.systemId)} games in ROMs/$folderName.", listOf("Missing: $path"), FixAction.CreateFolder(path), s.systemId)
@@ -84,7 +88,8 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                     val strayNames = folder.strays.map { it.fileName }.toSet()
                     val candidates = folder.files.filter { it !in strayNames }
                     val games = if (opens.isEmpty()) candidates.size else candidates.count { it.substringAfterLast('.').lowercase() in opens }
-                    val unplayable = if (opens.isEmpty()) emptyList() else candidates.filter { it.substringAfterLast('.').lowercase() !in opens }
+                    // Loose files only: a subfolder of non-games is the emulator's own (PPSSPP keeps saves in ROMs/psp/PSP).
+                    val unplayable = if (opens.isEmpty()) emptyList() else candidates.filter { '/' !in it && it.substringAfterLast('.').lowercase() !in opens }
                     if (unplayable.isNotEmpty()) {
                         val archives = unplayable.any { it.substringAfterLast('.').lowercase() in ARCHIVES }
                         issues += HealthIssue("folder_unplayable_${s.systemId}", if (games == 0) IssueSeverity.WARNING else IssueSeverity.INFO,

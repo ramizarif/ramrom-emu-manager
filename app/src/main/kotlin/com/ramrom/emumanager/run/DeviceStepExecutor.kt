@@ -67,10 +67,44 @@ class DeviceStepExecutor(
             StepType.GrantAllFilesAccess -> packageOf(step.subject)?.let(::hasAllFiles) ?: false
             StepType.CreateFolder -> File(romRoot, step.subject).isDirectory
             StepType.StageBios -> bios[step.subject]?.let { exists(destOf(it)) } ?: false
-            // Folder picks and in-app setup can't be read back without elevated dumpsys parsing (P08,
-            // next); until then the user's "I did it" stands.
+            StepType.GuidedFolderPick -> holdsRomFolder(step.subject)
+            // Keys are what stops games opening; firmware only some need, so keys decide.
+            StepType.GuidedInAppSetup -> keysDirs(step.subject).any { dir ->
+                (access.access.listDir(dir) as? AccessResult.Ok)?.value.orEmpty().contains("prod.keys")
+            }
             else -> true
         }
+    }
+
+    /**
+     * Folder grants show in `dumpsys` and keys sit in Android/data: both need Shizuku. Other
+     * in-app setup (Vita3K's firmware, ES-DE's first run) leaves nothing we can read, so only
+     * "I did it" completes it.
+     */
+    override suspend fun canVerify(step: Step): Boolean = when (step.type) {
+        StepType.GuidedFolderPick -> elevated
+        StepType.GuidedInAppSetup -> elevated && keysDirs(step.subject).isNotEmpty()
+        else -> true
+    }
+
+    private val elevated get() = access.mode.value == AccessMode.Elevated
+
+    /** Each installed build's keys folder: on the Thor ES-DE launches Nightly, so either one counts. */
+    private fun keysDirs(appId: String): List<String> {
+        val emu = bundle.emulators.firstOrNull { it.id == appId } ?: return emptyList()
+        val dir = emu.paths.keysDir.ifEmpty { return emptyList() }
+        return emu.packages.filter { runCatching { pm.getPackageInfo(it, 0) }.isSuccess }
+            .map { dir.replace("{appData}", "/storage/emulated/0/Android/data/$it") }
+    }
+
+    /** A tree grant on the ROMs folder, one above it, or a system folder inside it, by any build. */
+    private suspend fun holdsRomFolder(appId: String): Boolean {
+        val dump = (access.access.dumpsys("activity", "permissions") as? AccessResult.Ok)?.value ?: return false
+        val byUid = com.ramrom.emumanager.engine.inventory.UriGrants.parse(dump)
+        val pkgs = bundle.emulators.firstOrNull { it.id == appId }?.packages.orEmpty()
+        return pkgs.mapNotNull { runCatching { pm.getApplicationInfo(it, 0).uid }.getOrNull() }
+            .flatMap { byUid[it].orEmpty() }
+            .any { p -> p == romRoot || romRoot.startsWith("$p/") || p.startsWith("$romRoot/") }
     }
 
     /**
@@ -174,6 +208,26 @@ class DeviceStepExecutor(
     fun packageOf(id: String): String? {
         val pkgs = bundle.emulators.firstOrNull { it.id == id }?.packages ?: bundle.frontends.firstOrNull { it.id == id }?.packages ?: return null
         return pkgs.firstOrNull { runCatching { pm.getPackageInfo(it, 0) }.isSuccess }
+    }
+
+    /**
+     * The build to open for a guided step: with two installed (Eden and Eden Nightly), the one ES-DE
+     * launches, so setup happens where the games play. Else the installed one.
+     */
+    fun launchPackageOf(id: String): String? {
+        val emu = bundle.emulators.firstOrNull { it.id == id } ?: return packageOf(id)
+        val installed = emu.packages.filter { runCatching { pm.getPackageInfo(it, 0) }.isSuccess }
+        if (installed.size < 2) return installed.firstOrNull() ?: packageOf(id)
+        val fe = bundle.frontends.firstOrNull() ?: return installed.first()
+        val label = emu.systems.firstNotNullOfOrNull { sys ->
+            val customs = runCatching { File(fe.paths.customSystems, "es_systems.xml").readText() }.getOrNull()
+                ?.let { com.ramrom.emumanager.engine.config.EsdeLaunch.customDefaults(it) }.orEmpty()
+            val folder = com.ramrom.emumanager.engine.config.EsdeLaunch.folderFor(fe, sys, customs.keys)
+            runCatching { File(fe.paths.gamelists, "$folder/gamelist.xml").readText() }.getOrNull()
+                ?.let { com.ramrom.emumanager.engine.config.EsdeLaunch.systemLabel(it) } ?: customs[folder]
+        }
+        return (com.ramrom.emumanager.engine.config.EsdeLaunch.packageFor(emu, label, installed) as? com.ramrom.emumanager.engine.config.EsdeLaunch.Pick.Package)?.pkg
+            ?: installed.first()
     }
 
     private fun notInstalled(id: String) = StepResult.NeedsUser("Install ${bundle.emulators.firstOrNull { it.id == id }?.name ?: id} first.")

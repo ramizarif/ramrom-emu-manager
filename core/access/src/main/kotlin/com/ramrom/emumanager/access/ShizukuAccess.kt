@@ -175,7 +175,7 @@ class ShizukuAccess(
         }
         val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
         return@withContext try {
-            svc.exec(arrayOf("am", "force-stop", pkg))
+            svc.run("am", "force-stop", pkg)
             AccessResult.Ok(Unit)
         } catch (e: Exception) {
             AccessResult.Failed(e.message ?: "Force-stop failed")
@@ -206,7 +206,7 @@ class ShizukuAccess(
         }
         val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
         return@withContext try {
-            svc.exec(arrayOf("pm", "uninstall", pkg))
+            svc.run("pm", "uninstall", pkg)
             AccessResult.Ok(Unit)
         } catch (e: Exception) {
             AccessResult.Failed(e.message ?: "Uninstall failed")
@@ -219,7 +219,7 @@ class ShizukuAccess(
         }
         val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
         return@withContext try {
-            svc.exec(arrayOf("pm", "grant", pkg, perm))
+            svc.run("pm", "grant", pkg, perm)
             AccessResult.Ok(Unit)
         } catch (e: Exception) {
             AccessResult.Failed(e.message ?: "Grant failed")
@@ -232,7 +232,7 @@ class ShizukuAccess(
         }
         val svc = service ?: return@withContext AccessResult.Denied("Shizuku disconnected")
         return@withContext try {
-            svc.exec(arrayOf("pm", "revoke", pkg, perm))
+            svc.run("pm", "revoke", pkg, perm)
             AccessResult.Ok(Unit)
         } catch (e: Exception) {
             AccessResult.Failed(e.message ?: "Revoke failed")
@@ -250,7 +250,8 @@ class ShizukuAccess(
                 AppOpMode.DENY -> "deny"
                 AppOpMode.IGNORE -> "ignore"
             }
-            svc.exec(arrayOf("appops", "set", "--uid", uid.toString(), pkg, op, modeStr))
+            // `--uid <package>`: the uid-wide mode Settings shows. A uid number in that place is read as the op.
+            svc.run("appops", "set", "--uid", pkg, op, modeStr)
             AccessResult.Ok(Unit)
         } catch (e: Exception) {
             AccessResult.Failed(e.message ?: "SetAppOp failed")
@@ -288,5 +289,19 @@ class ShizukuAccess(
         } catch (e: Exception) {
             AccessResult.Failed(e.message ?: "IsRunning failed")
         }
+    }
+
+    /**
+     * Runs a command that prints nothing on success. These tools report failure in their output and
+     * exit codes we can't see, so an error line becomes an exception rather than a silent "done".
+     */
+    private fun IAccessService.run(vararg argv: String) {
+        val out = exec(arrayOf(*argv))
+        val bad = out.lines().firstOrNull { l -> FAILURE.any { l.trimStart().startsWith(it) } }
+        if (bad != null) throw RuntimeException(bad.trim())
+    }
+
+    private companion object {
+        val FAILURE = listOf("Error", "Exception", "Failure", "Security exception", "java.lang.", "Unknown ")
     }
 }

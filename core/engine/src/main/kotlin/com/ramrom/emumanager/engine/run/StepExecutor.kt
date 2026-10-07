@@ -23,4 +23,10 @@ interface StepExecutor {
      * after a crash mid-step, and after execute() to confirm. Never trusts a step's own report.
      */
     suspend fun verify(step: Step): Boolean
+
+    /**
+     * Can [verify] actually see this step's end state? When it can't (setup done inside another
+     * app), only the user's "I did it" completes the step; coming back from the app doesn't.
+     */
+    suspend fun canVerify(step: Step): Boolean = true
 }

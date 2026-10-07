@@ -202,6 +202,11 @@ private fun EmuNav(app: EmuApplication, start: Route) {
         }
         onPauseOrDispose { }
     }
+    // Shizuku binds a moment after launch: look again once it can see emulators' private folders.
+    val accessMode by app.access.mode.collectAsState()
+    LaunchedEffect(accessMode, hasPlan) {
+        if (hasPlan == true && accessMode == com.ramrom.emumanager.access.AccessMode.Elevated) runCatching { app.health.check() }
+    }
     val homeStatus = if (hasPlan == true) healthReport?.let { rep ->
         val names = app.knowledge.getBundle()?.emulators?.associate { it.id to it.name }.orEmpty()
         val tiles = rep.plan.systems.map { it.emulatorId }.distinct().mapIndexed { i, id ->
@@ -231,7 +236,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     val esdeLaunch = remember(nav.current) {
         app.knowledge.getBundle()?.frontends?.firstOrNull()?.packages?.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
     }
-    val runSummary = runState?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
+    // A finished run hands Home back to the health view; "Still working" at 30 of 30 read wrong.
+    val runSummary = runState?.takeUnless { it.isComplete }?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
 
     /** Re-run the saved plan: the compiler only plans what's still missing. */
     // An import under way shows its progress; a finished one has been seen, so a new scan starts.
@@ -426,7 +432,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                 is Route.Main -> MainScreen(
                     r.section, onSection = nav::switchSection,
                     onStartSetup = {
-                        if (activeRun != null) nav.push(Route.Wizard)
+                        // A finished run is history: "Add or change systems" starts a new plan.
+                        if (activeRun != null && runState?.isComplete != true) nav.push(Route.Wizard)
                         else if (hasPlan == true) scope.launch {
                             // Start from what the device already has, not a blank plan.
                             val plan = app.runs.lastPlan() ?: return@launch

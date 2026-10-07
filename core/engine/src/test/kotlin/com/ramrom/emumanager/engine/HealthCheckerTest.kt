@@ -135,4 +135,12 @@ class HealthCheckerTest {
         assertTrue(issues.first { it.id == "folder_missing_wii" }.detail.startsWith("Keep your"))
         assertFalse(issues.any { it.id.startsWith("frontend_") })
     }
+
+    @Test fun aliasFolderAndEmulatorDataAreNotFlagged() {
+        val plan = Plan("ayn-thor", "sd8gen2", "es-de", listOf(Plan.PlanSystem("ps1", "duckstation"), Plan.PlanSystem("psp", "ppsspp")), null)
+        val files = arrayOf(esdeSettings, "$r/ps1/THPS2.cue", "$r/ps1/THPS2.bin", "$r/psx/.keep",
+            "$r/psp/Crisis Core.iso", "$r/psp/PSP/SAVEDATA/ULUS10566/PARAM.SFO", "$r/psp/PSP/SYSTEM/ppsspp.ini")
+        val issues = HealthChecker(testBundle).check(plan, inv(all + "org.ppsspp.ppsspp", files = files) { copy(esdeCustomDefaults = mapOf("ps1" to "DuckStation (Standalone)")) })
+        assertFalse(issues.joinToString { it.id }, issues.any { it.id == "folder_empty_ps1" || it.id == "folder_unplayable_psp" })
+    }
 }

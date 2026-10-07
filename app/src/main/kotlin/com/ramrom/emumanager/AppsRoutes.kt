@@ -58,7 +58,8 @@ private fun sourceLabel(e: EmulatorProfile) = when (e.source.type) {
 
 private fun rows(app: EmuApplication, bundle: KnowledgeBundle, data: AppsData, latest: Map<String, Latest>, installs: Map<String, InstallState>): List<AppRow> {
     val planned = data.plan?.systems?.map { it.emulatorId }.orEmpty().toSet()
-    val issues = app.health.report.value?.issues.orEmpty()
+    // Notes (INFO) aren't things to fix: a folder pick ES-DE doesn't need would read as a problem.
+    val issues = app.health.report.value?.issues.orEmpty().filter { it.severity != com.ramrom.emumanager.engine.health.IssueSeverity.INFO }
     return bundle.emulators.filter { e -> e.id in planned || e.packages.any { it in data.inventory.installedPackages } }.mapIndexed { i, e ->
         val installed = data.inventory.installedApps.firstOrNull { it.packageId in e.packages }
         val l = latest[e.id]
