@@ -209,12 +209,16 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     LaunchedEffect(accessMode, hasPlan) {
         if (hasPlan == true && accessMode == com.ramrom.emumanager.access.AccessMode.Elevated) runCatching { app.health.check() }
     }
+    // Count up from what was on screen last time; remember the new number once it's shown.
+    val seenBefore = remember { app.health.lastSeenPercent }
+    LaunchedEffect(healthReport?.score?.percent) { healthReport?.score?.percent?.let { kotlinx.coroutines.delay(2000); app.health.markSeen(it) } }
     val homeStatus = if (hasPlan == true) healthReport?.let { rep ->
         val names = app.knowledge.getBundle()?.emulators?.associate { it.id to it.name }.orEmpty()
         val tiles = rep.plan.systems.map { it.emulatorId }.distinct().mapIndexed { i, id ->
             HandheldTile(id, (names[id] ?: id).filter { it.isLetterOrDigit() }.take(2).replaceFirstChar { it.uppercase() }, Detection.tileColor(i))
         }
-        com.ramrom.emumanager.screens.HomeStatus(rep.systems.size, rep.readyCount, rep.blocking.size, rep.warnings.size, tiles)
+        com.ramrom.emumanager.screens.HomeStatus(rep.systems.size, rep.readyCount, rep.blocking.size, rep.warnings.size, tiles,
+            rep.score.percent, seenBefore)
     }
         ?: com.ramrom.emumanager.screens.HomeStatus(0, null, 0, 0) else null
     // Progress lives in a notification while a setup run or import works in the background (P19), and

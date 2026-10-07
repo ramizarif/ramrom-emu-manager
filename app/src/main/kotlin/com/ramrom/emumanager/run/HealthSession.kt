@@ -16,6 +16,11 @@ class HealthSession(private val app: EmuApplication) {
     private val _checking = MutableStateFlow(false)
     val checking: StateFlow<Boolean> = _checking.asStateFlow()
     private val lock = Mutex()
+    private val prefs = app.getSharedPreferences("health", android.content.Context.MODE_PRIVATE)
+
+    /** The setup percentage the user last saw, so the next one counts up (or down) from it. */
+    val lastSeenPercent: Int get() = prefs.getInt("seen_percent", 0)
+    fun markSeen(percent: Int) { prefs.edit().putInt("seen_percent", percent).apply() }
 
     /** Scan the device and re-run the rules. Null result: no plan yet to check against. */
     suspend fun check(): HealthReport? = lock.withLock {

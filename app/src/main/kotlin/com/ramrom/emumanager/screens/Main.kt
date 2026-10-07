@@ -102,7 +102,9 @@ fun MainScreen(
 }
 
 /** What S17 shows once the device is set up. [ready] null = health still checking. */
-data class HomeStatus(val systems: Int, val ready: Int?, val blocking: Int, val warnings: Int, val tiles: List<com.ramrom.emumanager.ui.handheld.HandheldTile> = emptyList())
+data class HomeStatus(val systems: Int, val ready: Int?, val blocking: Int, val warnings: Int, val tiles: List<com.ramrom.emumanager.ui.handheld.HandheldTile> = emptyList(),
+    /** How set up the device is, and what the user saw last time (the meter counts from there). */
+    val percent: Int? = null, val fromPercent: Int = 0)
 
 /** S17 Home: health at a glance and the few things people come back for. */
 @Composable
@@ -116,6 +118,7 @@ private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMor
         // Portrait: stacked and centred, so the screen isn't a strip of content over empty space.
         Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LivingHandheld(HandheldState(awake = true, tiles = h.tiles, face = face), Modifier.size(280.dp, 200.dp))
+            h.percent?.let { com.ramrom.emumanager.ui.components.SetupMeter(it, h.fromPercent, centered = true) }
             BasicText(title, style = EmuType.Headline2.copy(textAlign = TextAlign.Center))
             BasicText(line, style = EmuType.Body.copy(textAlign = TextAlign.Center))
         }
@@ -123,6 +126,7 @@ private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMor
         LivingHandheld(HandheldState(awake = true, tiles = h.tiles, face = face), Modifier.size(250.dp, 180.dp))
         Spacer(Modifier.width(20.dp))
         Column(Modifier.weight(1f)) {
+            h.percent?.let { com.ramrom.emumanager.ui.components.SetupMeter(it, h.fromPercent); Spacer(Modifier.height(10.dp)) }
             BasicText(title, style = EmuType.Headline2)
             BasicText(line, style = EmuType.Body)
         }

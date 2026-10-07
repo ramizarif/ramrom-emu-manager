@@ -43,6 +43,11 @@ import kotlinx.coroutines.launch
 fun WizardRoute(run: ActiveRun, nav: Navigator, onFinished: (complete: Boolean) -> Unit) {
     val state by run.runner.state.collectAsState()
     val scope = rememberCoroutineScope()
+    // Re-score the device a moment after each finished step, so the percentage climbs during setup.
+    val health = (androidx.compose.ui.platform.LocalContext.current.applicationContext as EmuApplication).health
+    val report by health.report.collectAsState()
+    val from = remember { health.lastSeenPercent }
+    androidx.compose.runtime.LaunchedEffect(state.doneCount) { kotlinx.coroutines.delay(1500); runCatching { health.check() } }
     val titles = remember(run) { run.plan.steps.associate { it.id to StepText.copy(it, run.bundle).title } }
     val rows = run.plan.steps.mapNotNull { s ->
         val p = state.stepProgress[s.id] ?: return@mapNotNull null
@@ -58,6 +63,7 @@ fun WizardRoute(run: ActiveRun, nav: Navigator, onFinished: (complete: Boolean) 
     }
     WizardScreen(
         state, rows, handheldFor(run, state),
+        percent = report?.score?.percent, fromPercent = from,
         onOpenStep = { nav.push(Route.Guided(it)) },
         onRetry = { scope.launch { run.runner.retryStep(it) } },
         onSkip = { scope.launch { run.runner.skipStepForNow(it) } },

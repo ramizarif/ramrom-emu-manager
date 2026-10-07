@@ -12,7 +12,7 @@ data class SystemHealth(val systemId: String, val name: String, val emulatorName
 }
 
 /** S14's whole report. */
-data class HealthReport(val plan: Plan, val issues: List<HealthIssue>, val systems: List<SystemHealth>) {
+data class HealthReport(val plan: Plan, val issues: List<HealthIssue>, val systems: List<SystemHealth>, val score: com.ramrom.emumanager.engine.health.SetupScore) {
     val blocking get() = issues.filter { it.severity == IssueSeverity.BLOCKER }
     val warnings get() = issues.filter { it.severity == IssueSeverity.WARNING }
     val tips get() = issues.filter { it.severity == IssueSeverity.INFO }
@@ -37,7 +37,7 @@ data class HealthReport(val plan: Plan, val issues: List<HealthIssue>, val syste
                 SystemHealth(s.systemId, bundle.systems.firstOrNull { it.id == s.systemId }?.name ?: s.systemId,
                     emus[s.emulatorId]?.name ?: s.emulatorId, mine.minByOrNull { it.severity.ordinal })
             }
-            return HealthReport(plan, issues, systems)
+            return HealthReport(plan, issues, systems, com.ramrom.emumanager.engine.health.SetupScore.of(plan, issues, bundle))
         }
     }
 }

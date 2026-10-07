@@ -77,6 +77,8 @@ fun HealthScreen(
             style = EmuType.Headline,
         )
         Spacer(Modifier.height(6.dp))
+        com.ramrom.emumanager.ui.components.SetupMeter(report.score.percent, report.score.percent, big = false)
+        Spacer(Modifier.height(4.dp))
         BasicText("${report.readyCount} of ${report.systems.size} systems ready", style = EmuType.Lead)
         Spacer(Modifier.height(14.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

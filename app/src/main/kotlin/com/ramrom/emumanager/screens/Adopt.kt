@@ -28,7 +28,7 @@ import com.ramrom.emumanager.ui.theme.EmuType
 data class FoundSystem(val name: String, val detail: String, val ready: Boolean, val issue: String?)
 
 /** Everything S16 shows. Null = still scanning. */
-data class FoundSetup(val systems: List<FoundSystem>, val frontend: String?, val issueCount: Int, val fixable: Boolean)
+data class FoundSetup(val systems: List<FoundSystem>, val frontend: String?, val issueCount: Int, val fixable: Boolean, val percent: Int = 0)
 
 /** S16 What we found: the existing setup, untouched. */
 @Composable
@@ -72,6 +72,9 @@ fun AdoptScreen(
             }
         }
         val f = found!!
+        // First thing someone with a working setup sees: credit for it, before anything to fix.
+        com.ramrom.emumanager.ui.components.SetupMeter(f.percent)
+        Spacer(Modifier.height(12.dp))
         BasicText("${f.systems.size} system${if (f.systems.size == 1) "" else "s"} set up", style = EmuType.Headline)
         Spacer(Modifier.height(6.dp))
         BasicText(listOfNotNull(f.frontend?.let { "$it found" } ?: "No frontend", if (f.issueCount > 0) "${f.issueCount} thing${if (f.issueCount == 1) "" else "s"} to look at" else null).joinToString("  ·  "), style = EmuType.Lead)

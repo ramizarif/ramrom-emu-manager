@@ -59,6 +59,9 @@ fun WizardScreen(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onFinished: () -> Unit,
+    /** The device's setup percentage, re-read as steps finish: the number people watch climb. */
+    percent: Int? = null,
+    fromPercent: Int = 0,
 ) {
     val needs = rows.filter { it.status is StepRunStatus.NeedsYou || it.status is StepRunStatus.Failed }
     val moving = rows.filter { it.status is StepRunStatus.Running || it.status == StepRunStatus.Verifying || it.status == StepRunStatus.Pending || it.status is StepRunStatus.Blocked }
@@ -116,6 +119,7 @@ fun WizardScreen(
                 },
                 style = EmuType.Headline,
             )
+            percent?.let { com.ramrom.emumanager.ui.components.SetupMeter(it, fromPercent, big = false, bar = false) }
             Spacer(Modifier.height(10.dp))
             ProgressBar(state.overallProgress)
             Spacer(Modifier.height(6.dp))
