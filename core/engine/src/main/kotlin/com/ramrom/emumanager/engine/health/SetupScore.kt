@@ -21,6 +21,12 @@ data class SetupScore(val done: Int, val total: Int, val missing: List<Missing>)
     data class Missing(val systemId: String?, val what: String)
 
     companion object {
+        private val SETUP = listOf("frontend_missing", "frontend_first_run", "app_missing_", "all_files_", "folder_pick_",
+            "folder_missing_", "bios_missing_", "esde_choice_")
+
+        /** Counts against setup (and a system's Ready). Tidying (strays, leftovers, empty folders) doesn't. */
+        fun affectsSetup(issue: HealthIssue) = issue.severity != IssueSeverity.INFO && SETUP.any { issue.id.startsWith(it) }
+
         fun of(plan: Plan, issues: List<HealthIssue>, bundle: KnowledgeBundle): SetupScore {
             val ids = issues.associateBy { it.id }
             fun open(id: String) = ids[id]?.let { it.severity != IssueSeverity.INFO } == true

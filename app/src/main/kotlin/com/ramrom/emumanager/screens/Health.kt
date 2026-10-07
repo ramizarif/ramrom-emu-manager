@@ -84,7 +84,7 @@ fun HealthScreen(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SectionLabel("Systems", report.systems.size)
             report.systems.forEach { s ->
-                ListRow(s.name, detail = s.top?.takeIf { !s.ready }?.title ?: s.emulatorName, onClick = s.top?.let { t -> { onOpenIssue(t) } }) {
+                ListRow(s.name, detail = s.top?.takeIf { !s.ready }?.title ?: listOfNotNull(s.emulatorName, s.note?.title).joinToString("  ·  "), onClick = s.top?.let { t -> { onOpenIssue(t) } }) {
                     when {
                         s.ready -> Tag("Ready", TagKind.Done)
                         s.top?.severity == IssueSeverity.BLOCKER -> Tag("Blocked", TagKind.Blocked)

@@ -4,11 +4,13 @@ import com.ramrom.emumanager.engine.Plan
 import com.ramrom.emumanager.engine.health.FixAction
 import com.ramrom.emumanager.engine.health.HealthIssue
 import com.ramrom.emumanager.engine.health.IssueSeverity
+import com.ramrom.emumanager.engine.health.SetupScore
 import com.ramrom.emumanager.knowledge.KnowledgeBundle
 
 /** One planned system on S14: ready, or the most serious thing in its way. */
-data class SystemHealth(val systemId: String, val name: String, val emulatorName: String, val top: HealthIssue?) {
-    val ready get() = top == null || top.severity == IssueSeverity.INFO
+data class SystemHealth(val systemId: String, val name: String, val emulatorName: String, val top: HealthIssue?, val ready: Boolean) {
+    /** Ready, but with something worth tidying (a stray file): shown under the name, not as a problem. */
+    val note get() = top?.takeIf { ready && it.severity != IssueSeverity.INFO }
 }
 
 /** S14's whole report. */
@@ -35,7 +37,11 @@ data class HealthReport(val plan: Plan, val issues: List<HealthIssue>, val syste
                     })
                 }
                 SystemHealth(s.systemId, bundle.systems.firstOrNull { it.id == s.systemId }?.name ?: s.systemId,
-                    emus[s.emulatorId]?.name ?: s.emulatorId, mine.minByOrNull { it.severity.ordinal })
+                    emus[s.emulatorId]?.name ?: s.emulatorId,
+                    // The setup problem first if there is one, else the most serious note.
+                    mine.filter(SetupScore::affectsSetup).minByOrNull { it.severity.ordinal } ?: mine.minByOrNull { it.severity.ordinal },
+                    // Same rule as the percentage, so "97% set up" and the Ready tags agree.
+                    mine.none(SetupScore::affectsSetup))
             }
             return HealthReport(plan, issues, systems, com.ramrom.emumanager.engine.health.SetupScore.of(plan, issues, bundle))
         }
