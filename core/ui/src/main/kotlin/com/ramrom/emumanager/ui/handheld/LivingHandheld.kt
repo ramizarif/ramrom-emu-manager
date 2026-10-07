@@ -259,13 +259,21 @@ private fun DrawScope.drawFace(f: Face, blink: Float, m: TextMeasurer, power: Fl
     }
 }
 
+private const val DOCK_SLOTS = 8
+
 private fun DrawScope.drawDock(s: HandheldState, p: Map<String, Animatable<Float, *>>, m: TextMeasurer, lift: Float, ring: Float) {
     rr(60f, 244f, 280f, 38f, 14f, Color.White, .7f)
     if (s.tiles.isEmpty() && s.ghosts == 0) {
         label(m, "your emulators will land here", 200f, 263f, 11f, Slate.copy(alpha = .7f), weight = FontWeight.Normal)
         return
     }
-    s.tiles.forEachIndexed { i, t ->
+    // The dock holds 8. Past that: 7 and a "+N", keeping whichever tile is the user's turn in view.
+    val crowded = s.tiles.size + s.ghosts > DOCK_SLOTS
+    val shown = if (!crowded) s.tiles else s.tiles.take(DOCK_SLOTS - 1).let { first ->
+        val turn = s.tiles.firstOrNull { it.id == s.yourTurn }
+        if (turn == null || turn in first) first else first.dropLast(1) + turn
+    }
+    shown.forEachIndexed { i, t ->
         val x = 74f + i * 33f
         val y = 250f
         val e = p["t:" + t.id]?.value ?: 1f
@@ -286,6 +294,12 @@ private fun DrawScope.drawDock(s: HandheldState, p: Map<String, Animatable<Float
                 }
             }
         }
+    }
+    if (crowded) {
+        val x = 74f + shown.size * 33f
+        rr(x, 250f, 26f, 26f, 7f, Color(0xFFB9BDCC), 1f)
+        label(m, "+${s.tiles.size - shown.size + s.ghosts}", x + 13f, 263.5f, 10f, Color.White)
+        return
     }
     repeat(s.ghosts) { g ->
         val x = 74f + (s.tiles.size + g) * 33f

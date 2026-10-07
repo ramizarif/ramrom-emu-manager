@@ -357,6 +357,68 @@
       "marksNonDefault": true
     },
     {
+      "id": "citron",
+      "name": "Citron",
+      "systems": [
+        "switch"
+      ],
+      "packages": [
+        "org.citron.citron_emu"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "citron-neo/emulator",
+        "assetRegex": "app-mainline-release\\.apk$",
+        "url": "",
+        "note": "Citron NEO, the community continuation. Its version matched the build on the Thor (0237a9b88). Look-alike Citron download sites exist; use only this repo."
+      },
+      "minAndroid": 33,
+      "supportLevel": "L1",
+      "paths": {
+        "configFile": "{appData}/files/config/config.ini",
+        "perGameDir": "{appData}/files/config/custom",
+        "perGameFileName": "{titleId}.ini",
+        "biosDir": "",
+        "keysDir": "{appData}/files/keys",
+        "logFile": "{appData}/files/log/citron_log.txt"
+      },
+      "pathsNeedElevated": true,
+      "configFormat": "qt_ini",
+      "enumMaps": {},
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "declaresAllFilesAccess": true,
+      "folderPick": {
+        "needed": true,
+        "inAppSteps": [
+          "Open Citron",
+          "Add the game folder when it asks, or later in its settings",
+          "Choose ROMs/switch and allow access"
+        ],
+        "verifyTreeSuffix": "switch"
+      },
+      "inAppSetup": [
+        {
+          "title": "Keys",
+          "instruction": "In Citron, install prod.keys from your own console when it asks (or later in its settings). Citron needs it to read games."
+        },
+        {
+          "title": "Firmware",
+          "instruction": "In Citron, install the firmware from your own console in its settings. Some games need it."
+        }
+      ],
+      "firstLaunchCreatesDirs": true,
+      "romExtensions": [
+        "nsp",
+        "xci",
+        "nsz"
+      ],
+      "companionExtensions": [],
+      "caveats": [],
+      "marksNonDefault": true
+    },
+    {
       "id": "retroarch",
       "name": "RetroArch",
       "systems": [
@@ -1147,7 +1209,8 @@
         "melonds": "melonDS (Standalone)",
         "vita3k": "Vita3K (Standalone)",
         "cemu": "Cemu (Standalone)",
-        "gamenative": "GameNative (Standalone)"
+        "gamenative": "GameNative (Standalone)",
+        "citron": "Citron (Standalone)"
       },
       "packageLabels": {
         "dev.eden.eden_emulator.nightly": "Eden Nightly (Standalone)"
@@ -1210,7 +1273,9 @@
         "sd8elite": "eden",
         "generic": "eden"
       },
-      "alternatives": []
+      "alternatives": [
+        "citron"
+      ]
     },
     {
       "id": "nds",
