@@ -46,39 +46,60 @@ import com.ramrom.emumanager.ui.theme.EmuType
 @Composable
 private fun PlanTrack(n: Int, name: String) = JourneyTrack(n, 4, "Plan · $name")
 
-/** S06 Frontend choice. ES-DE is paid and comes from its own site: we never install it. */
+/** One frontend on S06. [note] says where it comes from when it isn't installed. */
+data class FrontendChoice(val id: String, val name: String, val blurb: String, val tile: String, val installed: Boolean, val chosen: Boolean, val note: String)
+
+/**
+ * S06 Frontend choice. Any number, all set up alike; none means just emulators. ES-DE is paid and
+ * RetroHrai! comes from the Play Store, so those two the user installs; Cocoon and iiSU we can.
+ */
 @Composable
-fun FrontendScreen(esdeInstalled: Boolean, chosenEsde: Boolean, onChoose: (Boolean) -> Unit, onNext: () -> Unit) {
+fun FrontendScreen(choices: List<FrontendChoice>, onToggle: (String) -> Unit, onNone: () -> Unit, onNext: () -> Unit) {
     val focus = com.ramrom.emumanager.ui.input.initialFocus()
     ScreenKeys(start = onNext)
+    val chosen = choices.filter { it.chosen }
+    val missing = chosen.filter { !it.installed }
     GuidedScaffold(
         handheld = HandheldState(
             awake = true,
-            face = if (chosenEsde && !esdeInstalled) Face.Look else Face.Happy,
-            tiles = if (chosenEsde && esdeInstalled) listOf(HandheldTile("es-de", "ES", EmuColors.Ink)) else emptyList(),
-            ghosts = if (chosenEsde && !esdeInstalled) 1 else 0,
+            face = if (missing.isNotEmpty()) Face.Look else Face.Happy,
+            tiles = chosen.filter { it.installed }.map { HandheldTile(it.id, it.tile, EmuColors.Ink) },
+            ghosts = missing.size,
         ),
-        bubble = when { !chosenEsde -> "Just emulators? Sure!"; esdeInstalled -> "ES-DE! Great pick."; else -> "I'll keep a spot for it." },
+        bubble = when {
+            chosen.isEmpty() -> "Just emulators? Sure!"
+            chosen.size > 1 -> "${chosen.size} frontends! I'll set up each."
+            missing.isEmpty() -> "${chosen[0].name}! Great pick."
+            else -> "I'll keep a spot for it."
+        },
         hints = listOf("A" to "Choose", "START" to "Next", "B" to "Back"),
         listHeavy = true,
         actions = { EmuButton("Next", onNext, kind = ButtonKind.Go) },
     ) {
         PlanTrack(1, "Frontend")
         Spacer(Modifier.height(10.dp))
-        BasicText("Pick your frontend", style = EmuType.Headline)
+        BasicText("Pick your frontends", style = EmuType.Headline)
+        Spacer(Modifier.height(4.dp))
+        BasicText("Choose as many as you use. Each one gets set up.", style = EmuType.Body)
         Spacer(Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            OptionCard("ES-DE", "All your systems in one place, with game art and themes.", { onChoose(true) }, Modifier.focusRequester(focus),
-                icon = { TileIcon("ES", EmuColors.Ink, 38.dp) }) {
-                if (esdeInstalled) Tag("Installed", TagKind.Done) else Tag("You get this one", TagKind.Neutral)
-                if (chosenEsde) Tag("Chosen", TagKind.Done)
+            choices.forEachIndexed { i, c ->
+                OptionCard(c.name, c.blurb, { onToggle(c.id) }, if (i == 0) Modifier.focusRequester(focus) else Modifier,
+                    icon = { TileIcon(c.tile, EmuColors.Ink, 38.dp) }) {
+                    // One tag: chosen says it all; an unchosen one still shows it's on the device.
+                    if (c.chosen) Tag("Chosen", TagKind.Done) else if (c.installed) Tag("Installed", TagKind.Neutral)
+                }
             }
-            OptionCard("No frontend", "Just emulators. You open each one to play.", { onChoose(false) },
-                icon = { TileIcon("◧", EmuColors.InkSoft, 38.dp) }) { if (!chosenEsde) Tag("Chosen", TagKind.Done) }
+            OptionCard("No frontend", "Just emulators. You open each one to play.", onNone,
+                icon = { TileIcon("◧", EmuColors.InkSoft, 38.dp) }) { if (chosen.isEmpty()) Tag("Chosen", TagKind.Done) }
         }
         Spacer(Modifier.height(12.dp))
-        if (chosenEsde && !esdeInstalled) InlineAlert("ES-DE is a paid app from es-de.org.", "Setup connects it once it's installed.", AlertKind.YourTurn)
-        else BasicText("More frontends come later. You can change this any time.", style = EmuType.Body)
+        if (missing.isNotEmpty()) InlineAlert(
+            "${missing.joinToString(" and ") { it.name }} ${if (missing.size == 1) "isn't" else "aren't"} installed yet",
+            missing.joinToString(" ") { it.note } + " Setup connects ${if (missing.size == 1) "it" else "them"} once installed.",
+            AlertKind.YourTurn,
+        )
+        else BasicText("You can change this any time.", style = EmuType.Body)
     }
 }
 
@@ -309,7 +330,7 @@ fun ImportPlanScreen(
         BasicText("Made for the ${import.madeFor}", style = EmuType.Headline)
         Spacer(Modifier.height(8.dp))
         BasicText(
-            "${import.systems.size} system${if (import.systems.size == 1) "" else "s"}${if (import.useEsde) " with ES-DE" else ""}. " +
+            "${import.systems.size} system${if (import.systems.size == 1) "" else "s"}${if (import.frontendNames.isNotEmpty()) " with ${import.frontendNames}" else ""}. " +
                 if (import.changes.isEmpty()) "Nothing needs changing for this device." else "${import.changes.size} change${if (import.changes.size == 1) "" else "s"} for this device:",
             style = EmuType.Lead,
         )

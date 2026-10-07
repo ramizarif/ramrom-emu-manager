@@ -22,7 +22,10 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
         val installed = inventory.installedPackages
         fun isInstalled(emuId: String) = emulators[emuId]?.packages?.any { it in installed } == true
         val issues = mutableListOf<HealthIssue>()
-        val frontend = plan.frontendId?.let { id -> bundle.frontends.firstOrNull { it.id == id } }
+        // ES-DE has checks of its own (first run, per-system choice); every chosen frontend gets the shared ones.
+        val frontend = plan.esde(bundle)
+        val frontends = plan.frontends(bundle)
+        fun hasFrontend() = frontends.any { f -> f.packages.any { it in installed } }
 
         // Apps: one issue per missing emulator, naming every system that waits on it.
         chosen.groupBy { it.emulatorId }.forEach { (emuId, list) ->
@@ -34,11 +37,25 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                 list.singleOrNull()?.systemId)
         }
 
-        if (frontend != null) {
-            val esdeHere = frontend.packages.any { it in installed }
-            if (!esdeHere) issues += HealthIssue("frontend_missing", IssueSeverity.BLOCKER, "ES-DE isn't installed",
-                "It's the frontend in your plan: your games show up there.", emptyList(), FixAction.InstallApp(frontend.id))
-            else if (!inventory.esdeConfig.installed) issues += HealthIssue("frontend_first_run", IssueSeverity.WARNING, "Open ES-DE once",
+        for (f in frontends) {
+            val here = f.packages.any { it in installed }
+            if (!here) { issues += HealthIssue("frontend_missing_${f.id}", IssueSeverity.BLOCKER, "${f.name} isn't installed",
+                "It's a frontend in your plan: your games show up there.", emptyList(), FixAction.InstallApp(f.id)); continue }
+            // Pointed at the games? Frontends that read a picked folder show it in their grants. Only
+            // judged once we can read grants, and not for ES-DE, whose first run covers it.
+            if (f.id == frontend?.id || !f.gamesFolderGrant || !inventory.grantsKnown) continue
+            val root = inventory.esdeConfig.romDirectory.trimEnd('/')
+            val paths = f.packages.flatMap { inventory.grantPaths[it].orEmpty() }.map { it.trimEnd('/') }
+            if (paths.none { com.ramrom.emumanager.engine.inventory.UriGrants.within(root, it) }) {
+                val elsewhere = paths.filter { !it.substringAfterLast('/').contains("Media", ignoreCase = true) }
+                issues += HealthIssue("frontend_folder_${f.id}", IssueSeverity.WARNING,
+                    if (elsewhere.isEmpty()) "${f.name} isn't pointed at your games yet" else "${f.name} is looking in a different folder",
+                    "Your games are in ${root.removePrefix("/storage/emulated/0/")}. Choose that folder in ${f.name}'s settings.",
+                    elsewhere.map { "Looking in: ${it.removePrefix("/storage/emulated/0/")}" }, FixAction.OpenAppSetup(f.id))
+            }
+        }
+        if (frontend != null && frontend.packages.any { it in installed }) {
+            if (!inventory.esdeConfig.installed) issues += HealthIssue("frontend_first_run", IssueSeverity.WARNING, "Open ES-DE once",
                 "It finishes setting itself up the first time it runs.", listOf("Not found yet: ${inventory.esdeConfig.configPath}"), FixAction.OpenAppSetup(frontend.id))
         }
 
@@ -67,8 +84,8 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
         }
 
         // ROM folders, named the ES-DE way even without ES-DE: it's the layout emulators get pointed at too.
-        val layout = frontend ?: bundle.frontends.firstOrNull()
-        val looksHere = if (frontend != null) "ES-DE looks for" else "Keep your"
+        val layout = bundle.esde ?: bundle.frontends.firstOrNull()
+        val looksHere = frontends.firstOrNull()?.let { "${it.name} looks for" } ?: "Keep your"
         if (layout != null) {
             for (s in chosen) {
                 // The standard folder or an alias the setup uses (the Thor keeps PS1 in ROMs/ps1, not psx):
@@ -102,7 +119,7 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                         val otherFolder = layout.systemFolders[other] ?: other
                         issues += HealthIssue("stray_${s.systemId}_$other", IssueSeverity.WARNING,
                             "${files.size} ${name(other)} file${if (files.size == 1) "" else "s"} in ROMs/$folderName",
-                            "${if (frontend != null) "ES-DE won't find" else "Its emulator won't open"} ${if (files.size == 1) "it" else "them"} there. Move ${if (files.size == 1) "it" else "them"} to ROMs/$otherFolder.",
+                            "${frontends.firstOrNull()?.let { "${it.name} won't find" } ?: "Its emulator won't open"} ${if (files.size == 1) "it" else "them"} there. Move ${if (files.size == 1) "it" else "them"} to ROMs/$otherFolder.",
                             files.take(5).map { it.fileName } + listOfNotNull(if (files.size > 5) "and ${files.size - 5} more" else null), FixAction.None, s.systemId)
                     }
                 }
@@ -141,12 +158,12 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                     // Any installed build will do: on the Thor ES-DE launches Eden Nightly, which holds the grant.
                     inventory.folderGrants.none { g -> g.packageId in emu.packages && g.packageId in installed && g.granted && (g.systemId == s.systemId || g.systemId.isEmpty()) }
                 }
-                // ES-DE hands the emulator the game itself, so the pick only matters for browsing inside the emulator.
-                val viaEsde = frontend != null && frontend.packages.any { it in installed }
+                // A frontend hands the emulator the game itself, so the pick only matters for browsing inside the emulator.
+                val viaEsde = hasFrontend()
                 if (missing.isNotEmpty()) issues += HealthIssue("folder_pick_$emuId", if (viaEsde) IssueSeverity.INFO else IssueSeverity.BLOCKER,
                     if (viaEsde) "${emu.name} doesn't list your games itself" else "${emu.name} can't see your games folder",
-                    if (viaEsde) "Games still open from ES-DE. To see them inside ${emu.name} too, choose the folder there."
-                    else "Android only lets you choose it inside ${emu.name}.", missing.map { "ROMs/${frontend?.systemFolders?.get(it.systemId) ?: it.systemId}" },
+                    if (viaEsde) "Games still open from ${frontends.joinToString(" and ") { it.name }}. To see them inside ${emu.name} too, choose the folder there."
+                    else "Android only lets you choose it inside ${emu.name}.", missing.map { "ROMs/${layout?.systemFolders?.get(it.systemId) ?: it.systemId}" },
                     FixAction.GrantFolder(pkg, missing.first().systemId), missing.singleOrNull()?.systemId)
             }
         }

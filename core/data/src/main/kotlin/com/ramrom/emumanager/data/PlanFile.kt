@@ -17,6 +17,8 @@ data class PlanFile(
     val targetDeviceProfileId: String,
     val frontendId: String? = null,
     val systems: List<PlanSystem>,
+    /** All chosen frontends; older files only have [frontendId]. */
+    val frontendIds: List<String> = emptyList(),
     val biosCheck: Boolean = false
 ) {
     companion object {

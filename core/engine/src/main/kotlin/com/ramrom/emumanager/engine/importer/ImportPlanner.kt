@@ -13,7 +13,7 @@ class ImportPlanner(
     private val files: FileLister,
     private val romRoot: String,
 ) {
-    private val frontend = bundle.frontends.firstOrNull()
+    private val frontend = bundle.esde
     private fun folderOf(systemId: String) = frontend?.systemFolders?.get(systemId) ?: systemId
     private fun systemName(id: String) = bundle.systems.firstOrNull { it.id == id }?.name ?: id
 

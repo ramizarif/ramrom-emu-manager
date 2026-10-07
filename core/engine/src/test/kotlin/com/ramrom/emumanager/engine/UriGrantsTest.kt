@@ -24,4 +24,10 @@ class UriGrantsTest {
     }
 
     @Test fun nothingGranted() = assertEquals(emptyMap<Int, List<String>>(), UriGrants.parse("ACTIVITY MANAGER URI PERMISSIONS\n  (nothing)"))
+
+    @Test fun withinIgnoresCase() {
+        assertEquals(true, UriGrants.within("/storage/emulated/0/ROMs", "/storage/emulated/0/Roms/"))
+        assertEquals(true, UriGrants.within("/storage/emulated/0/roms/switch", "/storage/emulated/0/ROMs"))
+        assertEquals(false, UriGrants.within("/storage/emulated/0/ROMsOld", "/storage/emulated/0/ROMs"))
+    }
 }

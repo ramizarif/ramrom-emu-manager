@@ -65,7 +65,7 @@ fun gameIdOf(s: LibrarySystem, g: LibraryGame): String? {
 
 /** The build ES-DE opens [g] in, read from its gamelist; the emulator's main build without ES-DE. */
 fun launchOf(app: EmuApplication, bundle: KnowledgeBundle, s: LibrarySystem, g: LibraryGame, emu: EmulatorProfile): EsdeLaunch.Pick {
-    val dir = bundle.frontends.firstOrNull()?.paths?.gamelists?.ifEmpty { null }
+    val dir = bundle.esde?.paths?.gamelists?.ifEmpty { null }
     val xml = dir?.let { runCatching { java.io.File("$it/${g.folderName.ifEmpty { s.folderName }}/gamelist.xml").readText() }.getOrNull() }
     val label = xml?.let { x -> g.files.firstNotNullOfOrNull { EsdeLaunch.label(x, it) } }
     return EsdeLaunch.packageFor(emu, label, app.settings.installed(emu))

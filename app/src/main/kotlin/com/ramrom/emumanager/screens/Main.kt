@@ -70,6 +70,7 @@ fun MainScreen(
     home: HomeStatus? = null,
     onHealth: () -> Unit = {},
     onOpenEsde: (() -> Unit)? = null,
+    frontendName: String = "",
     onImport: () -> Unit = {},
     onOpenPlan: () -> Unit = {},
     /** S32's content, supplied by the caller (it needs the app's sessions). */
@@ -87,11 +88,11 @@ fun MainScreen(
     )
     ToolScaffold(section, onSection, hints = listOf("A" to "Select", "L1/R1" to "Sections"), banner = banner, overlay = overlay) {
         when (section) {
-            Section.Home -> if (run == null && home != null) HomeBody(home, onHealth, onStartSetup, onOpenEsde, onImport) else if (run != null) EmptyState(
+            Section.Home -> if (run == null && home != null) HomeBody(home, onHealth, onStartSetup, onOpenEsde, onImport, frontendName) else if (run != null) EmptyState(
                 if (run.third > 0) Face.Happy else Face.LookDown, "Setup is ${run.first} of ${run.second} done",
                 if (run.third > 0) "${run.third} thing${if (run.third == 1) "" else "s"} need you. Everything else carries on by itself." else "Still working. It keeps going while you do other things.",
                 "Carry on with setup", onStartSetup,
-            ) else EmptyState(Face.Look, "Setup isn't finished yet", "Run setup to connect ES-DE, your emulators, folders and BIOS.", "Set up this device", onStartSetup)
+            ) else EmptyState(Face.Look, "Setup isn't finished yet", "Run setup to connect your frontends, emulators, folders and BIOS.", "Set up this device", onStartSetup)
             Section.Library -> if (library != null) library() else EmptyState(Face.Look, "No games yet", "Your games show up here once setup has found your ROM folders.")
             Section.Wishlist -> EmptyState(Face.Happy, "Your wishlist is empty", "Add games you want to play. We'll tell you how they run here, and spot them when they land in your library.")
             Section.Customize -> EmptyState(Face.Happy, "Make ES-DE yours", "Theme colours, backgrounds and game art, once ES-DE is set up.")
@@ -108,7 +109,7 @@ data class HomeStatus(val systems: Int, val ready: Int?, val blocking: Int, val 
 
 /** S17 Home: health at a glance and the few things people come back for. */
 @Composable
-private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMore: () -> Unit, onOpenEsde: (() -> Unit)?, onImport: () -> Unit) {
+private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMore: () -> Unit, onOpenEsde: (() -> Unit)?, onImport: () -> Unit, frontendName: String) {
     val focus = com.ramrom.emumanager.ui.input.initialFocus(h.ready)
     val good = h.ready != null && h.blocking == 0 && h.warnings == 0
     val face = when { h.ready == null -> Face.LookDown; good -> Face.Joy; h.blocking > 0 -> Face.Worried; else -> Face.Happy }
@@ -135,14 +136,14 @@ private fun ColumnScope.HomeBody(h: HomeStatus, onHealth: () -> Unit, onSetUpMor
     val phone = LocalSizeClass.current == SizeClass.Phone
     @Composable fun Buttons() {
         if (onOpenEsde != null && good) {
-            EmuButton("Open ES-DE", onOpenEsde, kind = ButtonKind.Go, focusRequester = focus)
+            EmuButton("Open $frontendName", onOpenEsde, kind = ButtonKind.Go, focusRequester = focus)
             EmuButton("Health check", onHealth)
         } else {
             EmuButton(if (good || h.ready == null) "Health check" else "See what's wrong", onHealth, kind = ButtonKind.Go, focusRequester = focus)
-            if (onOpenEsde != null) EmuButton("Open ES-DE", onOpenEsde)
+            if (onOpenEsde != null) EmuButton("Open $frontendName", onOpenEsde)
         }
         EmuButton("Import games", onImport)
-        EmuButton("Add or change systems", onSetUpMore, kind = ButtonKind.Ghost)
+        EmuButton("Change your setup", onSetUpMore, kind = ButtonKind.Ghost)
     }
     if (phone) Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) { Buttons() }
     else Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Buttons() }

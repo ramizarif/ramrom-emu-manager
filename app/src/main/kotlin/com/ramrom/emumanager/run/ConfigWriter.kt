@@ -191,7 +191,7 @@ class ConfigWriter(private val app: EmuApplication) {
      */
     suspend fun setEsdeChoice(systemId: String, emu: EmulatorProfile): String? {
         val bundle = app.knowledge.getBundle() ?: return null
-        val fe = bundle.frontends.firstOrNull() ?: return null
+        val fe = bundle.esde ?: return null
         val pkg = fe.packages.firstOrNull { p -> runCatching { app.packageManager.getPackageInfo(p, 0) }.isSuccess } ?: return "Install ES-DE first."
         val dir = fe.paths.gamelists.ifEmpty { return null }
         val customs = withContext(Dispatchers.IO) {

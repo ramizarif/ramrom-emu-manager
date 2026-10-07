@@ -12,10 +12,19 @@ import com.ramrom.emumanager.access.Capability
 data class Plan(
     val targetDeviceId: String?,
     val chipFamily: String,
+    /** The first frontend, kept for older callers; [frontendIds] is the whole list. */
     val frontendId: String?,
     val systems: List<PlanSystem>,
-    val bios: BiosSummary?
+    val bios: BiosSummary?,
+    /** Every frontend the user chose, all set up alike (ES-DE, Cocoon, iiSU, RetroHrai!). */
+    val frontendIds: List<String> = listOfNotNull(frontendId),
 ) {
+    /** The chosen frontends' profiles, in the user's order. */
+    fun frontends(bundle: com.ramrom.emumanager.knowledge.KnowledgeBundle) = frontendIds.mapNotNull { id -> bundle.frontends.firstOrNull { it.id == id } }
+
+    /** ES-DE's profile when it's one of them: gamelists, labels and custom systems are ES-DE's alone. */
+    fun esde(bundle: com.ramrom.emumanager.knowledge.KnowledgeBundle) = bundle.esde?.takeIf { it.id in frontendIds }
+
     data class PlanSystem(
         val systemId: String,
         val emulatorId: String
@@ -54,6 +63,8 @@ data class Inventory(
     val orphanedMedia: List<com.ramrom.emumanager.engine.inventory.OrphanedMedia> = emptyList(),
     /** False when folder grants couldn't be read (needs elevated dumpsys): grant rules stay quiet. */
     val grantsKnown: Boolean = false,
+    /** Folder grants as Android lists them, by package: shows where a frontend points (Cocoon at Roms, not ROMs). */
+    val grantPaths: Map<String, List<String>> = emptyMap(),
     /** Systems whose BIOS lives where we can't look (Android/data without Shizuku). */
     val biosUnchecked: Set<String> = emptySet(),
 )

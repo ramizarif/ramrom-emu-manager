@@ -97,14 +97,18 @@ class DeviceStepExecutor(
             .map { dir.replace("{appData}", "/storage/emulated/0/Android/data/$it") }
     }
 
-    /** A tree grant on the ROMs folder, one above it, or a system folder inside it, by any build. */
+    /**
+     * A tree grant on the ROMs folder, one above it, or (for an emulator) a system folder inside it,
+     * by any build. A frontend needs the whole folder: one system's folder isn't "your games".
+     */
     private suspend fun holdsRomFolder(appId: String): Boolean {
         val dump = (access.access.dumpsys("activity", "permissions") as? AccessResult.Ok)?.value ?: return false
         val byUid = com.ramrom.emumanager.engine.inventory.UriGrants.parse(dump)
-        val pkgs = bundle.emulators.firstOrNull { it.id == appId }?.packages.orEmpty()
+        val frontend = bundle.frontends.firstOrNull { it.id == appId }
+        val pkgs = frontend?.packages ?: bundle.emulators.firstOrNull { it.id == appId }?.packages.orEmpty()
         return pkgs.mapNotNull { runCatching { pm.getApplicationInfo(it, 0).uid }.getOrNull() }
             .flatMap { byUid[it].orEmpty() }
-            .any { p -> p == romRoot || romRoot.startsWith("$p/") || p.startsWith("$romRoot/") }
+            .any { p -> com.ramrom.emumanager.engine.inventory.UriGrants.within(romRoot, p) || (frontend == null && com.ramrom.emumanager.engine.inventory.UriGrants.within(p, romRoot)) }
     }
 
     /**
@@ -133,7 +137,7 @@ class DeviceStepExecutor(
      */
     private suspend fun frontendChoices(frontendId: String): StepResult {
         val writer = settings ?: return StepResult.Ok
-        if (bundle.frontends.none { it.id == frontendId }) return StepResult.Ok
+        if (bundle.esde?.id != frontendId) return StepResult.Ok
         for (s in systems) {
             val emu = bundle.emulators.firstOrNull { it.id == s.emulatorId } ?: continue
             writer.setEsdeChoice(s.systemId, emu)?.let { return if (it.startsWith("Install")) StepResult.NeedsUser(it) else StepResult.Failed(it) }
@@ -143,9 +147,11 @@ class DeviceStepExecutor(
 
     private suspend fun install(appId: String, progress: (Float) -> Unit): StepResult {
         if (packageOf(appId) != null) return StepResult.Ok
-        val app = bundle.emulators.firstOrNull { it.id == appId } ?: return StepResult.Failed("Unknown app $appId", retryable = false)
-        val apk = try { installer.resolve(app) } catch (e: Exception) { return StepResult.Failed("Couldn't reach ${app.name}'s releases: ${e.message}") }
-            ?: return StepResult.Failed("No Android build in ${app.name}'s latest releases.", retryable = false)
+        val (name, source) = bundle.emulators.firstOrNull { it.id == appId }?.let { it.name to it.source }
+            ?: bundle.frontends.firstOrNull { it.id == appId }?.let { it.name to it.source }
+            ?: return StepResult.Failed("Unknown app $appId", retryable = false)
+        val apk = try { installer.resolve(source) } catch (e: Exception) { return StepResult.Failed("Couldn't reach $name's releases: ${e.message}") }
+            ?: return StepResult.Failed("No Android build in $name's latest releases.", retryable = false)
         val file = try { installer.download(apk) { progress(it * 0.9f) } } catch (e: Exception) { return StepResult.Failed("Download stopped: ${e.message}") }
         return when (val r = installer.install(file)) {
             InstallOutcome.Installed -> StepResult.Ok
@@ -218,7 +224,7 @@ class DeviceStepExecutor(
         val emu = bundle.emulators.firstOrNull { it.id == id } ?: return packageOf(id)
         val installed = emu.packages.filter { runCatching { pm.getPackageInfo(it, 0) }.isSuccess }
         if (installed.size < 2) return installed.firstOrNull() ?: packageOf(id)
-        val fe = bundle.frontends.firstOrNull() ?: return installed.first()
+        val fe = bundle.esde ?: return installed.first()
         val label = emu.systems.firstNotNullOfOrNull { sys ->
             val customs = runCatching { File(fe.paths.customSystems, "es_systems.xml").readText() }.getOrNull()
                 ?.let { com.ramrom.emumanager.engine.config.EsdeLaunch.customDefaults(it) }.orEmpty()
@@ -230,7 +236,7 @@ class DeviceStepExecutor(
             ?: installed.first()
     }
 
-    private fun notInstalled(id: String) = StepResult.NeedsUser("Install ${bundle.emulators.firstOrNull { it.id == id }?.name ?: id} first.")
+    private fun notInstalled(id: String) = StepResult.NeedsUser("Install ${bundle.emulators.firstOrNull { it.id == id }?.name ?: bundle.frontends.firstOrNull { it.id == id }?.name ?: id} first.")
 
     companion object {
         /** ES-DE's default ROM directory. P10 reads the real one from es_settings.xml once verified. */

@@ -1213,6 +1213,174 @@
       },
       "packageLabels": {
         "dev.eden.eden_emulator.nightly": "Eden Nightly (Standalone)"
+      },
+      "name": "ES-DE",
+      "gamesFolderGrant": true
+    },
+    {
+      "id": "cocoon",
+      "name": "Cocoon",
+      "packages": [
+        "rip.moth.cocoonshell"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "inssekt/CocoonFE",
+        "assetRegex": "cocoon-.*\\.apk$",
+        "url": "",
+        "note": "Free, from the developer's GitHub. Dual-screen."
+      },
+      "paths": {
+        "mediaRoot": "/storage/emulated/0/Cocoon-Media/downloaded_media",
+        "gamelists": "/storage/emulated/0/Cocoon-Media/gamelists"
+      },
+      "gamesFolderGrant": true,
+      "emulatorChoiceInApp": "In Cocoon, open each system's settings and pick its Player (the emulator that opens its games).",
+      "firstRunSteps": [
+        "Open Cocoon",
+        "When it asks for your games, choose the ROMs folder and allow access"
+      ],
+      "systemFolders": {
+        "switch": "switch",
+        "nds": "nds",
+        "n3ds": "n3ds",
+        "psp": "psp",
+        "ps1": "psx",
+        "ps2": "ps2",
+        "n64": "n64",
+        "gc": "gc",
+        "wii": "wii",
+        "gba": "gba",
+        "gbc": "gbc",
+        "gb": "gb",
+        "nes": "nes",
+        "snes": "snes",
+        "genesis": "genesis",
+        "dreamcast": "dreamcast",
+        "gamegear": "gamegear",
+        "mastersystem": "mastersystem",
+        "saturn": "saturn",
+        "arcade": "arcade",
+        "neogeo": "neogeo",
+        "psvita": "psvita",
+        "wiiu": "wiiu",
+        "pc": "pc",
+        "steam": "steam"
+      },
+      "folderAliases": {
+        "ps1": [
+          "ps1"
+        ]
+      }
+    },
+    {
+      "id": "iisu",
+      "name": "iiSU",
+      "packages": [
+        "com.iisulauncher"
+      ],
+      "source": {
+        "type": "github_release",
+        "repo": "iisu-network/iiSU",
+        "assetRegex": "iiSU-Alpha-.*\\.apk$",
+        "url": "",
+        "note": "Alpha. Free, from iiSU's GitHub."
+      },
+      "paths": {
+        "mediaRoot": "/storage/emulated/0/iiSU-Media"
+      },
+      "gamesFolderGrant": false,
+      "emulatorChoiceInApp": "In iiSU, set which emulator opens each system.",
+      "firstRunSteps": [
+        "Open iiSU",
+        "Point it at your ROMs folder when it asks"
+      ],
+      "systemFolders": {
+        "switch": "switch",
+        "nds": "nds",
+        "n3ds": "n3ds",
+        "psp": "psp",
+        "ps1": "psx",
+        "ps2": "ps2",
+        "n64": "n64",
+        "gc": "gc",
+        "wii": "wii",
+        "gba": "gba",
+        "gbc": "gbc",
+        "gb": "gb",
+        "nes": "nes",
+        "snes": "snes",
+        "genesis": "genesis",
+        "dreamcast": "dreamcast",
+        "gamegear": "gamegear",
+        "mastersystem": "mastersystem",
+        "saturn": "saturn",
+        "arcade": "arcade",
+        "neogeo": "neogeo",
+        "psvita": "psvita",
+        "wiiu": "wiiu",
+        "pc": "pc",
+        "steam": "steam"
+      },
+      "folderAliases": {
+        "ps1": [
+          "ps1"
+        ]
+      }
+    },
+    {
+      "id": "retrohrai",
+      "name": "RetroHrai!",
+      "packages": [
+        "com.retrohrai.launcher"
+      ],
+      "source": {
+        "type": "play_store",
+        "repo": "",
+        "assetRegex": "",
+        "url": "https://play.google.com/store/apps/details?id=com.retrohrai.launcher",
+        "note": "Play Store."
+      },
+      "paths": {
+        "mediaRoot": "/storage/emulated/0/RetroHai-Media/media"
+      },
+      "gamesFolderGrant": true,
+      "emulatorChoiceInApp": "In RetroHrai!, set which emulator opens each system.",
+      "firstRunSteps": [
+        "Open RetroHrai!",
+        "When it asks for your games, choose the ROMs folder and allow access"
+      ],
+      "systemFolders": {
+        "switch": "switch",
+        "nds": "nds",
+        "n3ds": "n3ds",
+        "psp": "psp",
+        "ps1": "psx",
+        "ps2": "ps2",
+        "n64": "n64",
+        "gc": "gc",
+        "wii": "wii",
+        "gba": "gba",
+        "gbc": "gbc",
+        "gb": "gb",
+        "nes": "nes",
+        "snes": "snes",
+        "genesis": "genesis",
+        "dreamcast": "dreamcast",
+        "gamegear": "gamegear",
+        "mastersystem": "mastersystem",
+        "saturn": "saturn",
+        "arcade": "arcade",
+        "neogeo": "neogeo",
+        "psvita": "psvita",
+        "wiiu": "wiiu",
+        "pc": "pc",
+        "steam": "steam"
+      },
+      "folderAliases": {
+        "ps1": [
+          "ps1"
+        ]
       }
     }
   ],

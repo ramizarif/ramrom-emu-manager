@@ -43,14 +43,14 @@ data class StepCopy(
 object StepText {
     fun permissionName(p: String) = com.ramrom.emumanager.engine.PermissionNames.of(p)
 
-    /** Frontend profiles carry no display name; ES-DE is the only one so far. */
-    fun frontendName(fe: com.ramrom.emumanager.knowledge.FrontendProfile) = if (fe.id == "es-de") "ES-DE" else fe.id
+    fun frontendName(fe: com.ramrom.emumanager.knowledge.FrontendProfile) = fe.name.ifEmpty { fe.id }
 
     fun copy(step: Step, bundle: KnowledgeBundle): StepCopy {
         val emu = bundle.emulators.firstOrNull { it.id == step.subject }
         val fe = bundle.frontends.firstOrNull { it.id == step.subject }
         val name = emu?.name ?: fe?.let(::frontendName) ?: step.subject
-        val frontend = bundle.frontends.firstOrNull()
+        // Folder names follow ES-DE's layout, which every frontend here shares.
+        val frontend = bundle.esde
         return when (step.type) {
             StepType.InstallApp -> StepCopy(
                 "Install $name", "Android asks you to confirm each app it installs.",
@@ -58,12 +58,17 @@ object StepText {
                 action = GuidedAction.RunNow, actionLabel = "Install $name", appId = step.subject, verifiable = true,
             )
             StepType.GuidedObtainApp -> {
-                val page = emu?.source?.takeIf { it.type == SourceType.OFFICIAL_PAGE && it.url.isNotEmpty() }?.url
+                val source = emu?.source ?: fe?.source
+                val store = source?.takeIf { it.type == SourceType.PLAY_STORE && it.url.isNotEmpty() }?.url
+                val page = store ?: source?.takeIf { it.type == SourceType.OFFICIAL_PAGE && it.url.isNotEmpty() }?.url
                 StepCopy(
-                    "Get $name", if (page != null) "$name is installed from its official site." else "$name isn't one we can install for you.",
-                    instructions = if (page != null) listOf("Open the download page", "Download the Android version and install it", "Come back here; we'll spot it")
-                    else listOf("Install $name the way you normally would", "Come back here; we'll spot it"),
-                    action = if (page != null) GuidedAction.OpenPage else GuidedAction.None, actionLabel = "Open download page",
+                    "Get $name", when { store != null -> "$name comes from the Play Store."; page != null -> "$name is installed from its official site."; else -> "$name isn't one we can install for you." },
+                    instructions = when {
+                        store != null -> listOf("Open the Play Store page", "Install $name", "Come back here; we'll spot it")
+                        page != null -> listOf("Open the download page", "Download the Android version and install it", "Come back here; we'll spot it")
+                        else -> listOf("Install $name the way you normally would", "Come back here; we'll spot it")
+                    },
+                    action = if (page != null) GuidedAction.OpenPage else GuidedAction.None, actionLabel = if (store != null) "Open Play Store" else "Open download page",
                     appId = step.subject, url = page, verifiable = true,
                 )
             }
@@ -105,7 +110,12 @@ object StepText {
                     action = GuidedAction.OwnAllFiles, actionLabel = "Allow file access", verifiable = true,
                 )
             }
-            StepType.GuidedFolderPick -> {
+            StepType.GuidedFolderPick -> if (fe != null) StepCopy(
+                "Point $name at your games", "Android only lets you choose this inside $name. Pick the whole ROMs folder so it finds every system.",
+                value = "ROMs", valueLabel = "Pick this folder",
+                instructions = fe.firstRunSteps.ifEmpty { listOf("Open $name", "Choose the folder below when it asks") },
+                action = GuidedAction.OpenApp, actionLabel = "Open $name", appId = step.subject, verifiable = false,
+            ) else {
                 val folders = emu?.systems.orEmpty().mapNotNull { frontend?.systemFolders?.get(it) }.distinct()
                 val steps = emu?.folderPick?.inAppSteps.orEmpty()
                 StepCopy(
@@ -115,7 +125,11 @@ object StepText {
                     action = GuidedAction.OpenApp, actionLabel = "Open $name", appId = step.subject, verifiable = false,
                 )
             }
-            StepType.GuidedInAppSetup -> if (fe != null) StepCopy(
+            StepType.GuidedInAppSetup -> if (fe != null && fe.emulatorChoiceInApp.isNotEmpty()) StepCopy(
+                "Choose emulators in $name", "$name keeps this in its own settings, where we can't write.",
+                instructions = (if (fe.gamesFolderGrant) emptyList() else fe.firstRunSteps) + fe.emulatorChoiceInApp + "Come back here",
+                action = GuidedAction.OpenApp, actionLabel = "Open $name", appId = step.subject, verifiable = false,
+            ) else if (fe != null) StepCopy(
                 "Finish $name's first run", "It asks a few questions the first time.",
                 value = "ROMs", valueLabel = "When it asks for your ROM directory, pick",
                 instructions = listOf("Open $name", "Follow its first-run screens", "Pick the folder below when it asks", "Come back here"),

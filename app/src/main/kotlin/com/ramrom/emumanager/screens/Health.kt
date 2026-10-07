@@ -37,7 +37,8 @@ fun HealthScreen(
     report: HealthReport?,
     handheld: HandheldState,
     canFixWithSetup: Boolean,
-    esdeInstalled: Boolean,
+    /** The frontend "Open" starts; null when none is installed. */
+    frontendName: String?,
     onOpenIssue: (HealthIssue) -> Unit,
     onFixWithSetup: () -> Unit,
     onRecheck: () -> Unit,
@@ -47,7 +48,7 @@ fun HealthScreen(
     val focus = initialFocus(report == null, report?.allGood)
     val primary: Pair<String, () -> Unit>? = when {
         report == null -> null
-        report.allGood && esdeInstalled -> "Open ES-DE" to onOpenEsde
+        report.allGood && frontendName != null -> "Open $frontendName" to onOpenEsde
         report.allGood -> "Done" to onDone
         canFixWithSetup -> "Fix what we can" to onFixWithSetup
         else -> report.blocking.firstOrNull()?.let { "Fix: ${it.title}" to { onOpenIssue(it) } } ?: ("Done" to onDone)
@@ -62,7 +63,7 @@ fun HealthScreen(
         actions = {
             if (primary != null) EmuButton(primary.first, primary.second, kind = ButtonKind.Go, focusRequester = focus)
             EmuButton("Check again", onRecheck)
-            if (report?.allGood == true && esdeInstalled) EmuButton("Done", onDone, kind = ButtonKind.Ghost)
+            if (report?.allGood == true && frontendName != null) EmuButton("Done", onDone, kind = ButtonKind.Ghost)
         },
     ) {
         Eyebrow("Health check")
@@ -82,6 +83,19 @@ fun HealthScreen(
         BasicText("${report.readyCount} of ${report.systems.size} systems ready", style = EmuType.Lead)
         Spacer(Modifier.height(14.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (report.frontends.isNotEmpty()) {
+                SectionLabel("Frontends", report.frontends.size)
+                report.frontends.forEach { f ->
+                    ListRow(f.name, detail = f.top?.title ?: "Installed and finding your games", onClick = f.top?.let { t -> { onOpenIssue(t) } }) {
+                        when {
+                            f.ready -> Tag("Ready", TagKind.Done)
+                            f.top?.severity == IssueSeverity.BLOCKER -> Tag("Missing", TagKind.Blocked)
+                            else -> Tag("Check", TagKind.Caveat)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
             SectionLabel("Systems", report.systems.size)
             report.systems.forEach { s ->
                 ListRow(s.name, detail = s.top?.takeIf { !s.ready }?.title ?: listOfNotNull(s.emulatorName, s.note?.title).joinToString("  ·  "), onClick = s.top?.let { t -> { onOpenIssue(t) } }) {

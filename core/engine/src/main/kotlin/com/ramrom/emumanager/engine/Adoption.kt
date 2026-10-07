@@ -22,7 +22,8 @@ object Adoption {
                 ?: return@mapNotNull null
             Plan.PlanSystem(s.id, emu.id)
         }
-        val frontend = bundle.frontends.firstOrNull { f -> f.packages.any { it in inventory.installedPackages } || inventory.esdeConfig.installed }
-        return Plan(null, chipFamily, frontend?.id, systems, null)
+        // Every frontend on the device is part of its setup (the Thor has ES-DE, Cocoon, iiSU and RetroHrai!).
+        val frontends = bundle.frontends.filter { f -> f.packages.any { it in inventory.installedPackages } || (f.id == com.ramrom.emumanager.knowledge.KnowledgeBundle.ESDE && inventory.esdeConfig.installed) }
+        return Plan(null, chipFamily, frontends.firstOrNull()?.id, systems, null, frontends.map { it.id })
     }
 }

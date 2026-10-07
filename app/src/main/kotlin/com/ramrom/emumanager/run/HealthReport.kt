@@ -13,8 +13,19 @@ data class SystemHealth(val systemId: String, val name: String, val emulatorName
     val note get() = top?.takeIf { ready && it.severity != IssueSeverity.INFO }
 }
 
+/** One chosen frontend on S14: installed and pointed at the games, or what's in the way. */
+data class FrontendHealth(val id: String, val name: String, val top: HealthIssue?) {
+    val ready get() = top == null
+}
+
 /** S14's whole report. */
-data class HealthReport(val plan: Plan, val issues: List<HealthIssue>, val systems: List<SystemHealth>, val score: com.ramrom.emumanager.engine.health.SetupScore) {
+data class HealthReport(
+    val plan: Plan,
+    val issues: List<HealthIssue>,
+    val systems: List<SystemHealth>,
+    val score: com.ramrom.emumanager.engine.health.SetupScore,
+    val frontends: List<FrontendHealth> = emptyList(),
+) {
     val blocking get() = issues.filter { it.severity == IssueSeverity.BLOCKER }
     val warnings get() = issues.filter { it.severity == IssueSeverity.WARNING }
     val tips get() = issues.filter { it.severity == IssueSeverity.INFO }
@@ -43,7 +54,11 @@ data class HealthReport(val plan: Plan, val issues: List<HealthIssue>, val syste
                     // Same rule as the percentage, so "97% set up" and the Ready tags agree.
                     mine.none(SetupScore::affectsSetup))
             }
-            return HealthReport(plan, issues, systems, com.ramrom.emumanager.engine.health.SetupScore.of(plan, issues, bundle))
+            val frontends = plan.frontends(bundle).map { f ->
+                val ids = setOfNotNull("frontend_missing_${f.id}", "frontend_folder_${f.id}", "frontend_first_run".takeIf { f.id == KnowledgeBundle.ESDE })
+                FrontendHealth(f.id, f.name.ifEmpty { f.id }, issues.filter { it.id in ids && SetupScore.affectsSetup(it) }.minByOrNull { it.severity.ordinal })
+            }
+            return HealthReport(plan, issues, systems, com.ramrom.emumanager.engine.health.SetupScore.of(plan, issues, bundle), frontends)
         }
     }
 }

@@ -45,16 +45,16 @@ fun HealthRoute(app: EmuApplication, nav: Navigator, onFixWithSetup: () -> Unit,
     val checking by app.health.checking.collectAsState()
     LifecycleResumeEffect(Unit) { scope.launch { runCatching { app.health.check() }.onFailure { app.log.e("health", "check failed", it) } }; onPauseOrDispose { } }
     val bundle = app.knowledge.getBundle()
-    val esde = bundle?.frontends?.firstOrNull()?.packages?.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
+    val esde = remember(report?.plan) { frontendLaunch(context, bundle, report?.plan) }
     HealthScreen(
         report = report.takeUnless { checking && it == null },
         handheld = handheldOf(app, report?.plan?.systems?.map { it.emulatorId }.orEmpty()),
         canFixWithSetup = report?.issues.orEmpty().any { it.fix.setupCanDo() },
-        esdeInstalled = esde != null,
+        frontendName = esde?.name,
         onOpenIssue = { nav.push(Route.Issue(it.id)) },
         onFixWithSetup = onFixWithSetup,
         onRecheck = { scope.launch { app.health.check() } },
-        onOpenEsde = { esde?.let { context.tryStart(it) } },
+        onOpenEsde = { esde?.let { context.tryStart(it.intent) } },
         onDone = onDone,
     )
 }
@@ -95,7 +95,7 @@ fun IssueRoute(app: EmuApplication, issueId: String, nav: Navigator, onFixWithSe
 private fun fixFor(issue: HealthIssue, context: Context, app: EmuApplication, elevated: Boolean, recheck: () -> Unit, setup: () -> Unit, nav: Navigator): IssueFix? {
     val scope = app.scope
     val bundle = app.knowledge.getBundle()
-    val frontend = bundle?.frontends?.firstOrNull()
+    val frontend = bundle?.esde
     fun settings(action: String, pkg: String) = IssueFix("Open settings", { context.tryStart(Intent(action, Uri.parse("package:$pkg"))) })
     return when (val f = issue.fix) {
         is FixAction.InstallApp -> {
@@ -131,7 +131,10 @@ private fun fixFor(issue: HealthIssue, context: Context, app: EmuApplication, el
         is FixAction.OpenAppSetup -> {
             val pkg = (bundle?.frontends?.firstOrNull { it.id == f.appId }?.packages ?: bundle?.emulators?.firstOrNull { it.id == f.appId }?.packages).orEmpty()
             val launch = pkg.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
-            launch?.let { IssueFix("Open it", { context.tryStart(it) }, note = "Come back when it's done its first-run screens.") }
+            // A frontend's games folder is its own setting; anything else is a first run to finish.
+            if (issue.id.startsWith("frontend_folder_")) launch?.let { IssueFix("Open it", { context.tryStart(it) }, value = "Pick this folder" to "ROMs",
+                note = "Find where it asks for your games folder, choose ROMs and allow access. Then come back.") }
+            else launch?.let { IssueFix("Open it", { context.tryStart(it) }, note = "Come back when it's done its first-run screens.") }
         }
         is FixAction.StageBios -> IssueFix("I've copied it", recheck, note = "Copy one of the files above into the emulator's BIOS folder. Setup copies it for you when you pick your BIOS folder on the BIOS check.")
         is FixAction.ConfigureInEsde -> {

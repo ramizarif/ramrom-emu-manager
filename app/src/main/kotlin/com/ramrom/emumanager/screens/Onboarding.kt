@@ -43,7 +43,7 @@ fun WelcomeScreen(onWake: () -> Unit) {
     ) {
         BasicText("Let's bring your handheld to life.", style = EmuType.Display)
         Spacer(Modifier.height(12.dp))
-        BasicText("I'll set up ES-DE and your emulators, then help with the few things only you can do.", style = EmuType.Lead)
+        BasicText("I'll set up your frontends and emulators, then help with the few things only you can do.", style = EmuType.Lead)
         Spacer(Modifier.height(12.dp))
         Promise("Your games stay yours.", "This app works with games and BIOS you already own, and never provides them.")
     }
@@ -108,7 +108,9 @@ fun DeviceScreen(device: DeviceSummary, onConfirm: () -> Unit, onChoose: () -> U
 }
 
 /** Found by the quick read-only scan on S03 (P03 lite). */
-data class ExistingSetup(val frontendInstalled: Boolean, val emulatorTiles: List<HandheldTile>)
+data class ExistingSetup(val frontends: List<String>, val emulatorTiles: List<HandheldTile>) {
+    val frontendInstalled get() = frontends.isNotEmpty()
+}
 
 enum class SetupPath { Adopt, SetUp, PlanOther, Restore }
 
@@ -117,7 +119,8 @@ enum class SetupPath { Adopt, SetUp, PlanOther, Restore }
 fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onOpenPlanFile: () -> Unit, onPick: (SetupPath) -> Unit) {
     val focus = com.ramrom.emumanager.ui.input.initialFocus()
     val found = existing != null && (existing.frontendInstalled || existing.emulatorTiles.isNotEmpty())
-    val count = existing?.emulatorTiles?.size ?: 0
+    // The dock shows frontends too; the count is emulators only.
+    val count = (existing?.emulatorTiles?.size ?: 0) - (existing?.frontends?.size ?: 0)
     com.ramrom.emumanager.ui.input.ScreenKeys(y = onOpenPlanFile)
     GuidedScaffold(
         handheld = HandheldState(awake = true, face = if (found) Face.LookDown else Face.Happy, tiles = existing?.emulatorTiles.orEmpty()),
@@ -131,7 +134,7 @@ fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onOpenP
             val adopt = @Composable { m: Modifier ->
                 OptionCard(
                     "I already have a setup",
-                    if (found) "We found ${if (existing!!.frontendInstalled) "ES-DE and " else ""}$count emulator${if (count == 1) "" else "s"}. See what's set up, fix what isn't."
+                    if (found) "We found ${(existing!!.frontends + "$count emulator${if (count == 1) "" else "s"}").let { l -> if (l.size == 1) l[0] else l.dropLast(1).joinToString(", ") + " and " + l.last() }}. See what's set up, fix what isn't."
                     else "See what's on this device and fix what isn't.",
                     { onPick(SetupPath.Adopt) }, m,
                     icon = { TileIcon("⌕", EmuColors.Mint, 38.dp) },

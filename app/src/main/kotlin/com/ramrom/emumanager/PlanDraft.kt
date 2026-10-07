@@ -22,8 +22,30 @@ class PlanDraft(
     /** The handheld this plan is for, when it's this one; device-only defaults key on it. */
     val deviceId: String? = null,
 ) {
-    val esdeInstalled: Boolean = bundle.frontends.any { f -> f.packages.any(installed) }
-    var useEsde by mutableStateOf(true)
+    /** Frontends already on the device; they start chosen, since they're part of how it's used. */
+    val installedFrontends: Set<String> = bundle.frontends.filter { f -> f.packages.any(installed) }.map { it.id }.toSet()
+    val esdeInstalled: Boolean = com.ramrom.emumanager.knowledge.KnowledgeBundle.ESDE in installedFrontends
+    /** The chosen frontends, all set up alike. Empty: just emulators. */
+    var frontendIds by mutableStateOf(bundle.frontends.map { it.id }.filter { it in installedFrontends }.ifEmpty { listOf(com.ramrom.emumanager.knowledge.KnowledgeBundle.ESDE) })
+    val useEsde: Boolean get() = com.ramrom.emumanager.knowledge.KnowledgeBundle.ESDE in frontendIds
+
+    /** Kept in the bundle's order, so the first is always the same one for a given set. */
+    fun toggleFrontend(id: String) {
+        val on = if (id in frontendIds) frontendIds - id else frontendIds + id
+        frontendIds = bundle.frontends.map { it.id }.filter { it in on }
+    }
+
+    fun frontendChoices() = bundle.frontends.map { f ->
+        com.ramrom.emumanager.screens.FrontendChoice(
+            f.id, f.name.ifEmpty { f.id }, FRONTEND_BLURBS[f.id] ?: "", FRONTEND_TILES[f.id] ?: f.name.take(2),
+            f.id in installedFrontends, f.id in frontendIds,
+            when (f.source.type) {
+                com.ramrom.emumanager.knowledge.SourceType.GITHUB_RELEASE -> "${f.name} is free and setup installs it."
+                com.ramrom.emumanager.knowledge.SourceType.PLAY_STORE -> "${f.name} comes from the Play Store."
+                else -> if (f.id == com.ramrom.emumanager.knowledge.KnowledgeBundle.ESDE) "ES-DE is a paid app from es-de.org." else "${f.name} is one you install yourself."
+            },
+        )
+    }
     var systems by mutableStateOf(initialSystems())
         private set
     /** The folder picked on S09; kept so a changed plan can be re-checked without asking again. */
@@ -69,17 +91,18 @@ class PlanDraft(
 
     /** Loads an imported plan: exactly its systems on, with its emulator choices. */
     fun apply(import: PlanImport) {
-        useEsde = import.useEsde
+        frontendIds = import.frontendIds
         val wanted = import.systems.associate { it.systemId to it.emulatorId }
         systems = systems.map { it.copy(on = it.systemId in wanted) }
         wanted.forEach { (sys, emu) -> if (systems.first { it.systemId == sys }.emulatorId != emu) pickEmulator(sys, emu) }
     }
 
-    /** What the engine compiles. ES-DE is the only frontend in v1. */
+    /** What the engine compiles. */
     fun toPlan(targetDeviceId: String? = deviceId) = com.ramrom.emumanager.engine.Plan(
         targetDeviceId = targetDeviceId,
         chipFamily = familyId,
-        frontendId = if (useEsde) bundle.frontends.firstOrNull()?.id else null,
+        frontendId = frontendIds.firstOrNull(),
+        frontendIds = frontendIds,
         systems = chosen.map { com.ramrom.emumanager.engine.Plan.PlanSystem(it.systemId, it.emulatorId) },
         bios = bios?.let { com.ramrom.emumanager.engine.BiosIdentifier(bundle).toSummary(it) },
     )
@@ -159,3 +182,11 @@ class PlanDraft(
         }
     }
 }
+
+private val FRONTEND_BLURBS = mapOf(
+    "es-de" to "All your systems in one place, with game art and themes.",
+    "cocoon" to "Made for dual screens, with art on the second one.",
+    "iisu" to "A console-style home screen. Still in alpha.",
+    "retrohrai" to "A big-picture launcher with art for every game.",
+)
+private val FRONTEND_TILES = mapOf("es-de" to "ES", "cocoon" to "Co", "iisu" to "ii", "retrohrai" to "RH")

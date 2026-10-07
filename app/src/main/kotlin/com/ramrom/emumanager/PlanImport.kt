@@ -11,8 +11,10 @@ data class PlanChange(val systemName: String, val from: String?, val to: String?
 data class PlanImport(
     val madeFor: String,
     val systems: List<PlanSystem>,
-    val useEsde: Boolean,
+    val frontendIds: List<String>,
     val changes: List<PlanChange>,
+    /** "ES-DE and Cocoon", for the summary line. */
+    val frontendNames: String = "",
 )
 
 object PlanFiles {
@@ -25,7 +27,8 @@ object PlanFiles {
             appVersion = appVersion,
             createdAt = System.currentTimeMillis(),
             targetDeviceProfileId = targetDeviceId ?: "generic-android",
-            frontendId = if (draft.useEsde) "es-de" else null,
+            frontendId = draft.frontendIds.firstOrNull(),
+            frontendIds = draft.frontendIds,
             systems = draft.chosen.map { PlanSystem(it.systemId, it.emulatorId) },
         )
     )
@@ -61,6 +64,9 @@ object PlanFiles {
                 else -> ps
             }
         }
-        return PlanImport(target?.names?.firstOrNull() ?: "another device", systems, file.frontendId != null, changes)
+        val frontends = file.frontendIds.ifEmpty { listOfNotNull(file.frontendId) }.mapNotNull { id -> bundle.frontends.firstOrNull { it.id == id } }
+        val names = frontends.map { it.name.ifEmpty { it.id } }
+        return PlanImport(target?.names?.firstOrNull() ?: "another device", systems, frontends.map { it.id }, changes,
+            if (names.size > 1) names.dropLast(1).joinToString(", ") + " and " + names.last() else names.firstOrNull().orEmpty())
     }
 }

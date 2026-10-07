@@ -239,9 +239,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
             if (app.imports.job.value != null && nav.current != Route.ImportProgress) nav.push(Route.ImportProgress)
         }
     }
-    val esdeLaunch = remember(nav.current) {
-        app.knowledge.getBundle()?.frontends?.firstOrNull()?.packages?.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
-    }
+    val healthPlan = app.health.report.collectAsState().value?.plan
+    val esdeLaunch = remember(nav.current, healthPlan) { frontendLaunch(context, app.knowledge.getBundle(), healthPlan) }
     // A finished or settled run (some steps skipped) hands Home back to the health view.
     val runSummary = runState?.takeUnless { it.isComplete || it.isSettled }?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
 
@@ -313,7 +312,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     }
                 })
                 is Route.PlanFrontend -> draft?.let { d ->
-                    FrontendScreen(d.esdeInstalled, d.useEsde, onChoose = { d.useEsde = it }, onNext = { nav.push(Route.PlanSystems(r.otherDevice)) })
+                    FrontendScreen(d.frontendChoices(), onToggle = { d.toggleFrontend(it) }, onNone = { d.frontendIds = emptyList() }, onNext = { nav.push(Route.PlanSystems(r.otherDevice)) })
                 }
                 is Route.PlanSystems -> draft?.let { d ->
                     SystemsScreen(
@@ -409,7 +408,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                 }
                 is Route.PlanReview -> Box(Modifier.fillMaxSize()) { draft?.let { d ->
                     val limited = mode != AccessMode.Elevated
-                    val summary = remember(d.systems, d.useEsde, limited) { PlanSummaries.review(app, d, r.otherDevice, limited) }
+                    val summary = remember(d.systems, d.frontendIds, limited) { PlanSummaries.review(app, d, r.otherDevice, limited) }
                     PlanReviewScreen(
                         summary,
                         handheld = HandheldState(
@@ -439,16 +438,16 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     r.section, onSection = nav::switchSection,
                     onOpenPlan = openPlanFile,
                     onStartSetup = {
-                        // A finished run is history: "Add or change systems" starts a new plan.
+                        // A finished run is history: "Change your setup" starts a new plan, from the frontends.
                         if (activeRun != null && runState?.isComplete != true && runState?.isSettled != true) nav.push(Route.Wizard)
                         else if (hasPlan == true) scope.launch {
                             // Start from what the device already has, not a blank plan.
                             val plan = app.runs.lastPlan() ?: return@launch
                             val bundle = app.knowledge.getBundle() ?: return@launch
                             draft = PlanDraft.create(context, bundle).also { d ->
-                                d.apply(PlanImport("this device", plan.systems.map { com.ramrom.emumanager.data.PlanSystem(it.systemId, it.emulatorId) }, plan.frontendId != null, emptyList()))
+                                d.apply(PlanImport("this device", plan.systems.map { com.ramrom.emumanager.data.PlanSystem(it.systemId, it.emulatorId) }, plan.frontendIds, emptyList()))
                             }
-                            nav.push(Route.PlanSystems())
+                            nav.push(Route.PlanFrontend())
                         }
                         else if (mode == AccessMode.Elevated || mode == AccessMode.Limited) startPlan(null, null)
                         else nav.push(Route.Access(Route.PlanFrontend()))
@@ -461,7 +460,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     onImport = openImporter,
                     apps = { AppsSection(app, onOpen = { nav.push(Route.AppDetail(it)) }) },
                     onHealth = { nav.push(Route.Health) },
-                    onOpenEsde = esdeLaunch?.let { i -> { context.startActivity(i) } },
+                    onOpenEsde = esdeLaunch?.let { l -> { context.startActivity(l.intent) } },
+                    frontendName = esdeLaunch?.name ?: "",
                     accessPanel = { AccessPanel(app.access, onSetUp = { nav.push(Route.Access(r)) }) },
                     banner = if (mode == AccessMode.Disconnected) { { Box(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) { AccessLostBanner { reconnectOpen = true } } } } else null,
                     overlay = {
@@ -493,7 +493,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         val bundle = app.knowledge.getBundle()
                         if (bundle != null) {
                             draft = PlanDraft.create(context, bundle).also { d ->
-                                d.apply(PlanImport("this device", plan.systems.map { com.ramrom.emumanager.data.PlanSystem(it.systemId, it.emulatorId) }, plan.frontendId != null, emptyList()))
+                                d.apply(PlanImport("this device", plan.systems.map { com.ramrom.emumanager.data.PlanSystem(it.systemId, it.emulatorId) }, plan.frontendIds, emptyList()))
                             }
                             nav.push(Route.PlanSystems())
                         }

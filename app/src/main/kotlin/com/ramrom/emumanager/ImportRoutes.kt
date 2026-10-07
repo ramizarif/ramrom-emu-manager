@@ -81,11 +81,12 @@ fun ImportProgressRoute(app: EmuApplication, nav: Navigator) {
     val context = LocalContext.current
     val job by app.imports.job.collectAsState()
     val j = job ?: run { LaunchedEffect(Unit) { nav.pop() }; return }
-    val esde = remember { app.knowledge.getBundle()?.frontends?.firstOrNull()?.packages?.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) } }
+    val plan = app.health.report.collectAsState().value?.plan
+    val esde = remember(plan) { frontendLaunch(context, app.knowledge.getBundle(), plan) }
     ImportProgressScreen(
-        j, esde != null,
+        j, esde?.name,
         onCancel = app.imports::cancel,
-        onOpenEsde = { esde?.let { context.startActivity(it) } },
+        onOpenEsde = { esde?.let { context.startActivity(it.intent) } },
         onLibrary = { app.imports.dismiss(); nav.reset(Route.Main(Section.Library)) },
         onClose = { app.imports.dismiss(); nav.pop() },
     )

@@ -73,7 +73,16 @@ class SetupRuns(private val app: EmuApplication) {
 
     /** The plan the device was last set up with, if any. */
     suspend fun lastPlan(): Plan? = withContext(Dispatchers.IO) {
-        planFile.takeIf { it.exists() }?.let { f -> runCatching { json.decodeFromString(RunRecord.serializer(), f.readText()).plan() }.getOrNull() }
+        val record = planFile.takeIf { it.exists() }?.let { f -> runCatching { json.decodeFromString(RunRecord.serializer(), f.readText()) }.getOrNull() }
+            ?: return@withContext null
+        val plan = record.plan()
+        if (record.frontendIds.isNotEmpty()) return@withContext plan
+        // Saved before frontends other than ES-DE were known: the ones on the device were never
+        // offered, so they join the plan rather than read as "not chosen".
+        val bundle = app.knowledge.getBundle() ?: return@withContext plan
+        val here = bundle.frontends.filter { f -> f.packages.any { runCatching { app.packageManager.getPackageInfo(it, 0) }.isSuccess } }.map { it.id }
+        val ids = bundle.frontends.map { it.id }.filter { it in plan.frontendIds || it in here }
+        plan.copy(frontendId = ids.firstOrNull(), frontendIds = ids)
     }
 
     /** Keep a plan as the device's own without running anything (S16 "Keep as is"). */
@@ -141,11 +150,12 @@ private data class RunRecord(
     val biosWrong: Set<String> = emptySet(),
     val biosCopies: List<SavedBios> = emptyList(),
     val hasBios: Boolean = false,
+    val frontendIds: List<String> = emptyList(),
 ) {
     @Serializable data class SavedBios(val system: String, val uri: String, val emulatorId: String, val destDir: String, val fileName: String)
 
-    fun plan() = Plan(targetDeviceId, chipFamily, frontendId, systems.map { Plan.PlanSystem(it.first, it.second) },
-        if (hasBios) BiosSummary(biosFound, biosMissing, biosWrong) else null)
+    fun plan() = Plan(targetDeviceId, chipFamily, frontendIds.firstOrNull() ?: frontendId, systems.map { Plan.PlanSystem(it.first, it.second) },
+        if (hasBios) BiosSummary(biosFound, biosMissing, biosWrong) else null, frontendIds.ifEmpty { listOfNotNull(frontendId) })
 
     fun biosCopies() = biosCopies.associate { it.system to BiosCopy(Uri.parse(it.uri), it.emulatorId, it.destDir, it.fileName) }
 
@@ -155,6 +165,7 @@ private data class RunRecord(
             p.bios?.found.orEmpty(), p.bios?.missing.orEmpty(), p.bios?.wrongVersion.orEmpty(),
             bios.map { (s, c) -> SavedBios(s, c.source.toString(), c.emulatorId, c.destDir, c.fileName) },
             hasBios = p.bios != null,
+            frontendIds = p.frontendIds,
         )
     }
 }

@@ -46,7 +46,11 @@ class PlanCompiler {
         // the plan may have shrunk meanwhile (a folder now exists), so no counters.
         fun id(prefix: String, subject: String) = "${prefix}_${subject}"
 
-        val frontend = plan.frontendId?.let { fid -> bundle.frontends.firstOrNull { it.id == fid } }
+        // Every chosen frontend gets the same treatment; ES-DE alone also has config we write.
+        val frontends = plan.frontends(bundle)
+        val esde = plan.esde(bundle)
+        // ROM folders use ES-DE's names: Cocoon reads the same layout, and it's the common one.
+        val layout = if (frontends.isNotEmpty()) bundle.esde ?: frontends.first() else null
         val emulatorMap = bundle.emulators.associateBy { it.id }
         // Steps are per app, not per system: Dolphin runs GameCube and Wii, RetroArch runs many.
         val emulators = plan.systems.mapNotNull { emulatorMap[it.emulatorId] }.distinctBy { it.id }
@@ -77,7 +81,7 @@ class PlanCompiler {
                     verify = VerifySpec("appInstalled", packages.firstOrNull().orEmpty())))
             }
         }
-        if (frontend != null) appStep(frontend.id, frontend.packages, frontend.source.type)
+        for (f in frontends) appStep(f.id, f.packages, f.source.type)
         for (e in emulators) appStep(e.id, e.packages, e.source.type)
 
         // Phase 2: apps that only create their folders on first launch.
@@ -118,8 +122,8 @@ class PlanCompiler {
 
         // Phase 4: ROM folders, named the way the frontend expects. Shared storage, so limited mode can do it.
         val folderIds = mutableListOf<String>()
-        if (frontend != null) {
-            val folders = plan.systems.mapNotNull { frontend.systemFolders[it.systemId] }.distinct()
+        if (layout != null) {
+            val folders = plan.systems.mapNotNull { layout.systemFolders[it.systemId] }.distinct()
             for (folder in folders) {
                 if (folder in inventory.existingFolders) continue
                 folderIds += add(Step(id("folder", folder), StepType.CreateFolder, folder,
@@ -132,11 +136,11 @@ class PlanCompiler {
         // Phase 5: frontend config: tell ES-DE which emulator opens each system where its default is
         // something else (a RetroArch core where the plan picks a standalone app). ES-DE keeps it in
         // shared storage and must be closed while we write.
-        val needsChoice = frontend != null && plan.systems.any { s ->
-            emulatorMap[s.emulatorId]?.let { com.ramrom.emumanager.engine.config.EsdeLaunch.wanted(frontend, s.systemId, it, null) } != null
+        val needsChoice = esde != null && plan.systems.any { s ->
+            emulatorMap[s.emulatorId]?.let { com.ramrom.emumanager.engine.config.EsdeLaunch.wanted(esde, s.systemId, it, null) } != null
         }
-        if (frontend != null && needsChoice) {
-            add(Step(id("config", frontend.id), StepType.WriteFrontendConfig, frontend.id, folderIds + ready.getValue(frontend.id),
+        if (esde != null && needsChoice) {
+            add(Step(id("config", esde.id), StepType.WriteFrontendConfig, esde.id, folderIds + ready.getValue(esde.id),
                 if (canWriteShared) Executor.Auto else Executor.Guided,
                 capabilityNeeded = Capability.WRITE_SHARED_STORAGE,
                 estimatedSeconds = TimeConstants.CONFIG_WRITE_MACHINE,
@@ -178,9 +182,25 @@ class PlanCompiler {
                 verify = VerifySpec("folderGrant", e.id)))
         }
 
+        // Other frontends are pointed at the games folder inside the app, through Android's picker.
+        for (f in frontends) {
+            if (f.id == esde?.id || !f.gamesFolderGrant) continue
+            val granted = inventory.folderGrants.any { g -> g.packageId in f.packages && g.granted && g.systemId.isEmpty() }
+            add(Step(id("folder_pick", f.id), StepType.GuidedFolderPick, f.id, listOf(ready.getValue(f.id)) + folderIds, Executor.Guided,
+                handsOnSeconds = if (granted) 0 else TimeConstants.GUIDED_FOLDER_PICK_HANDS_ON,
+                status = if (granted) StepStatus.AlreadyDone else StepStatus.Pending,
+                verify = VerifySpec("folderGrant", f.id)))
+        }
+
         // Phase 9: in-app setup only the user can do (keys, firmware, first-run wizards).
-        if (frontend != null && !inventory.esdeConfigured) {
-            add(Step(id("in_app", frontend.id), StepType.GuidedInAppSetup, frontend.id, listOf(ready.getValue(frontend.id)), Executor.Guided,
+        if (esde != null && !inventory.esdeConfigured) {
+            add(Step(id("in_app", esde.id), StepType.GuidedInAppSetup, esde.id, listOf(ready.getValue(esde.id)), Executor.Guided,
+                handsOnSeconds = TimeConstants.GUIDED_IN_APP_SETUP_HANDS_ON))
+        }
+        // Frontends whose emulator choices live where we can't write: the user sets them, guided.
+        for (f in frontends) {
+            if (f.emulatorChoiceInApp.isEmpty()) continue
+            add(Step(id("in_app", f.id), StepType.GuidedInAppSetup, f.id, listOfNotNull(ready[f.id], steps.firstOrNull { it.id == id("folder_pick", f.id) }?.id), Executor.Guided,
                 handsOnSeconds = TimeConstants.GUIDED_IN_APP_SETUP_HANDS_ON))
         }
         for (e in emulators) {

@@ -48,6 +48,11 @@ private fun rememberAppsData(app: EmuApplication): AppsData? {
     return data
 }
 
+/** Emulators and frontends, which install and update the same way. A frontend runs no systems. */
+private fun KnowledgeBundle.apps() = emulators + frontends.map { EmulatorProfile(id = it.id, name = it.name.ifEmpty { it.id }, packages = it.packages, source = it.source) }
+
+private fun KnowledgeBundle.isFrontend(id: String) = frontends.any { it.id == id }
+
 private fun sourceLabel(e: EmulatorProfile) = when (e.source.type) {
     SourceType.GITHUB_RELEASE, SourceType.FORGEJO_RELEASE, SourceType.DIRECT_URL -> "We install and update it"
     SourceType.OFFICIAL_PAGE -> "From its official site"
@@ -57,17 +62,17 @@ private fun sourceLabel(e: EmulatorProfile) = when (e.source.type) {
 }
 
 private fun rows(app: EmuApplication, bundle: KnowledgeBundle, data: AppsData, latest: Map<String, Latest>, installs: Map<String, InstallState>): List<AppRow> {
-    val planned = data.plan?.systems?.map { it.emulatorId }.orEmpty().toSet()
+    val planned = data.plan?.systems?.map { it.emulatorId }.orEmpty().toSet() + data.plan?.frontendIds.orEmpty()
     // Notes (INFO) aren't things to fix: a folder pick ES-DE doesn't need would read as a problem.
     val issues = app.health.report.value?.issues.orEmpty().filter { it.severity != com.ramrom.emumanager.engine.health.IssueSeverity.INFO }
-    return bundle.emulators.filter { e -> e.id in planned || e.packages.any { it in data.inventory.installedPackages } }.mapIndexed { i, e ->
+    return bundle.apps().filter { e -> e.id in planned || e.packages.any { it in data.inventory.installedPackages } }.mapIndexed { i, e ->
         val installed = data.inventory.installedApps.firstOrNull { it.packageId in e.packages }
         val l = latest[e.id]
         val newer = (l as? Latest.Known)?.let { installed?.let { inst -> Versions.isNewer(inst.versionName, it.apk.version) } } == true
         val inst = installs[e.id]
         AppRow(
             e.id, e.name, e.name.filter { it.isLetterOrDigit() }.take(2).replaceFirstChar { it.uppercase() } to Detection.tileColor(i),
-            e.systems.mapNotNull { s -> bundle.systems.firstOrNull { it.id == s }?.name }.let { if (it.size > 3) "${it.size} systems" else it.joinToString(", ") },
+            if (bundle.isFrontend(e.id)) "Frontend" else e.systems.mapNotNull { s -> bundle.systems.firstOrNull { it.id == s }?.name }.let { if (it.size > 3) "${it.size} systems" else it.joinToString(", ") },
             e.id in planned, installed?.versionName?.ifBlank { "installed" },
             when (l) { is Latest.Known -> "latest ${l.apk.version}"; Latest.Checking -> "checking…"; else -> null },
             newer, sourceLabel(e),
@@ -88,7 +93,7 @@ fun ColumnScope.AppsSection(app: EmuApplication, onOpen: (String) -> Unit) {
     var checking by remember { mutableStateOf(false) }
     val list = rows(app, bundle, data, latest, installs)
     AppsBody(list, checking, onCheck = {
-        if (!checking) scope.launch { checking = true; app.apps.checkUpdates(bundle.emulators.filter { e -> list.any { it.id == e.id } }); checking = false }
+        if (!checking) scope.launch { checking = true; app.apps.checkUpdates(bundle.apps().filter { e -> list.any { it.id == e.id } }); checking = false }
     }, onOpen = onOpen)
 }
 
@@ -98,21 +103,22 @@ fun AppDetailRoute(app: EmuApplication, nav: com.ramrom.emumanager.nav.Navigator
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val context = LocalContext.current
     val bundle = app.knowledge.getBundle() ?: return
-    val e = bundle.emulators.firstOrNull { it.id == appId } ?: return
+    val e = bundle.apps().firstOrNull { it.id == appId } ?: return
     val data = rememberAppsData(app) ?: return
     val latest by app.apps.latest.collectAsState()
     val installs by app.apps.installs.collectAsState()
     val row = rows(app, bundle, data, latest, installs).firstOrNull { it.id == appId } ?: return
     val pkg = e.packages.firstOrNull { it in data.inventory.installedPackages }
-    val frontend = bundle.frontends.firstOrNull()
+    val frontend = bundle.esde
     val perms = data.inventory.appPermissions.firstOrNull { it.packageId == pkg }
     val auto = com.ramrom.emumanager.engine.install.Releases.releasesUrl(e.source) != null
-    val page = e.source.url.takeIf { e.source.type == SourceType.OFFICIAL_PAGE && it.isNotEmpty() }
+    val page = e.source.url.takeIf { (e.source.type == SourceType.OFFICIAL_PAGE || e.source.type == SourceType.PLAY_STORE) && it.isNotEmpty() }
+    val store = e.source.type == SourceType.PLAY_STORE
     val primary: Pair<String, () -> Unit>? = when {
         row.installing != null -> null
         auto && (pkg == null || row.updateAvailable) -> (if (pkg == null) "Install" else "Update") to { app.apps.install(e) }
         auto && pkg != null && latest[appId] is Latest.Known && !row.updateAvailable -> "Install latest" to { app.apps.install(e) }
-        page != null -> (if (pkg == null) "Open download page" else "Check its site") to { context.tryStart(Intent(Intent.ACTION_VIEW, Uri.parse(page))) }
+        page != null -> (if (store) "Open Play Store" else if (pkg == null) "Open download page" else "Check its site") to { context.tryStart(Intent(Intent.ACTION_VIEW, Uri.parse(page))) }
         else -> null
     }
     val appData = pkg?.let { "Android/data/$it" }
@@ -122,7 +128,7 @@ fun AppDetailRoute(app: EmuApplication, nav: com.ramrom.emumanager.nav.Navigator
     AppDetailScreen(
         row,
         facts = listOfNotNull(
-            "Runs" to row.systems,
+            if (bundle.isFrontend(e.id)) "Kind" to "Frontend: where you browse and start games" else "Runs" to row.systems,
             "Source" to row.source,
             if (e.declaresAllFilesAccess && pkg != null) "Files" to if (perms?.grantedManageExternalStorage == true) "Can read all files ✓" else "Can't read your files yet" else null,
             if (e.permissions.isNotEmpty() && pkg != null) "Allowed" to if (perms?.missingPermissions.isNullOrEmpty()) "Everything it asks for ✓" else "Missing: " + perms!!.missingPermissions.joinToString { com.ramrom.emumanager.engine.PermissionNames.of(it) } else null,

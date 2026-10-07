@@ -52,7 +52,7 @@ class DeviceInventory(private val context: Context, private val bundle: Knowledg
 
     /** The top-level choice in each system's ES-DE gamelist; null when the gamelists folder isn't readable. */
     private fun esdeChoices(): Map<String, String?>? {
-        val fe = bundle.frontends.firstOrNull() ?: return null
+        val fe = bundle.esde ?: return null
         val dir = File(fe.paths.gamelists.ifEmpty { return null })
         if (!dir.canRead()) return null
         return (fe.systemFolders.values + fe.folderAliases.values.flatten()).distinct().associateWith { folder ->
@@ -62,7 +62,7 @@ class DeviceInventory(private val context: Context, private val bundle: Knowledg
     }
 
     private fun esdeCustomDefaults(): Map<String, String> {
-        val dir = bundle.frontends.firstOrNull()?.paths?.customSystems?.ifEmpty { null } ?: return emptyMap()
+        val dir = bundle.esde?.paths?.customSystems?.ifEmpty { null } ?: return emptyMap()
         val xml = runCatching { File(dir, "es_systems.xml").takeIf { it.exists() }?.readText() }.getOrNull() ?: return emptyMap()
         return com.ramrom.emumanager.engine.config.EsdeLaunch.customDefaults(xml)
     }

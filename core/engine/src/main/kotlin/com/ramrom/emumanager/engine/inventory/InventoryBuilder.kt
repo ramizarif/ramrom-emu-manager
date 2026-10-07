@@ -32,7 +32,7 @@ class InventoryBuilder(
     private val bundle: KnowledgeBundle,
     private val files: FileLister,
 ) {
-    private val frontend = bundle.frontends.firstOrNull()
+    private val frontend = bundle.esde
     private fun folderOf(systemId: String) = frontend?.systemFolders?.get(systemId) ?: systemId
     /** The system's folder first, then any aliases. */
     private fun foldersOf(systemId: String) = listOf(folderOf(systemId)) + frontend?.folderAliases?.get(systemId).orEmpty()
@@ -70,6 +70,7 @@ class InventoryBuilder(
             esdeConfig = esde,
             orphanedMedia = orphans(facts.esdeRoot, romFolders),
             grantsKnown = facts.folderGrants != null,
+            grantPaths = facts.folderGrants.orEmpty(),
             biosUnchecked = bios.second,
         )
     }
@@ -108,10 +109,10 @@ class InventoryBuilder(
         byPackage.flatMap { (pkg, paths) ->
             paths.map { it.trimEnd('/') }.flatMap { path ->
                 when {
-                    path == root || root.startsWith("$path/") -> listOf(FolderGrant(pkg, ""))
-                    path.startsWith("$root/") -> {
-                        val folder = path.removePrefix("$root/").substringBefore('/')
-                        bundle.systems.filter { folder in foldersOf(it.id) }.map { FolderGrant(pkg, it.id) }
+                    UriGrants.within(root, path) -> listOf(FolderGrant(pkg, ""))
+                    UriGrants.within(path, root) -> {
+                        val folder = path.substring(root.length + 1).substringBefore('/')
+                        bundle.systems.filter { s -> foldersOf(s.id).any { it.equals(folder, ignoreCase = true) } }.map { FolderGrant(pkg, it.id) }
                     }
                     else -> emptyList()
                 }

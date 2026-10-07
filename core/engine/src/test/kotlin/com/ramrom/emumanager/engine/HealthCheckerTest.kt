@@ -3,6 +3,7 @@ package com.ramrom.emumanager.engine
 import com.ramrom.emumanager.engine.health.FixAction
 import com.ramrom.emumanager.engine.health.HealthChecker
 import com.ramrom.emumanager.engine.health.IssueSeverity
+import com.ramrom.emumanager.engine.health.SetupScore
 import com.ramrom.emumanager.engine.inventory.DeviceFacts
 import com.ramrom.emumanager.engine.inventory.InstalledApp
 import com.ramrom.emumanager.engine.inventory.InventoryBuilder
@@ -40,7 +41,7 @@ class HealthCheckerTest {
     }
 
     @Test fun esdeMissingThenNotOpened() {
-        assertTrue(check(inv(installed = all - "org.es_de.frontend")).any { it.id == "frontend_missing" && it.severity == IssueSeverity.BLOCKER })
+        assertTrue(check(inv(installed = all - "org.es_de.frontend")).any { it.id == "frontend_missing_es-de" && it.severity == IssueSeverity.BLOCKER })
         assertTrue(check(inv()).any { it.id == "frontend_first_run" })
         assertFalse(check(inv(esdeSettings)).any { it.id.startsWith("frontend_") })
     }
@@ -129,7 +130,7 @@ class HealthCheckerTest {
 
     /** Adopted setups often have no frontend; their folders still matter. */
     @Test fun foldersAreCheckedWithoutAFrontend() {
-        val noFrontend = plan.copy(frontendId = null)
+        val noFrontend = plan.copy(frontendId = null, frontendIds = emptyList())
         val issues = HealthChecker(testBundle).check(noFrontend, inv(installed = all - "org.es_de.frontend", files = arrayOf("$r/gc/Game.7z")))
         assertTrue(issues.any { it.id == "folder_unplayable_gc" })
         assertTrue(issues.first { it.id == "folder_missing_wii" }.detail.startsWith("Keep your"))
@@ -142,5 +143,23 @@ class HealthCheckerTest {
             "$r/psp/Crisis Core.iso", "$r/psp/PSP/SAVEDATA/ULUS10566/PARAM.SFO", "$r/psp/PSP/SYSTEM/ppsspp.ini")
         val issues = HealthChecker(testBundle).check(plan, inv(all + "org.ppsspp.ppsspp", files = files) { copy(esdeCustomDefaults = mapOf("ps1" to "DuckStation (Standalone)")) })
         assertFalse(issues.joinToString { it.id }, issues.any { it.id == "folder_empty_ps1" || it.id == "folder_unplayable_psp" })
+    }
+
+    @Test fun everyChosenFrontendIsCheckedAlike() {
+        val multi = plan.copy(frontendIds = listOf("es-de", "cocoon", "iisu"))
+        val cocoon = "rip.moth.cocoonshell"
+        fun run(grants: List<String>, installed: List<String> = all + cocoon + "com.iisulauncher") =
+            HealthChecker(testBundle).check(multi, inv(esdeSettings, installed = installed) { copy(folderGrants = mapOf(cocoon to grants)) })
+        // Shared storage ignores case: a grant on "Roms" is the ROMs folder.
+        assertFalse(run(listOf("/storage/emulated/0/Roms", "/storage/emulated/0/Cocoon-Media")).any { it.id.startsWith("frontend_folder_") })
+        val media = run(listOf("/storage/emulated/0/Cocoon-Media")).single { it.id == "frontend_folder_cocoon" }
+        assertTrue(media.title.contains("isn't pointed"))
+        val elsewhere = run(listOf("/storage/emulated/0/Games")).single { it.id == "frontend_folder_cocoon" }
+        assertEquals(listOf("Looking in: Games"), elsewhere.evidence)
+        // iiSU's folder isn't visible to us, so it's only checked for being installed.
+        assertTrue(run(emptyList(), installed = all + cocoon).any { it.id == "frontend_missing_iisu" && it.severity == IssueSeverity.BLOCKER })
+        val score = SetupScore.of(multi, run(listOf("/storage/emulated/0/Games")), testBundle)
+        assertTrue(score.missing.any { it.what == "Cocoon pointed at your games" })
+        assertFalse(score.missing.any { it.what.startsWith("iiSU") })
     }
 }

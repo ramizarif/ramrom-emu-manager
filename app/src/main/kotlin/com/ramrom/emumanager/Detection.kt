@@ -49,11 +49,11 @@ object Detection {
         val bundle = store.getBundle() ?: return null
         val pm = context.packageManager
         fun installed(pkg: String) = try { pm.getPackageInfo(pkg, 0); true } catch (_: PackageManager.NameNotFoundException) { false }
-        val frontend = bundle.frontends.any { f -> f.packages.any(::installed) }
+        val frontends = bundle.frontends.filter { f -> f.packages.any(::installed) }
         val tiles = bundle.emulators.filter { e -> e.packages.any(::installed) }.mapIndexed { i, e ->
             HandheldTile(e.id, shortLabel(e.id, e.name), tileColors[i % tileColors.size])
         }
-        val esTile = if (frontend) listOf(HandheldTile("es-de", "ES", EmuColors.Ink)) else emptyList()
-        return ExistingSetup(frontend, esTile + tiles)
+        val feTiles = frontends.map { HandheldTile(it.id, it.name.take(2), EmuColors.Ink) }
+        return ExistingSetup(frontends.map { it.name.ifEmpty { it.id } }, feTiles + tiles)
     }
 }

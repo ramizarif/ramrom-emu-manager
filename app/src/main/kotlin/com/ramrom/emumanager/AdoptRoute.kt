@@ -46,7 +46,7 @@ fun AdoptRoute(app: EmuApplication, onKeep: (Plan) -> Unit, onFix: (Plan) -> Uni
         val tiles = plan.systems.map { it.emulatorId }.distinct().mapIndexed { i, id ->
             HandheldTile(id, (emus[id]?.name ?: id).filter { it.isLetterOrDigit() }.take(2).replaceFirstChar { it.uppercase() }, Detection.tileColor(i))
         }
-        val fe = plan.frontendId?.let { id -> bundle.frontends.firstOrNull { it.id == id } }?.let(StepText::frontendName)
+        val fe = plan.frontends(bundle).map(StepText::frontendName).let { n -> if (n.size > 1) n.dropLast(1).joinToString(", ") + " and " + n.last() else n.firstOrNull() }
         value = Found(plan, FoundSetup(systems, fe, (report.blocking + report.warnings).size, fixable, report.score.percent), tiles)
     }
     AdoptScreen(

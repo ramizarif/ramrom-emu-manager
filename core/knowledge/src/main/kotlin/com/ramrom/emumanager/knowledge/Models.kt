@@ -129,7 +129,12 @@ data class KnowledgeBundle(
     val settingsProfiles: List<GameSettingsProfile> = emptyList(),
     val guidedSteps: List<GuidedStepContent> = emptyList(),
     val healthRules: List<HealthRuleParams> = emptyList()
-)
+) {
+    /** ES-DE, whose folder names every supported frontend shares, and whose config RamROM writes. */
+    val esde: FrontendProfile? get() = frontends.firstOrNull { it.id == ESDE }
+
+    companion object { const val ESDE = "es-de" }
+}
 
 @Serializable
 data class DeviceProfile(
@@ -246,8 +251,21 @@ data class EsdeLaunchConfig(
 @Serializable
 data class FrontendProfile(
     val id: String,
+    val name: String = "",
     val packages: List<String> = emptyList(),
-    val source: FrontendSource = FrontendSource(),
+    val source: InstallSource = InstallSource(),
+    /**
+     * It reads games from a folder the user picks through Android's picker, so the grant shows which
+     * folder it's pointed at (Cocoon, RetroHrai!). ES-DE does too; iiSU so far doesn't say.
+     */
+    val gamesFolderGrant: Boolean = false,
+    /**
+     * Each system's emulator is chosen inside the app, in storage we can't reach: the user does it,
+     * guided. Empty when RamROM writes it (ES-DE's gamelists).
+     */
+    val emulatorChoiceInApp: String = "",
+    /** What to do on first open (pick the games folder), for the guided step. */
+    val firstRunSteps: List<String> = emptyList(),
     val paths: FrontendPaths = FrontendPaths(),
     val systemFolders: Map<String, String> = emptyMap(), // system id → folder name
     /**
@@ -266,12 +284,6 @@ data class FrontendProfile(
     val mediaTypes: List<MediaType> = emptyList(),
     val mustBeClosedToWrite: Boolean = false,
     val knownCompanions: List<String> = emptyList()
-)
-
-@Serializable
-data class FrontendSource(
-    val type: SourceType = SourceType.USER_OBTAINS,
-    val note: String = ""
 )
 
 @Serializable

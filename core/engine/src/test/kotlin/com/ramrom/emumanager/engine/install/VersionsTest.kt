@@ -9,6 +9,8 @@ class VersionsTest {
         assertEquals(false, Versions.isNewer("2125.0", "2125"))
         assertEquals(false, Versions.isNewer("1.3.0", "v1.2.9"))
         assertEquals(true, Versions.isNewer("v0.2.0", "v0.2.1"))
+        assertEquals(true, Versions.isNewer("b2.2", "beta-3.07"))
+        assertEquals(false, Versions.isNewer("beta-3.07", "b3.07"))
     }
 
     @Test fun hashesAndBlanksAreUnknown() {

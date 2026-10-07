@@ -11,6 +11,15 @@ object UriGrants {
     private val uidLine = Regex("""\*\s*UID\s+(\d+)\s+holds:""")
     private val treeUri = Regex("""content://com\.android\.externalstorage\.documents/tree/([^\s}/]+)""")
 
+    /**
+     * [inner] is [outer] or inside it. Shared storage ignores case (Cocoon's grant on "Roms" on the
+     * Thor is the ROMs folder, same inode), so paths compare the same way.
+     */
+    fun within(inner: String, outer: String): Boolean {
+        val i = inner.trimEnd('/'); val o = outer.trimEnd('/')
+        return i.equals(o, ignoreCase = true) || i.startsWith("$o/", ignoreCase = true)
+    }
+
     /** uid → absolute folder paths it holds a tree grant for. */
     fun parse(dump: String, storageRoot: String = "/storage/emulated/0"): Map<Int, List<String>> {
         val out = mutableMapOf<Int, MutableList<String>>()

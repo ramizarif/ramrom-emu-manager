@@ -381,6 +381,32 @@ class PlanCompilerTest {
         assertEquals(setOf("ps2", "n3ds"), s.biosNeeded)
     }
 
+    @Test
+    fun everyChosenFrontendGetsItsOwnSteps() {
+        val plan = Plan(null, "sd8gen2", "es-de", listOf(Plan.PlanSystem("wii", "dolphin")), null, listOf("es-de", "cocoon", "iisu", "retrohrai"))
+        val compiled = PlanCompiler().compile(plan, bundle, Inventory(), Capability.entries.toSet())
+        val steps = compiled.steps.associateBy { it.id }
+        // GitHub frontends install; ES-DE (paid) and RetroHrai! (Play Store) are the user's to get.
+        assertTrue(steps["install_cocoon"]?.executor == Executor.Auto && steps["install_iisu"]?.executor == Executor.Auto)
+        assertEquals(setOf("es-de", "retrohrai"), compiled.steps.filter { it.type is StepType.GuidedObtainApp && it.subject in plan.frontendIds }.map { it.subject }.toSet())
+        // Cocoon and RetroHrai! are pointed at ROMs by a folder pick; iiSU does it in its own first run.
+        assertTrue("folder_pick_cocoon" in steps && "folder_pick_retrohrai" in steps && "folder_pick_iisu" !in steps)
+        assertTrue("folder_pick_cocoon" in steps.getValue("in_app_cocoon").dependsOn)
+        assertTrue("in_app_iisu" in steps)
+        assertTrue(isDAGValid(compiled))
+    }
+
+    @Test
+    fun aRootGrantMeansTheFrontendIsAlreadyPointed() {
+        val plan = Plan(null, "sd8gen2", "cocoon", listOf(Plan.PlanSystem("wii", "dolphin")), null, listOf("cocoon"))
+        val inv = Inventory(installedPackages = setOf("rip.moth.cocoonshell"), grantsKnown = true,
+            folderGrants = listOf(com.ramrom.emumanager.engine.inventory.FolderGrant("rip.moth.cocoonshell", "")))
+        val pick = PlanCompiler().compile(plan, bundle, inv, Capability.entries.toSet()).steps.single { it.id == "folder_pick_cocoon" }
+        assertEquals(StepStatus.AlreadyDone, pick.status)
+        // No ES-DE: nothing writes its choices.
+        assertTrue(PlanCompiler().compile(plan, bundle, inv, Capability.entries.toSet()).steps.none { it.type is StepType.WriteFrontendConfig })
+    }
+
     private fun isDAGValid(compiled: CompiledPlan): Boolean {
         val visited = mutableSetOf<String>()
         val recursionStack = mutableSetOf<String>()

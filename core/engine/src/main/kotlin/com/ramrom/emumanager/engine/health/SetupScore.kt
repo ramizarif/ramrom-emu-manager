@@ -21,7 +21,7 @@ data class SetupScore(val done: Int, val total: Int, val missing: List<Missing>)
     data class Missing(val systemId: String?, val what: String)
 
     companion object {
-        private val SETUP = listOf("frontend_missing", "frontend_first_run", "app_missing_", "all_files_", "folder_pick_",
+        private val SETUP = listOf("frontend_missing", "frontend_first_run", "frontend_folder_", "app_missing_", "all_files_", "folder_pick_",
             "folder_missing_", "bios_missing_", "esde_choice_")
 
         /** Counts against setup (and a system's Ready). Tidying (strays, leftovers, empty folders) doesn't. */
@@ -34,13 +34,17 @@ data class SetupScore(val done: Int, val total: Int, val missing: List<Missing>)
             val missing = mutableListOf<Missing>()
             fun item(ok: Boolean, systemId: String?, what: String) { total++; if (ok) done++ else missing += Missing(systemId, what) }
 
-            val frontend = plan.frontendId?.let { id -> bundle.frontends.firstOrNull { it.id == id } }
-            val fe = "ES-DE" // the only frontend so far; FrontendProfile has no display name yet
-            val frontendReady = !open("frontend_missing") && !open("frontend_first_run")
-            if (frontend != null) {
-                item(!open("frontend_missing"), null, "$fe installed")
-                if (!open("frontend_missing")) item(!open("frontend_first_run"), null, "$fe opened once")
+            // Every chosen frontend counts alike: installed, and pointed at the games where we can see
+            // that. Their in-app emulator choices can't be read, so they don't count either way.
+            for (f in plan.frontends(bundle)) {
+                val here = !open("frontend_missing_${f.id}")
+                item(here, null, "${f.name} installed")
+                if (f.id == KnowledgeBundle.ESDE) { if (here) item(!open("frontend_first_run"), null, "${f.name} opened once") }
+                else if (f.gamesFolderGrant) item(here && !open("frontend_folder_${f.id}"), null, "${f.name} pointed at your games")
             }
+            val frontend = plan.esde(bundle)
+            val fe = frontend?.name ?: "ES-DE"
+            val frontendReady = frontend != null && !open("frontend_missing_${frontend.id}") && !open("frontend_first_run")
             for (s in plan.systems) {
                 val emu = bundle.emulators.firstOrNull { it.id == s.emulatorId }?.name ?: s.emulatorId
                 val sys = s.systemId

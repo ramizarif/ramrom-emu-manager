@@ -35,11 +35,14 @@ sealed interface InstallOutcome {
 class AppInstaller(private val context: Context, private val access: AccessManager) {
     private val cache = File(context.cacheDir, "apks").apply { mkdirs() }
 
-    suspend fun resolve(app: EmulatorProfile): ResolvedApk? = withContext(Dispatchers.IO) {
-        val url = Releases.releasesUrl(app.source) ?: return@withContext null
+    suspend fun resolve(app: EmulatorProfile): ResolvedApk? = resolve(app.source)
+
+    /** Emulators and frontends alike (Cocoon, iiSU). */
+    suspend fun resolve(source: com.ramrom.emumanager.knowledge.InstallSource): ResolvedApk? = withContext(Dispatchers.IO) {
+        val url = Releases.releasesUrl(source) ?: return@withContext null
         // Projects that tag every build as a prerelease say so in their note.
-        val allowPre = app.source.note.contains("prerelease", ignoreCase = true)
-        Releases.pick(get(url), app.source.assetRegex, allowPre)
+        val allowPre = source.note.contains("prerelease", ignoreCase = true)
+        Releases.pick(get(url), source.assetRegex, allowPre)
     }
 
     suspend fun download(apk: ResolvedApk, onProgress: (Float) -> Unit): File = withContext(Dispatchers.IO) {
