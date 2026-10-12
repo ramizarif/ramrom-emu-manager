@@ -22,7 +22,7 @@ data class SetupScore(val done: Int, val total: Int, val missing: List<Missing>)
 
     companion object {
         private val SETUP = listOf("frontend_missing", "frontend_first_run", "frontend_folder_", "app_missing_", "all_files_", "folder_pick_",
-            "folder_missing_", "bios_missing_", "esde_choice_")
+            "folder_missing_", "bios_missing_", "keys_missing_", "esde_choice_")
 
         /** Counts against setup (and a system's Ready). Tidying (strays, leftovers, empty folders) doesn't. */
         fun affectsSetup(issue: HealthIssue) = issue.severity != IssueSeverity.INFO && SETUP.any { issue.id.startsWith(it) }
@@ -56,6 +56,8 @@ data class SetupScore(val done: Int, val total: Int, val missing: List<Missing>)
                 item(!open("folder_missing_$sys"), sys, "ROM folder")
                 val needsBios = bundle.bios.any { it.system == sys && it.required && it.targets.any { t -> t.emulatorId == s.emulatorId } }
                 if (needsBios && (!app || "bios_unchecked_$sys" !in ids)) item(app && !open("bios_missing_$sys"), sys, "BIOS")
+                val needsKeys = bundle.emulators.firstOrNull { it.id == s.emulatorId }?.let { com.ramrom.emumanager.engine.inventory.needsKeys(it) } == true
+                if (needsKeys && (!app || "keys_unchecked_$sys" !in ids)) item(app && !open("keys_missing_$sys"), sys, "Keys")
                 if (frontend != null) item(app && frontendReady && !open("esde_choice_$sys"), sys, "$fe opens it in $emu")
             }
             return SetupScore(done, total, missing)

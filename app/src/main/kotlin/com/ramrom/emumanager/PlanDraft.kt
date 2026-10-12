@@ -174,11 +174,13 @@ class PlanDraft(
 
         fun create(context: Context, bundle: KnowledgeBundle, familyOverride: String? = null): PlanDraft {
             val here = DeviceDetector.match(DeviceDetector.readDevice(context), bundle)
-            val family = familyOverride ?: here.chipFamily?.id ?: "generic"
+            // Hardware we don't recognise: the model the user picked on S02 decides the chip.
+            val chosen = if (here.profile == null) com.ramrom.emumanager.Detection.chosenDeviceId(context)?.let { id -> bundle.devices.firstOrNull { it.id == id } } else null
+            val family = familyOverride ?: here.chipFamily?.id ?: chosen?.chipFamily ?: "generic"
             val pm = context.packageManager
             return PlanDraft(bundle, family, { pkg ->
                 try { pm.getPackageInfo(pkg, 0); true } catch (_: PackageManager.NameNotFoundException) { false }
-            }, deviceId = if (familyOverride == null) here.profile?.id else null)
+            }, deviceId = if (familyOverride == null) (here.profile ?: chosen)?.id else null)
         }
     }
 }

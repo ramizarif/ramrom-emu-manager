@@ -27,6 +27,8 @@ data class ShizukuSetup(
     val devOptionsOn: Boolean,
     val running: Boolean,
     val permission: ShizukuPermission,
+    /** Developer options' Wireless debugging switch, which Shizuku starts through. Null: Android won't say. */
+    val wirelessDebugging: Boolean? = null,
 )
 
 /**

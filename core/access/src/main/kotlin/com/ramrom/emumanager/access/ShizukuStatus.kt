@@ -31,6 +31,11 @@ class ShizukuStatus(private val context: Context) {
         ) != 0
     }
 
+    /** Wireless debugging on? Read where Android allows it; null when it doesn't. */
+    fun isWirelessDebuggingOn(): Boolean? = runCatching {
+        Settings.Global.getInt(context.contentResolver, "adb_wifi_enabled", 0) != 0
+    }.getOrNull()
+
     /** Is Shizuku server running? */
     fun isServerRunning(): Boolean {
         return Shizuku.pingBinder()
@@ -54,7 +59,8 @@ class ShizukuStatus(private val context: Context) {
             installed = isShizukuInstalled(),
             devOptionsOn = isDeveloperOptionsOn(),
             running = isServerRunning(),
-            permission = getPermissionState()
+            permission = getPermissionState(),
+            wirelessDebugging = isWirelessDebuggingOn(),
         )
     }
 

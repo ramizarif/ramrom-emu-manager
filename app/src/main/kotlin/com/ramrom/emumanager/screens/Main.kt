@@ -95,7 +95,7 @@ fun MainScreen(
             ) else EmptyState(Face.Look, "Setup isn't finished yet", "Run setup to connect your frontends, emulators, folders and BIOS.", "Set up this device", onStartSetup)
             Section.Library -> if (library != null) library() else EmptyState(Face.Look, "No games yet", "Your games show up here once setup has found your ROM folders.")
             Section.Wishlist -> EmptyState(Face.Happy, "Your wishlist is empty", "Add games you want to play. We'll tell you how they run here, and spot them when they land in your library.")
-            Section.Customize -> EmptyState(Face.Happy, "Make ES-DE yours", "Theme colours, backgrounds and game art, once ES-DE is set up.")
+            Section.Customize -> EmptyState(Face.Happy, "Make it yours", "Themes, colours and game art for ES-DE are coming here. Other frontends keep these in their own settings for now.")
             Section.Apps -> if (apps != null) apps() else EmptyState(Face.Look, "No apps set up yet", "Emulators you add during setup are listed here with their versions and updates.")
             Section.Settings -> SettingsBody(accessPanel, onAbout, onHistory, onOpenPlan)
         }

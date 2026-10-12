@@ -103,6 +103,9 @@ fun GuidedRoute(run: ActiveRun, stepId: String, nav: Navigator) {
                 if (copy.action == GuidedAction.OwnAllFiles && Environment.isExternalStorageManager()) run.runner.runNow(stepId)
                 else run.runner.recheck(stepId)
             }
+        } else if (copy.verifiable && status is StepRunStatus.NeedsYou) {
+            // Done some other way (installed from a file manager, say): notice that too, quietly.
+            scope.launch { run.runner.recheck(stepId) }
         }
         onPauseOrDispose { }
     }
@@ -129,8 +132,13 @@ fun GuidedRoute(run: ActiveRun, stepId: String, nav: Navigator) {
     // This step's place among the user's: the ones settled before it, plus one.
     val position = (guided.count { it.id != stepId && state.stepProgress[it.id]?.status?.let { s -> s.isSatisfied || s == StepRunStatus.Skipped } == true } + 1) to guided.size
 
+    // A folder pick that didn't take: say where the app was pointed instead.
+    val pickedInstead by androidx.compose.runtime.produceState<String?>(null, status, returned) {
+        value = if (step.type == com.ramrom.emumanager.engine.StepType.GuidedFolderPick && returned && status is StepRunStatus.NeedsYou)
+            run.executor.pickedInstead(step.subject) else null
+    }
     GuidedStepScreen(
-        copy, status, position, handheldFor(run, state), returned,
+        copy, status, position, handheldFor(run, state), returned, pickedInstead = pickedInstead,
         onAction = {
             when (copy.action) {
                 GuidedAction.RunNow -> scope.launch { run.runner.runNow(stepId) }

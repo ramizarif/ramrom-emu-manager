@@ -127,6 +127,8 @@ object StepText {
             }
             StepType.GuidedInAppSetup -> if (fe != null && fe.emulatorChoiceInApp.isNotEmpty()) StepCopy(
                 "Choose emulators in $name", "$name keeps this in its own settings, where we can't write.",
+                // A frontend with no folder pick of its own is pointed at the games here too.
+                value = if (fe.gamesFolderGrant) null else "ROMs", valueLabel = "Pick this folder",
                 instructions = (if (fe.gamesFolderGrant) emptyList() else fe.firstRunSteps) + fe.emulatorChoiceInApp + "Come back here",
                 action = GuidedAction.OpenApp, actionLabel = "Open $name", appId = step.subject, verifiable = false,
             ) else if (fe != null) StepCopy(

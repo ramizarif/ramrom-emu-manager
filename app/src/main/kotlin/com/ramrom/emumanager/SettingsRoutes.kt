@@ -46,7 +46,9 @@ fun deviceKey(app: EmuApplication, bundle: KnowledgeBundle): DeviceKey {
         val id = runCatching { java.io.File(app.filesDir, "debug-device").readText().trim() }.getOrNull()
         bundle.devices.firstOrNull { it.id == id }?.let { return DeviceKey(it.id, it.chipFamily) }
     }
-    return DeviceDetector.match(DeviceDetector.readDevice(app), bundle).let { DeviceKey(it.profile?.id, it.chipFamily?.id ?: "generic") }
+    val m = DeviceDetector.match(DeviceDetector.readDevice(app), bundle)
+    if (m.profile == null) Detection.deviceProfile(app, bundle)?.let { return DeviceKey(it.id, it.chipFamily) }
+    return DeviceKey(m.profile?.id, m.chipFamily?.id ?: "generic")
 }
 
 /** The emulator a library system plays in: the plan's choice, else the recommendation for this chip. */

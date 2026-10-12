@@ -44,10 +44,16 @@ fun HealthScreen(
     onRecheck: () -> Unit,
     onOpenEsde: () -> Unit,
     onDone: () -> Unit,
+    onImport: () -> Unit = {},
 ) {
+    // Set up but empty: the end of setup hands straight on to the games. Something still blocking
+    // keeps "fix" as the main button, but the way to the games shows either way.
+    val empty = report != null && report.games == 0
+    val noGames = empty && report!!.blocking.isEmpty()
     val focus = initialFocus(report == null, report?.allGood)
     val primary: Pair<String, () -> Unit>? = when {
         report == null -> null
+        noGames -> "Bring in your games" to onImport
         report.allGood && frontendName != null -> "Open $frontendName" to onOpenEsde
         report.allGood -> "Done" to onDone
         canFixWithSetup -> "Fix what we can" to onFixWithSetup
@@ -63,7 +69,7 @@ fun HealthScreen(
         actions = {
             if (primary != null) EmuButton(primary.first, primary.second, kind = ButtonKind.Go, focusRequester = focus)
             EmuButton("Check again", onRecheck)
-            if (report?.allGood == true && frontendName != null) EmuButton("Done", onDone, kind = ButtonKind.Ghost)
+            if (report?.allGood == true && (frontendName != null || noGames)) EmuButton("Done", onDone, kind = ButtonKind.Ghost)
         },
     ) {
         Eyebrow("Health check")
@@ -72,7 +78,7 @@ fun HealthScreen(
         BasicText(
             when {
                 report.allGood -> "Everything's ready"
-                report.blocking.isNotEmpty() -> "${report.blocking.size} thing${if (report.blocking.size == 1) "" else "s"} stop games running"
+                report.blocking.isNotEmpty() -> "${report.blocking.size} thing${if (report.blocking.size == 1) " stops" else "s stop"} games running"
                 else -> "Ready, with a few notes"
             },
             style = EmuType.Headline,
@@ -81,6 +87,12 @@ fun HealthScreen(
         com.ramrom.emumanager.ui.components.SetupMeter(report.score.percent, report.score.percent, big = false)
         Spacer(Modifier.height(4.dp))
         BasicText("${report.readyCount} of ${report.systems.size} systems ready", style = EmuType.Lead)
+        if (empty) {
+            Spacer(Modifier.height(10.dp))
+            InlineAlert("Next: your games", "Your folders are ready and empty. Bring in the games you have and RamROM sorts each one into the right folder.", AlertKind.YourTurn) {
+                if (!noGames) EmuButton("Bring in your games", onImport, small = true)
+            }
+        }
         Spacer(Modifier.height(14.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (report.frontends.isNotEmpty()) {

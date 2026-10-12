@@ -46,14 +46,17 @@ internal fun rememberLibrary(app: EmuApplication): List<LibrarySystem>? {
 fun ColumnScope.LibrarySection(app: EmuApplication, onOpen: (String) -> Unit, onImport: () -> Unit, onOpenGame: (String, String) -> Unit = { _, _ -> }) {
     val lib = rememberLibrary(app)
     val bundle = app.knowledge.getBundle()
-    val family = remember { bundle?.let { DeviceDetector.match(DeviceDetector.readDevice(app), it).chipFamily?.id } ?: "generic" }
+    val family = remember { bundle?.let { deviceKey(app, it).chipFamily } ?: "generic" }
     LibraryBody(lib?.mapIndexed { i, s ->
-        val emu = s.emulatorId?.let { id -> bundle?.emulators?.firstOrNull { it.id == id }?.name }
+        val profile = s.emulatorId?.let { id -> bundle?.emulators?.firstOrNull { it.id == id } }
+        val emu = profile?.name
+        // How well it runs means nothing until the emulator is here to run it.
+        val missing = profile != null && app.settings.installed(profile).isEmpty()
         val unplayable = s.games.count { !it.playable }
         LibrarySystemRow(s.systemId, s.name,
             listOfNotNull("${s.games.size} game${if (s.games.size == 1) "" else "s"}", emu, if (unplayable > 0) "$unplayable can't open" else null).joinToString("  ·  "),
             com.ramrom.emumanager.screens.cartLabel(s.systemId) to Detection.tileColor(i),
-            Verdicts.forSystem(s.systemId, family).let { it.label to (it == Verdict.Great) })
+            if (missing) "$emu not installed" to false else Verdicts.forSystem(s.systemId, family).let { it.label to (it == Verdict.Great) })
     }, onOpen, onImport,
         games = lib?.flatMap { s -> s.games.map { g -> com.ramrom.emumanager.screens.LibraryFindRow(s.systemId, s.name, g.baseName, g.title, g.playable) } }.orEmpty(),
         onOpenGame = onOpenGame)

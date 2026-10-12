@@ -55,7 +55,8 @@ data class ImportCandidate(
 enum class ImportAction { Move, Copy, Extract, KeepZipped }
 
 data class ImportProblem(val kind: Kind, val text: String) {
-    enum class Kind { NoSystem, AlreadyThere, NameClash, Encrypted, SplitArchive, Unreadable, Incomplete, Bios, NotSetUp }
+    /** Guessed: the system was picked because only one in the setup opens the file; a note, not a stop. */
+    enum class Kind { NoSystem, AlreadyThere, NameClash, Encrypted, SplitArchive, Unreadable, Incomplete, Bios, NotSetUp, Guessed }
     /** Problems that leave the item out unless the user includes it. */
     val excludesByDefault get() = kind in setOf(Kind.NoSystem, Kind.AlreadyThere, Kind.NameClash, Kind.SplitArchive, Kind.Unreadable, Kind.Incomplete, Kind.Bios)
 }

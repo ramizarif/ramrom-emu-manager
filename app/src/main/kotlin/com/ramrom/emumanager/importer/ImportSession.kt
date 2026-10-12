@@ -38,6 +38,7 @@ data class ImportDraft(
     val freeBytes: Long,
     /** Systems in the user's setup, for "not set up yet" warnings. */
     val setUp: Set<String>? = null,
+    val setUpEmulators: Map<String, String> = emptyMap(),
 ) {
     val enoughSpace get() = plan.bytesNeeded <= freeBytes
 }
@@ -78,8 +79,10 @@ class ImportSession(private val app: EmuApplication) {
             }
             // F30: move out of Downloads (it's a holding area), copy from anywhere else.
             val options = ImportOptions(move = source.isDownloads, deleteArchives = source.isDownloads)
-            val setUp = app.runs.lastPlan()?.systems?.map { it.systemId }?.toSet()
-            _draft.value = replan(ImportDraft(source, candidates, options = options, plan = ImportPlan(emptyList(), emptyList(), options), freeBytes = 0, setUp = setUp))
+            val planned = app.runs.lastPlan()?.systems
+            val setUp = planned?.map { it.systemId }?.toSet()
+            _draft.value = replan(ImportDraft(source, candidates, options = options, plan = ImportPlan(emptyList(), emptyList(), options), freeBytes = 0,
+                setUp = setUp, setUpEmulators = planned.orEmpty().associate { it.systemId to it.emulatorId }))
         } finally { _scanning.value = false }
     }
 
@@ -105,7 +108,7 @@ class ImportSession(private val app: EmuApplication) {
 
     private fun replan(d: ImportDraft): ImportDraft {
         val bundle = app.knowledge.getBundle() ?: return d
-        val plan = ImportPlanner(bundle, DirectFiles, romRoot).plan(d.candidates, d.options, d.setUp, d.systemOverrides, d.includeOverrides)
+        val plan = ImportPlanner(bundle, DirectFiles, romRoot).plan(d.candidates, d.options, d.setUp, d.systemOverrides, d.includeOverrides, d.setUpEmulators)
         return d.copy(plan = plan, freeBytes = free())
     }
 
@@ -184,8 +187,24 @@ class ImportExecutor(private var job: ImportJob, private val cancelled: () -> Bo
             }
         }
         writePlaylists()
+        tidySources()
         job = job.copy(cancelled = cancelled())
         return job
+    }
+
+    /**
+     * A folder the import emptied (Download/MyGames) goes too, and its emptied parents, but never a
+     * top-level folder like Download itself, and never one with anything left in it.
+     */
+    private fun tidySources() {
+        val root = File("/storage/emulated/0")
+        job.items.filter { it.state == JobItem.State.Done }.flatMap { it.sources }.mapNotNull { File(it).parentFile }.distinct().forEach { start ->
+            var dir: File? = start
+            while (dir != null && dir.parentFile != null && dir.parentFile != root && dir != root) {
+                if (dir.list()?.isEmpty() != true || !dir.delete()) break
+                dir = dir.parentFile
+            }
+        }
     }
 
     private fun importOne(item: JobItem): Pair<JobItem.State, String?> {

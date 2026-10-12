@@ -81,8 +81,8 @@ fun ImportProgressRoute(app: EmuApplication, nav: Navigator) {
     val context = LocalContext.current
     val job by app.imports.job.collectAsState()
     val j = job ?: run { LaunchedEffect(Unit) { nav.pop() }; return }
-    val plan = app.health.report.collectAsState().value?.plan
-    val esde = remember(plan) { frontendLaunch(context, app.knowledge.getBundle(), plan) }
+    val health = app.health.report.collectAsState().value
+    val esde = remember(health) { frontendLaunch(context, app.knowledge.getBundle(), health?.plan, health) }
     ImportProgressScreen(
         j, esde?.name,
         onCancel = app.imports::cancel,

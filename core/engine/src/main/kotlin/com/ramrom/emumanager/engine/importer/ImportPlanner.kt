@@ -30,8 +30,16 @@ class ImportPlanner(
         setUp: Set<String>? = null,
         systemOverrides: Map<String, String> = emptyMap(),
         includeOverrides: Map<String, Boolean> = emptyMap(),
+        /** The setup's emulator per system, to place files only one of them can open. */
+        setUpEmulators: Map<String, String> = emptyMap(),
     ): ImportPlan {
-        val drafts = candidates.map { c -> draft(c, systemOverrides[c.id] ?: c.systemId, options, setUp) }
+        val drafts = candidates.map { c ->
+            val guess = if (systemOverrides[c.id] == null && c.systemId == null) onlyFit(c, setUpEmulators) else null
+            draft(c, systemOverrides[c.id] ?: c.systemId ?: guess, options, setUp).let { d ->
+                if (guess == null) d else d.copy(problems = d.problems + ImportProblem(ImportProblem.Kind.Guessed,
+                    "Only ${systemName(guess)} in your setup opens .${c.primary.path.substringAfterLast('.').lowercase()} files. Change it if that's wrong."))
+            }
+        }
         val withDiscs = playlists(drafts)
         val taken = mutableSetOf<String>()
         val items = withDiscs.first.map { d ->
@@ -48,6 +56,18 @@ class ImportPlanner(
         }
         val included = items.filter { it.included }.map { it.id }.toSet()
         return ImportPlan(items, withDiscs.second.filter { p -> p.second.all { it in included } }.map { it.first }, options)
+    }
+
+    /**
+     * The one system in the setup whose emulator opens this file type, if there's exactly one.
+     * A `.cue` with DuckStation the only disc emulator is PS1; an `.iso` that PPSSPP and
+     * DuckStation both open stays a question. Archives and arcade sets aren't guessed.
+     */
+    private fun onlyFit(c: ImportCandidate, setUpEmulators: Map<String, String>): String? {
+        if (c.isArchive || ImportCandidate.Flag.ArcadeSet in c.flags || ImportCandidate.Flag.Bios in c.flags) return null
+        val ext = c.primary.path.substringAfterLast('.', "").lowercase().ifEmpty { return null }
+        val fits = setUpEmulators.filter { (_, emu) -> bundle.emulators.firstOrNull { it.id == emu }?.romExtensions?.any { it.equals(ext, true) } == true }.keys
+        return fits.singleOrNull()
     }
 
     private fun draft(c: ImportCandidate, systemId: String?, options: ImportOptions, setUp: Set<String>?): ImportItem {

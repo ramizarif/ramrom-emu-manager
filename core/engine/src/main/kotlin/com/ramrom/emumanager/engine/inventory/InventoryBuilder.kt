@@ -54,6 +54,7 @@ class InventoryBuilder(
         val romFolders = romFolders(facts.romRoot)
         val grants = facts.folderGrants?.let { grants(it, facts.romRoot) }.orEmpty()
         val bios = bios(facts)
+        val keys = keys(facts)
         val esde = esde(facts.esdeRoot)
         return Inventory(
             installedPackages = facts.installed.keys,
@@ -72,6 +73,8 @@ class InventoryBuilder(
             grantsKnown = facts.folderGrants != null,
             grantPaths = facts.folderGrants.orEmpty(),
             biosUnchecked = bios.second,
+            keysFound = keys.first,
+            keysUnchecked = keys.second,
         )
     }
 
@@ -148,6 +151,22 @@ class InventoryBuilder(
         return found.distinct() to (unchecked - found.map { it.systemId }.toSet())
     }
 
+    /**
+     * Keys an emulator needs before any game opens (Eden's prod.keys), by emulator: found, and
+     * not looked for because they're in private storage we can't read. Any installed build counts.
+     */
+    private fun keys(facts: DeviceFacts): Pair<Set<String>, Set<String>> {
+        val found = mutableSetOf<String>(); val unchecked = mutableSetOf<String>()
+        for (emu in bundle.emulators.filter(::needsKeys)) {
+            val dir = emu.paths.keysDir
+            val pkgs = emu.packages.filter { it in facts.installed }
+            if (dir.isEmpty() || pkgs.isEmpty()) continue
+            if ("{appData}" in dir && !facts.canReadAppData) { unchecked += emu.id; continue }
+            if (pkgs.any { p -> files.exists("${dir.replace("{appData}", "${facts.appDataRoot}/$p").trimEnd('/')}/$KEYS_FILE") }) found += emu.id
+        }
+        return found to unchecked
+    }
+
     private fun permissions(facts: DeviceFacts): List<AppPermissionState> = facts.installed.keys.map { pkg ->
         val emu = bundle.emulators.firstOrNull { pkg in it.packages }
         AppPermissionState(
@@ -187,3 +206,12 @@ class InventoryBuilder(
         val COMPANIONS = setOf("sav", "ml1", "srm", "sta", "dsv", "txt", "nfo", "jpg", "png", "m3u", "ramrom-part")
     }
 }
+
+/** What Switch emulators read keys from; firmware is optional, keys are not. */
+private const val KEYS_FILE = "prod.keys"
+
+/**
+ * Switch emulators open nothing without prod.keys. Azahar has a keys folder too, but only
+ * encrypted games need it, so it isn't counted against setup.
+ */
+internal fun needsKeys(emu: com.ramrom.emumanager.knowledge.EmulatorProfile) = emu.paths.keysDir.isNotEmpty() && "switch" in emu.systems

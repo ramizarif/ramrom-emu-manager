@@ -45,6 +45,30 @@ class AppInstaller(private val context: Context, private val access: AccessManag
         Releases.pick(get(url), source.assetRegex, allowPre)
     }
 
+    /**
+     * Shizuku itself, from its official GitHub, through Android's installer (we can't be elevated
+     * yet: Shizuku is what elevates us). Null when installed, else what to tell the user.
+     */
+    suspend fun installShizuku(onProgress: (Float) -> Unit): String? {
+        if (!context.packageManager.canRequestPackageInstalls()) {
+            runCatching {
+                context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:${context.packageName}"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+            return "Allow RamROM Emu Manager to install apps, then come back and tap Install Shizuku again."
+        }
+        val source = com.ramrom.emumanager.knowledge.InstallSource(com.ramrom.emumanager.knowledge.SourceType.GITHUB_RELEASE,
+            repo = "RikkaApps/Shizuku", assetRegex = """shizuku-v.*-release\.apk$""")
+        val apk = try { resolve(source) } catch (e: Exception) { return "Couldn't reach Shizuku's releases: ${e.message}" }
+            ?: return "No Android build in Shizuku's latest release."
+        val file = try { download(apk) { onProgress(it * 0.9f) } } catch (e: Exception) { return "Download stopped: ${e.message}" }
+        return when (val r = install(file)) {
+            InstallOutcome.Installed -> null
+            InstallOutcome.Cancelled -> "Android's install prompt was closed. Tap Install Shizuku and choose Install."
+            is InstallOutcome.Failed -> r.reason
+        }
+    }
+
     suspend fun download(apk: ResolvedApk, onProgress: (Float) -> Unit): File = withContext(Dispatchers.IO) {
         require(apk.url.startsWith("https://")) { "Refusing a non-https download" }
         val out = File(cache, apk.fileName.replace(Regex("[^A-Za-z0-9._-]"), "_"))

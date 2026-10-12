@@ -31,6 +31,18 @@ object Detection {
         }
     }
 
+    /**
+     * The model the user said this is (S02 "Choose another"), for hardware we can't recognise. Our
+     * own detection wins when it knows the model; this fills in when it doesn't.
+     */
+    fun chosenDeviceId(context: Context): String? = context.getSharedPreferences("device", Context.MODE_PRIVATE).getString("chosen", null)
+    fun setChosenDevice(context: Context, id: String?) { context.getSharedPreferences("device", Context.MODE_PRIVATE).edit().putString("chosen", id).apply() }
+
+    /** The device profile to use: the detected model, else the one the user chose. */
+    fun deviceProfile(context: Context, bundle: com.ramrom.emumanager.knowledge.KnowledgeBundle): com.ramrom.emumanager.knowledge.DeviceProfile? =
+        DeviceDetector.match(DeviceDetector.readDevice(context), bundle).profile
+            ?: chosenDeviceId(context)?.let { id -> bundle.devices.firstOrNull { it.id == id } }
+
     fun tileColor(i: Int) = tileColors[i % tileColors.size]
 
     fun familyName(id: String) = when (id) {

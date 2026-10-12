@@ -239,8 +239,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
             if (app.imports.job.value != null && nav.current != Route.ImportProgress) nav.push(Route.ImportProgress)
         }
     }
-    val healthPlan = app.health.report.collectAsState().value?.plan
-    val esdeLaunch = remember(nav.current, healthPlan) { frontendLaunch(context, app.knowledge.getBundle(), healthPlan) }
+    val healthNow = app.health.report.collectAsState().value
+    val esdeLaunch = remember(nav.current, healthNow) { frontendLaunch(context, app.knowledge.getBundle(), healthNow?.plan, healthNow) }
     // A finished or settled run (some steps skipped) hands Home back to the health view.
     val runSummary = runState?.takeUnless { it.isComplete || it.isSettled }?.let { Triple(it.doneCount, it.stepProgress.size, it.needsYouCount + it.failedCount) }
 
@@ -275,7 +275,9 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                             pickerOpen = false
                             val name = knownDevices.firstOrNull { it.first == id }?.second
                             // A user-chosen device is never "Verified": we can't confirm the hardware.
-                            device = if (name != null) DeviceSummary("This is an $name", "Chosen by you", emptyList(), DeviceSummary.Kind.BestGuess)
+                            // It is remembered, so the plan and per-device settings use its chip.
+                            Detection.setChosenDevice(context, if (name != null) id else null)
+                            device = if (name != null) DeviceSummary("This is an $name", "Chosen by you", emptyList(), DeviceSummary.Kind.Chosen)
                             else device.copy(kind = DeviceSummary.Kind.BestGuess)
                         }
                     }
@@ -302,7 +304,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         }
                     }
                 }
-                is Route.Access -> AccessScreen(app.access, onDone = {
+                is Route.Access -> AccessScreen(app.access, installShizuku = { p -> com.ramrom.emumanager.install.AppInstaller(app, app.access).installShizuku(p) }, onDone = {
                     when (val next = r.next) {
                         is Route.Main -> finishOnboarding(next)
                         // Replace the access step so B from S06 goes back to S03, not to S04.

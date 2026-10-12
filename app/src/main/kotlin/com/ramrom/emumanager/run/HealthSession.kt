@@ -30,8 +30,9 @@ class HealthSession(private val app: EmuApplication) {
         try {
             val inventory = DeviceInventory(app, bundle, app.access).scan()
             val issues = HealthChecker(bundle).check(plan, inventory, accessLost = app.access.mode.value == AccessMode.Disconnected)
-            android.util.Log.d("RamROM/health", "${app.access.mode.value}: " + issues.joinToString { "${it.id}=${it.severity}" })
-            return HealthReport.of(plan, issues, bundle).also { _report.value = it }
+            val planned = plan.systems.map { it.systemId }.toSet()
+            val games = inventory.romFolders.filter { it.systemId in planned }.sumOf { it.gameCount }
+            return HealthReport.of(plan, issues, bundle).copy(games = games).also { _report.value = it }
         } finally { _checking.value = false }
     }
 }

@@ -25,6 +25,8 @@ data class HealthReport(
     val systems: List<SystemHealth>,
     val score: com.ramrom.emumanager.engine.health.SetupScore,
     val frontends: List<FrontendHealth> = emptyList(),
+    /** Games in the planned systems' folders. None yet: setup's next step is bringing them in. */
+    val games: Int = 0,
 ) {
     val blocking get() = issues.filter { it.severity == IssueSeverity.BLOCKER }
     val warnings get() = issues.filter { it.severity == IssueSeverity.WARNING }

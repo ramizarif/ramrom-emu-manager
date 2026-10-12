@@ -162,4 +162,19 @@ class HealthCheckerTest {
         assertTrue(score.missing.any { it.what == "Cocoon pointed at your games" })
         assertFalse(score.missing.any { it.what.startsWith("iiSU") })
     }
+
+    @Test fun switchNeedsKeysToBeReady() {
+        val keys = "/storage/emulated/0/Android/data/dev.eden.eden_emulator/files/keys/prod.keys"
+        val missing = check(inv(esdeSettings) { copy(canReadAppData = true) })
+        assertTrue(missing.any { it.id == "keys_missing_switch" && it.severity == IssueSeverity.BLOCKER && it.systemId == "switch" })
+        assertTrue(SetupScore.of(plan, missing, testBundle).missing.any { it.systemId == "switch" && it.what == "Keys" })
+        assertFalse(check(inv(esdeSettings, keys) { copy(canReadAppData = true) }).any { it.id.startsWith("keys_") })
+        // Azahar keeps keys too, but only encrypted games need them: never a setup item.
+        val n3ds = Plan("ayn-thor", "sd8gen2", "es-de", listOf(Plan.PlanSystem("n3ds", "azahar")), null)
+        assertFalse(HealthChecker(testBundle).check(n3ds, inv(all + "org.azahar_emu.azahar", files = arrayOf(esdeSettings)) { copy(canReadAppData = true) }).any { it.id.startsWith("keys_") })
+        // Can't look: a note, and the percentage doesn't count it either way.
+        val unchecked = check(inv(esdeSettings))
+        assertTrue(unchecked.any { it.id == "keys_unchecked_switch" && it.severity == IssueSeverity.INFO })
+        assertFalse(SetupScore.of(plan, unchecked, testBundle).missing.any { it.what == "Keys" })
+    }
 }

@@ -88,7 +88,11 @@ object StepChip {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
-        ).apply { gravity = Gravity.TOP or Gravity.START; x = dp(16); y = dp(72) }
+        ).apply {
+            // Wherever the user last dragged it: one move lasts the whole setup, not one step.
+            val at = context.getSharedPreferences("step_chip", Context.MODE_PRIVATE)
+            gravity = Gravity.TOP or Gravity.START; x = at.getInt("x", dp(16)); y = at.getInt("y", dp(72))
+        }
 
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -109,6 +113,7 @@ object StepChip {
                 background = round(0x22FFFFFF, 8); setPadding(dp(10), dp(6), dp(10), dp(6)); maxWidth = dp(300)
             })
         }
+        body.addView(TextView(context).apply { text = "Drag me if I'm in the way"; setTextColor(soft); textSize = 10f; setPadding(0, dp(8), 0, 0) })
         body.addView(TextView(context).apply {
             text = "Back to setup"; setTextColor(ink); textSize = 14f; typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER; background = round(mint, 12); setPadding(dp(14), dp(8), dp(14), dp(8))
@@ -130,7 +135,9 @@ object StepChip {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!dragging && v === head) {
+                    if (dragging) context.getSharedPreferences("step_chip", Context.MODE_PRIVATE).edit().putInt("x", params.x).putInt("y", params.y).apply()
+                    // The title toggles; when it's folded, the whole chip is the title.
+                    if (!dragging && (v === head || body.visibility != View.VISIBLE)) {
                         val open = body.visibility == View.VISIBLE
                         body.visibility = if (open) View.GONE else View.VISIBLE
                         head.text = (if (open) "▸  " else "▾  ") + title.let { if (open) it.take(18) + if (it.length > 18) "…" else "" else it }

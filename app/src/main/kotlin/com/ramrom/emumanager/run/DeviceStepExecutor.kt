@@ -111,6 +111,26 @@ class DeviceStepExecutor(
             .any { p -> com.ramrom.emumanager.engine.inventory.UriGrants.within(romRoot, p) || (frontend == null && com.ramrom.emumanager.engine.inventory.UriGrants.within(p, romRoot)) }
     }
 
+    /** Folders [appId] holds a grant on that aren't the ROMs folder, as the user would name them. */
+    suspend fun pickedInstead(appId: String): String? {
+        val dump = (access.access.dumpsys("activity", "permissions") as? AccessResult.Ok)?.value ?: return null
+        val byUid = com.ramrom.emumanager.engine.inventory.UriGrants.parse(dump)
+        val pkgs = bundle.frontends.firstOrNull { it.id == appId }?.packages ?: bundle.emulators.firstOrNull { it.id == appId }?.packages.orEmpty()
+        // Its own data folder (Azahar, Cocoon-Media, PSP) is a right answer to a different question.
+        val fe = bundle.frontends.firstOrNull { it.id == appId }
+        val emu = bundle.emulators.firstOrNull { it.id == appId }
+        val dataRoots = (listOfNotNull(fe?.paths?.mediaRoot, fe?.paths?.gamelists) +
+            listOfNotNull(emu?.paths?.configFile, emu?.paths?.biosDir, emu?.paths?.keysDir))
+            .map { it.removePrefix("/sdcard/").removePrefix("/storage/emulated/0/").substringBefore('/') }
+            .filter { it.isNotEmpty() && !it.startsWith("{") }.toSet() + DATA_FOLDERS[appId].orEmpty()
+        return pkgs.mapNotNull { runCatching { pm.getApplicationInfo(it, 0).uid }.getOrNull() }
+            .flatMap { byUid[it].orEmpty() }
+            .filterNot { com.ramrom.emumanager.engine.inventory.UriGrants.within(romRoot, it) }
+            .filterNot { p -> dataRoots.any { d -> p.removePrefix("/storage/emulated/0/").substringBefore('/').equals(d, ignoreCase = true) } }
+            .map { it.removePrefix("/storage/emulated/0/").ifEmpty { "the whole storage" } }
+            .distinct().takeIf { it.isNotEmpty() }?.joinToString(" and ")
+    }
+
     /**
      * L2 defaults through P09: snapshot, history and undo like any other change. The plan said so
      * before the run started; the app is closed first only if it's open.
@@ -239,6 +259,9 @@ class DeviceStepExecutor(
     private fun notInstalled(id: String) = StepResult.NeedsUser("Install ${bundle.emulators.firstOrNull { it.id == id }?.name ?: bundle.frontends.firstOrNull { it.id == id }?.name ?: id} first.")
 
     companion object {
+        /** Data folders our steps ask for that the bundle has no path for. */
+        private val DATA_FOLDERS = mapOf("ppsspp" to setOf("PSP"))
+
         /** ES-DE's default ROM directory. P10 reads the real one from es_settings.xml once verified. */
         const val DEFAULT_ROM_ROOT = "/storage/emulated/0/ROMs"
     }

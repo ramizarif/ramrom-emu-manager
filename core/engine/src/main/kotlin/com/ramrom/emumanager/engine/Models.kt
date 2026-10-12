@@ -67,4 +67,7 @@ data class Inventory(
     val grantPaths: Map<String, List<String>> = emptyMap(),
     /** Systems whose BIOS lives where we can't look (Android/data without Shizuku). */
     val biosUnchecked: Set<String> = emptySet(),
+    /** Emulators with their keys in place (Eden's prod.keys), and ones whose keys we couldn't look for. */
+    val keysFound: Set<String> = emptySet(),
+    val keysUnchecked: Set<String> = emptySet(),
 )

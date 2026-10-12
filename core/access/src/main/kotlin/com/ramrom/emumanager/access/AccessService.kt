@@ -85,13 +85,32 @@ class AccessService : IAccessService.Stub() {
         }
     }
 
+    /**
+     * Older builds left an empty folder chain under /sdcard/storage. Remove it, deepest first,
+     * only while each folder is empty: anything the user put there stays.
+     */
+    private fun removeStrayProbeDirs(dir: String) {
+        val root = "/storage/emulated/0"
+        if (!dir.startsWith("$root/")) return
+        var f: File? = File("$root$dir")
+        val stop = File("$root/storage")
+        while (f != null && f.path.startsWith(stop.path)) {
+            if (!f.isDirectory || (f.list()?.isNotEmpty() != false) || !f.delete()) break
+            if (f.path == stop.path) break
+            f = f.parentFile
+        }
+    }
+
     override fun probeCapabilities(probeDir: String): Array<String> {
         if (!AllowList.isPathAllowed(probeDir)) {
             throw SecurityException("Probe dir not allowed: $probeDir")
         }
 
         val capabilities = mutableListOf<String>()
-        val probeFile = File("/storage/emulated/0/$probeDir/_probe.txt")
+        // The caller passes an absolute path; prefixing it again made /sdcard/storage/emulated/0/...
+        val dir = if (probeDir.startsWith("/")) probeDir else "/storage/emulated/0/$probeDir"
+        val probeFile = File("$dir/_probe.txt")
+        removeStrayProbeDirs(dir)
 
         try {
             // Test WRITE_APP_DATA: write to our probe dir

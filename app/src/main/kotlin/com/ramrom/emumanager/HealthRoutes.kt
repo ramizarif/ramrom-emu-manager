@@ -45,7 +45,7 @@ fun HealthRoute(app: EmuApplication, nav: Navigator, onFixWithSetup: () -> Unit,
     val checking by app.health.checking.collectAsState()
     LifecycleResumeEffect(Unit) { scope.launch { runCatching { app.health.check() }.onFailure { app.log.e("health", "check failed", it) } }; onPauseOrDispose { } }
     val bundle = app.knowledge.getBundle()
-    val esde = remember(report?.plan) { frontendLaunch(context, bundle, report?.plan) }
+    val esde = remember(report) { frontendLaunch(context, bundle, report?.plan, report) }
     HealthScreen(
         report = report.takeUnless { checking && it == null },
         handheld = handheldOf(app, report?.plan?.systems?.map { it.emulatorId }.orEmpty()),
@@ -56,6 +56,7 @@ fun HealthRoute(app: EmuApplication, nav: Navigator, onFixWithSetup: () -> Unit,
         onRecheck = { scope.launch { app.health.check() } },
         onOpenEsde = { esde?.let { context.tryStart(it.intent) } },
         onDone = onDone,
+        onImport = { nav.push(Route.ImportGames) },
     )
 }
 
@@ -134,6 +135,8 @@ private fun fixFor(issue: HealthIssue, context: Context, app: EmuApplication, el
             // A frontend's games folder is its own setting; anything else is a first run to finish.
             if (issue.id.startsWith("frontend_folder_")) launch?.let { IssueFix("Open it", { context.tryStart(it) }, value = "Pick this folder" to "ROMs",
                 note = "Find where it asks for your games folder, choose ROMs and allow access. Then come back.") }
+            else if (issue.id.startsWith("keys_missing_")) launch?.let { IssueFix("Open it", { context.tryStart(it) },
+                note = "Install keys picks a prod.keys file you dumped from your own console. Come back once it's in and we'll check again.") }
             else launch?.let { IssueFix("Open it", { context.tryStart(it) }, note = "Come back when it's done its first-run screens.") }
         }
         is FixAction.StageBios -> IssueFix("I've copied it", recheck, note = "Copy one of the files above into the emulator's BIOS folder. Setup copies it for you when you pick your BIOS folder on the BIOS check.")

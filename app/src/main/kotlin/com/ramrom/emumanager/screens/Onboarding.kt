@@ -56,7 +56,8 @@ data class DeviceSummary(
     val facts: List<String>,
     val kind: Kind,
 ) {
-    enum class Kind { Verified, BestGuess, Phone }
+    /** Chosen: the user told us the model; its chip's recommendations apply, unconfirmed. */
+    enum class Kind { Verified, BestGuess, Chosen, Phone }
 }
 
 /** S02. Verified device waves hello; unknown handhelds get a best guess; phones go to planning. */
@@ -70,6 +71,7 @@ fun DeviceScreen(device: DeviceSummary, onConfirm: () -> Unit, onChoose: () -> U
         bubble = when (device.kind) {
             DeviceSummary.Kind.Verified -> "Hi! Nice to meet you."
             DeviceSummary.Kind.BestGuess -> "I'm new here!"
+            DeviceSummary.Kind.Chosen -> "Got it, thanks!"
             DeviceSummary.Kind.Phone -> "I'll be waiting!"
         },
         hints = listOf("A" to "Select", "B" to "Back"),
@@ -92,6 +94,7 @@ fun DeviceScreen(device: DeviceSummary, onConfirm: () -> Unit, onChoose: () -> U
             when (device.kind) {
                 DeviceSummary.Kind.Verified -> Tag("Verified device", TagKind.Done)
                 DeviceSummary.Kind.BestGuess -> Tag("Best-guess settings", TagKind.Neutral)
+                DeviceSummary.Kind.Chosen -> Tag("Settings for this model", TagKind.Done)
                 DeviceSummary.Kind.Phone -> Tag("Plan here, set up there", TagKind.Neutral)
             }
         }
@@ -100,6 +103,7 @@ fun DeviceScreen(device: DeviceSummary, onConfirm: () -> Unit, onChoose: () -> U
             when (device.kind) {
                 DeviceSummary.Kind.Verified -> "Settings marked Verified were tested on this exact model."
                 DeviceSummary.Kind.BestGuess -> "Recommendations come from devices with the same chip. They're usually right, and you can change anything later."
+                DeviceSummary.Kind.Chosen -> "Recommendations are the ones for this model. You can change anything later."
                 DeviceSummary.Kind.Phone -> "Plan your setup here and send it to your handheld when it arrives."
             },
             style = EmuType.Body,
@@ -141,7 +145,7 @@ fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onOpenP
                 ) { if (found) Tag("Best fit", TagKind.YourTurn) }
             }
             val setUp = @Composable { m: Modifier ->
-                OptionCard("Set up this device", "Pick a frontend and emulators; we do the rest.", { onPick(SetupPath.SetUp) }, m,
+                OptionCard("Set up this device", "Pick your frontends and emulators; we do the rest.", { onPick(SetupPath.SetUp) }, m,
                     icon = { TileIcon("✦", EmuColors.YourTurn, 38.dp) })
             }
             if (found) { adopt(Modifier.focusRequester(focus)); setUp(Modifier) } else { setUp(Modifier.focusRequester(focus)); adopt(Modifier) }

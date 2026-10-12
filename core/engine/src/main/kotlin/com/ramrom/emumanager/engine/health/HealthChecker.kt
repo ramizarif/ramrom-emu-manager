@@ -126,6 +126,17 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
             }
         }
 
+        // Keys: Eden opens nothing without prod.keys from the user's own console.
+        for (s in chosen) {
+            val emu = emulators[s.emulatorId] ?: continue
+            if (!com.ramrom.emumanager.engine.inventory.needsKeys(emu) || !isInstalled(s.emulatorId) || s.emulatorId in inventory.keysFound) continue
+            issues += if (s.emulatorId in inventory.keysUnchecked) HealthIssue("keys_unchecked_${s.systemId}", IssueSeverity.INFO,
+                "We can't check ${emu.name}'s keys", "They live in ${emu.name}'s private folder. Connect Shizuku and we can look.", emptyList(), FixAction.ReconnectAccess, s.systemId)
+            else HealthIssue("keys_missing_${s.systemId}", IssueSeverity.BLOCKER, "${emu.name} needs your keys",
+                "Games won't open without prod.keys from your own console. Add them in ${emu.name}: Settings, then Install keys.",
+                listOf("prod.keys"), FixAction.OpenAppSetup(emu.id), s.systemId)
+        }
+
         // BIOS: only what the system's chosen emulator needs, only the required files.
         for (s in chosen) {
             if (!isInstalled(s.emulatorId)) continue

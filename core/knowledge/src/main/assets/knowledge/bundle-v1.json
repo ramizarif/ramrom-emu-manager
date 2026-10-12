@@ -601,8 +601,9 @@
       "folderPick": {
         "needed": true,
         "inAppSteps": [
-          "Launch PPSSPP",
-          "Grant folder access when prompted"
+          "Open PPSSPP. It first asks where to keep PSP data: choose Create or choose a PSP folder",
+          "Make a folder called PSP and use it. This is for saves, not games",
+          "In the Games tab, tap Browse... and pick the folder below"
         ],
         "verifyTreeSuffix": "ROMs"
       },
@@ -705,13 +706,17 @@
       "pathsNeedElevated": false,
       "configFormat": "qt_ini",
       "enumMaps": {},
-      "permissions": [],
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "declaresAllFilesAccess": true,
       "folderPick": {
         "needed": true,
         "inAppSteps": [
-          "Launch Azahar",
-          "Grant folder access when prompted"
+          "Open Azahar and tap Get started",
+          "For User folder, tap Create new folder, name it Azahar, and use it",
+          "For Applications, pick the folder below and allow access",
+          "Tap Next until it's done"
         ],
         "verifyTreeSuffix": "ROMs"
       },
@@ -814,8 +819,8 @@
       "folderPick": {
         "needed": true,
         "inAppSteps": [
-          "Launch melonDS",
-          "Grant folder access when prompted"
+          "Open melonDS and tap Set ROM directory",
+          "Pick the folder below and allow access"
         ],
         "verifyTreeSuffix": "ROMs"
       },
@@ -1237,8 +1242,9 @@
       "gamesFolderGrant": true,
       "emulatorChoiceInApp": "In Cocoon, open each system's settings and pick its Player (the emulator that opens its games).",
       "firstRunSteps": [
-        "Open Cocoon",
-        "When it asks for your games, choose the ROMs folder and allow access"
+        "Open Cocoon and go through its first screens",
+        "For Data folder, tap Create new folder, name it Cocoon-Media, and use it",
+        "At ROM folder, tap Select directory, pick ROMs and allow access"
       ],
       "systemFolders": {
         "switch": "switch",
@@ -1292,8 +1298,8 @@
       "gamesFolderGrant": false,
       "emulatorChoiceInApp": "In iiSU, set which emulator opens each system.",
       "firstRunSteps": [
-        "Open iiSU",
-        "Point it at your ROMs folder when it asks"
+        "Open iiSU and tap Start",
+        "At Games Folder, tap Choose ROM folder, pick ROMs and allow access"
       ],
       "systemFolders": {
         "switch": "switch",

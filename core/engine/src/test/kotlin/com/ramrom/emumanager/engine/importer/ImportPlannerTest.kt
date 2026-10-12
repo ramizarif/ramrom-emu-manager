@@ -95,4 +95,14 @@ class ImportPlannerTest {
         val plan = planner().plan(listOf(disc(1), disc(2)), move, includeOverrides = mapOf("$dl/Game (Disc 2).chd" to false))
         assertTrue(plan.playlists.isEmpty())
     }
+
+    @Test fun theOnlyFittingSystemInTheSetupIsGuessed() {
+        val setUp = mapOf("ps1" to "duckstation", "psp" to "ppsspp", "nds" to "melonds")
+        val plan = planner().plan(listOf(loose("Arena (USA).cue", null), loose("Space Run (USA).iso", null)), move, setUp.keys, setUpEmulators = setUp)
+        val cue = plan.items.single { it.title.startsWith("Arena") }
+        assertEquals("ps1", cue.systemId)
+        assertTrue(cue.included && cue.problems.single().kind == ImportProblem.Kind.Guessed)
+        // DuckStation and PPSSPP both open .iso: still the user's call.
+        assertEquals(null, plan.items.single { it.title.startsWith("Space") }.systemId)
+    }
 }

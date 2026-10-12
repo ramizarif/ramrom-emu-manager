@@ -19,7 +19,14 @@ object BiosRows {
                     val finalName = st.entry.targets.firstOrNull { it.emulatorId == s.emulatorId }?.renameTo ?: st.entry.fileName
                     BiosRow(s.systemName, BiosRowState.Found, "${st.file.path.removePrefix("/storage/emulated/0/")}  →  $finalName for ${s.emulatorName}")
                 }
-                is BiosCheckStatus.WrongVersion -> BiosRow(s.systemName, BiosRowState.WrongVersion, "${st.file.path.removePrefix("/storage/emulated/0/")} isn't a version we know. Expected: $expected")
+                is BiosCheckStatus.WrongVersion -> {
+                    val shown = st.file.path.removePrefix("/storage/emulated/0/")
+                    // The right name with the wrong contents is a damaged or renamed copy, not a different version.
+                    val named = names.any { it.equals(shown.substringAfterLast("/"), ignoreCase = true) }
+                    BiosRow(s.systemName, BiosRowState.WrongVersion,
+                        if (named) "$shown has the right name but isn't a dump we recognise. It may be damaged; try another copy."
+                        else "$shown isn't a version we know. Expected: $expected")
+                }
                 BiosCheckStatus.GuidedOnly -> BiosRow(s.systemName, BiosRowState.InApp, "${s.emulatorName} sets this up itself; we'll walk you through it")
                 null, BiosCheckStatus.Missing -> when {
                     names.isEmpty() -> BiosRow(s.systemName, BiosRowState.InApp, "${s.emulatorName} sets this up itself; we'll walk you through it")

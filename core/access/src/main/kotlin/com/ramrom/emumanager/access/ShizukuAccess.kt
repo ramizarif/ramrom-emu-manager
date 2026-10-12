@@ -56,7 +56,7 @@ class ShizukuAccess(
                 try {
                     val args = Shizuku.UserServiceArgs(
                         ComponentName(context.packageName, AccessService::class.java.name)
-                    ).daemon(false).processNameSuffix("access").version(2) // bump when AccessService or AllowList changes
+                    ).daemon(false).processNameSuffix("access").version(3) // bump when AccessService or AllowList changes
 
                     Shizuku.bindUserService(args, conn)
                 } catch (e: Exception) {

@@ -76,9 +76,13 @@ internal fun accessStep(s: ShizukuSetup, connecting: Boolean, connected: Boolean
     else -> AccessStep.Connecting
 }
 
-/** S04 Access setup: the Shizuku stepper, plus the limited-mode alternative. */
+/**
+ * S04 Access setup: the Shizuku stepper, plus the limited-mode alternative. [installShizuku]
+ * downloads it from its GitHub releases and installs it, reporting progress; it returns why it
+ * couldn't, or null once it's on.
+ */
 @Composable
-fun AccessScreen(manager: AccessManager, onDone: () -> Unit) {
+fun AccessScreen(manager: AccessManager, installShizuku: (suspend ((Float) -> Unit) -> String?)? = null, onDone: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val setup by manager.setup.collectAsState()
@@ -87,6 +91,26 @@ fun AccessScreen(manager: AccessManager, onDone: () -> Unit) {
     var connecting by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     var limitedView by remember { mutableStateOf(false) }
+    var installing by remember { mutableStateOf<Float?>(null) }
+    var installError by remember { mutableStateOf<String?>(null) }
+    // Sent to Android's "install unknown apps" page: carry on by ourselves once it's allowed.
+    var awaitingInstallPermission by remember { mutableStateOf(false) }
+    fun install() {
+        val run = installShizuku ?: return openShizukuStore(context)
+        if (installing != null) return
+        awaitingInstallPermission = !context.packageManager.canRequestPackageInstalls()
+        installError = null; installing = 0f
+        scope.launch {
+            installError = run { installing = it }
+            installing = null
+            if (installError == null) awaitingInstallPermission = false
+            manager.refresh()
+        }
+    }
+    LifecycleResumeEffect(awaitingInstallPermission) {
+        if (awaitingInstallPermission && context.packageManager.canRequestPackageInstalls()) { awaitingInstallPermission = false; install() }
+        onPauseOrDispose { }
+    }
 
     // Detect each part on our own: poll while this screen is visible, refresh on return.
     LifecycleResumeEffect(Unit) { manager.refresh(); onPauseOrDispose { } }
@@ -124,16 +148,30 @@ fun AccessScreen(manager: AccessManager, onDone: () -> Unit) {
         hints = listOf("A" to "Select", "B" to "Back"),
         actions = {
             when (step) {
-                AccessStep.Install -> EmuButton("Get Shizuku", { openShizukuStore(context) }, kind = ButtonKind.Go, focusRequester = focus)
+                AccessStep.Install -> {
+                    EmuButton(installing?.let { "Installing… ${(it * 100).toInt()}%" } ?: "Install Shizuku", { install() }, kind = ButtonKind.Go, focusRequester = focus)
+                    // The Play Store is the way round a real failure, not round a permission we're waiting on.
+                    if (installError != null && !awaitingInstallPermission) EmuButton("Use Play Store", { openShizukuStore(context) })
+                }
                 AccessStep.DevOptions -> EmuButton("Open About device", { open(context, Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)) }, kind = ButtonKind.Go, focusRequester = focus)
-                AccessStep.Start -> EmuButton("Open Shizuku", { open(context, context.packageManager.getLaunchIntentForPackage(SHIZUKU)) }, kind = ButtonKind.Go, focusRequester = focus)
+                AccessStep.Start -> {
+                    // Wireless debugging first; with it on, the rest happens in Shizuku.
+                    // Three buttons don't fit the pane: the second one only once it's needed (pairing goes
+                    // back and forth between the two), and small.
+                    val devFirst = setup.wirelessDebugging == false
+                    EmuButton(if (devFirst) "Open Developer options" else "Open Shizuku", {
+                        open(context, if (devFirst) Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) else context.packageManager.getLaunchIntentForPackage(SHIZUKU))
+                    }, kind = ButtonKind.Go, focusRequester = focus)
+                    if (!devFirst) EmuButton("Developer options", { open(context, Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }, small = true)
+                }
                 AccessStep.Allow -> EmuButton("Allow access", { manager.requestPermission() }, kind = ButtonKind.Go, focusRequester = focus)
                 AccessStep.Denied -> EmuButton("Ask again", { manager.requestPermission() }, kind = ButtonKind.Go, focusRequester = focus)
                 AccessStep.Failed -> EmuButton("Try again", { failed = false; scope.launch { connecting = true; failed = !manager.connect(); connecting = false } }, kind = ButtonKind.Go, focusRequester = focus)
                 AccessStep.Connecting -> EmuButton("Connecting…", {}, focusRequester = focus)
                 AccessStep.Connected -> EmuButton("Continue", onDone, kind = ButtonKind.Go, focusRequester = focus)
             }
-            if (step != AccessStep.Connected) EmuButton("Use limited mode", { limitedView = true }, kind = if (step == AccessStep.Denied) ButtonKind.Secondary else ButtonKind.Ghost)
+            // On the pairing step the row is full; the way out sits under the steps instead.
+            if (step != AccessStep.Connected && step != AccessStep.Start) EmuButton("Use limited mode", { limitedView = true }, kind = if (step == AccessStep.Denied) ButtonKind.Secondary else ButtonKind.Ghost)
         },
     ) {
         JourneyTrack(1, 5, "Step 1 of 5 · Connect")
@@ -153,7 +191,13 @@ fun AccessScreen(manager: AccessManager, onDone: () -> Unit) {
                 CheckItem("Allow access", state(false, step == AccessStep.Allow || step == AccessStep.Connecting, bad = step == AccessStep.Denied || step == AccessStep.Failed))
             }
             Spacer(Modifier.height(12.dp))
-            BasicText(instruction(step), style = EmuType.Body)
+            if (step == AccessStep.Start) {
+                PairingSteps(setup.wirelessDebugging)
+                Spacer(Modifier.height(8.dp))
+                EmuButton("Use limited mode instead", { limitedView = true }, kind = ButtonKind.Ghost, small = true)
+            }
+            else BasicText(instruction(step), style = EmuType.Body)
+            installError?.takeIf { step == AccessStep.Install }?.let { Spacer(Modifier.height(10.dp)); InlineAlert("Couldn't install it", it, AlertKind.YourTurn) }
         }
     }
 }
@@ -161,7 +205,7 @@ fun AccessScreen(manager: AccessManager, onDone: () -> Unit) {
 private fun instruction(step: AccessStep) = buildAnnotatedString {
     fun b(t: String) { pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = EmuColors.Ink)); append(t); pop() }
     when (step) {
-        AccessStep.Install -> { append("Shizuku is a free app that lets this one make changes Android normally keeps for computers. Install it, then come back.") }
+        AccessStep.Install -> { append("Shizuku is a free app that lets this one make changes Android normally keeps for computers. We install it from its official GitHub.") }
         AccessStep.DevOptions -> { append("Open About device and tap "); b("Build number"); append(" 7 times. We'll notice when it's on.") }
         AccessStep.Start -> { append("Open Shizuku and tap "); b("Start"); append(". If it asks to pair, use the code in its notification. Wi-Fi needs to be on.") }
         AccessStep.Allow -> { append("Shizuku will ask if this app can use it. Choose "); b("Allow"); append(".") }
@@ -169,6 +213,32 @@ private fun instruction(step: AccessStep) = buildAnnotatedString {
         AccessStep.Connecting -> append("Connecting to Shizuku…")
         AccessStep.Failed -> append("Shizuku is running but didn't answer. Try again, or restart Shizuku.")
         AccessStep.Connected -> Unit
+    }
+}
+
+/**
+ * Starting Shizuku the first time means pairing it with Wireless debugging, which is where people
+ * get lost. Every step, in order; after a restart only the last two are needed again.
+ */
+@Composable
+private fun PairingSteps(wireless: Boolean?) {
+    fun b(t: String) = buildAnnotatedString { pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = EmuColors.Ink)); append(t); pop() }
+    val steps = listOf(
+        buildAnnotatedString { append("In "); append(b("Developer options")); append(", scroll to Debugging and turn on "); append(b("Wireless debugging")); append(". Tick "); append(b("Always allow on this network")); append(".") },
+        buildAnnotatedString { append("Open Shizuku and tap "); append(b("Pairing")); append(". Allow its notifications if it asks.") },
+        buildAnnotatedString { append("Open Wireless debugging (tap its name, not the switch) and tap "); append(b("Pair device with pairing code")); append(". Leave the code showing.") },
+        buildAnnotatedString { append("Tap "); append(b("Enter pairing code")); append(" on Shizuku's notification and type the code. Gone? Pull down your notifications.") },
+        buildAnnotatedString { append("In Shizuku, tap "); append(b("Start")); append(". We'll notice and carry on.") },
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        steps.forEachIndexed { i, text ->
+            val done = i == 0 && wireless == true
+            Row {
+                BasicText(if (done) "✓" else "${i + 1}", Modifier.padding(end = 10.dp), style = EmuType.Body.copy(color = if (done) EmuColors.MintInk else EmuColors.InkSoft, fontWeight = FontWeight.Bold))
+                BasicText(text, style = EmuType.Body)
+            }
+        }
+        BasicText("Paired before? Turn on Wireless debugging and tap Start in Shizuku. Wi-Fi has to be on, even with no internet.", style = EmuType.Hint)
     }
 }
 

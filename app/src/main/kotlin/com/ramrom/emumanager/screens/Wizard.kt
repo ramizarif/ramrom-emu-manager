@@ -115,6 +115,8 @@ fun WizardScreen(
                     state.isComplete -> "All done"
                     state.isPaused -> "Paused"
                     nextYours != null && state.runningCount == 0 -> "Your turn"
+                    // What's left waits on something skipped: nothing will move until the user says so.
+                    !state.isRunning -> "Done for now"
                     else -> "Setting things up"
                 },
                 style = EmuType.Headline,
@@ -127,6 +129,7 @@ fun WizardScreen(
             BasicText(
                 listOfNotNull(
                     "${state.doneCount} of ${rows.size} done",
+                    rows.count { it.status == StepRunStatus.Skipped }.takeIf { it > 0 }?.let { "$it skipped" },
                     if (!state.isComplete && minutes > 0) "about $minutes min left" else null,
                 ).joinToString("  ·  "),
                 style = EmuType.Hint,
@@ -140,12 +143,12 @@ fun WizardScreen(
                     Spacer(Modifier.height(4.dp))
                 }
                 if (moving.isNotEmpty()) {
-                    SectionLabel("Running and up next", moving.size)
+                    SectionLabel(if (state.isRunning) "Running and up next" else "Waiting on a skipped step", moving.size)
                     moving.forEach { r -> StepRow(r, onClick = { sheetFor = r }) }
                     Spacer(Modifier.height(4.dp))
                 }
                 if (done.isNotEmpty()) {
-                    SectionLabel("Done", done.size)
+                    SectionLabel(if (done.any { it.status == StepRunStatus.Skipped }) "Done and skipped" else "Done", done.size)
                     if (showDone) done.forEach { r -> StepRow(r, onClick = { if (r.status == StepRunStatus.Skipped) sheetFor = r }) }
                     else ListRow("Show what's done", detail = "${done.size} step${if (done.size == 1) "" else "s"}", onClick = { showDone = true })
                 }
@@ -237,6 +240,8 @@ fun GuidedStepScreen(
     onSkip: () -> Unit,
     /** Offered once per step in limited mode: lets the step chip float over the other app. */
     onAllowOverlay: (() -> Unit)? = null,
+    /** The folder the app was given instead of the one we asked for, if any. */
+    pickedInstead: String? = null,
 ) {
     val done = status.isSatisfied
     val checking = status == StepRunStatus.Verifying
@@ -289,7 +294,8 @@ fun GuidedStepScreen(
             running != null -> Column { BasicText("Working on it…", style = EmuType.Hint); Spacer(Modifier.height(4.dp)); ProgressBar(running.progress) }
             notSeen -> InlineAlert(
                 "We don't see it yet",
-                copy.value?.let { "Check you picked $it exactly, then try again." } ?: (status as? StepRunStatus.NeedsYou)?.reason?.takeIf { !it.startsWith("We couldn't see") },
+                pickedInstead?.let { "It was given $it. Pick ${copy.value ?: "the folder above"} instead, then try again." }
+                    ?: copy.value?.let { "Check you picked $it exactly, then try again." } ?: (status as? StepRunStatus.NeedsYou)?.reason?.takeIf { !it.startsWith("We couldn't see") },
                 AlertKind.YourTurn,
             )
             status is StepRunStatus.Failed -> InlineAlert("It didn't work", status.reason, AlertKind.Blocked)
