@@ -17,7 +17,7 @@
 
     <application
         android:name=".EmuApplication"
-        android:label="Emu Manager"
+        android:label="RamROM Emu Manager"
         android:theme="@style/Theme.EmuManager">
         <activity
             android:name=".MainActivity"

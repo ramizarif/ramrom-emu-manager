@@ -91,7 +91,7 @@ object StepText {
             StepType.CreateFolder -> StepCopy(
                 "Make the ${step.subject} folder", "${frontend?.let(::frontendName) ?: "Your frontend"} looks for games here.",
                 value = "ROMs/${step.subject}", valueLabel = "Folder",
-                instructions = listOf("Allow Emu Manager to manage files", "Come back here; we make the folders for you"),
+                instructions = listOf("Allow RamROM Emu Manager to manage files", "Come back here; we make the folders for you"),
                 action = GuidedAction.OwnAllFiles, actionLabel = "Allow file access", verifiable = true,
             )
             StepType.WriteFrontendConfig -> StepCopy(
@@ -106,7 +106,7 @@ object StepText {
                 val system = bundle.systems.firstOrNull { it.id == step.subject }?.name ?: step.subject
                 StepCopy(
                     "Copy your $system BIOS", "The emulator needs it to start games.",
-                    instructions = listOf("Allow Emu Manager to manage files", "Come back here; we copy it for you"),
+                    instructions = listOf("Allow RamROM Emu Manager to manage files", "Come back here; we copy it for you"),
                     action = GuidedAction.OwnAllFiles, actionLabel = "Allow file access", verifiable = true,
                 )
             }
