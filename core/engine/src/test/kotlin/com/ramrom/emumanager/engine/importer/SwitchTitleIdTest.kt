@@ -2,6 +2,8 @@ package com.ramrom.emumanager.engine.importer
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -36,5 +38,14 @@ class SwitchTitleIdTest {
     @Test fun nothingToGoOn() {
         assertNull(SwitchTitleId.read("Dusk Diver 2.xci", null))
         assertNull(SwitchTitleId.read("Metroid Dread.nsp", ByteReader { _, n -> ByteArray(n) }))
+    }
+
+    @Test fun updatesAndDlcAreNotGames() {
+        // Names from the Thor: the first one was about to be filed as a game.
+        listOf("BOTW-Update-v786432-1.6.0.nsp", "Hades [0100535012974800][v131072].nsp", "Game DLC Pack.nsp", "Game [0100535012975001].nsp")
+            .forEach { assertTrue(it, SwitchTitleId.isAddOn(it)) }
+        listOf("Danganronpa - Trigger Happy Havoc Anniversary Edition [0100A3301618E000][USA][v0](eShop).nsp",
+            "Hades[0100535012974000][US][v0].nsp", "Super Mario Bros. Wonder.nsp", "Updated Edition Deluxe.xci")
+            .forEach { assertFalse(it, SwitchTitleId.isAddOn(it)) }
     }
 }

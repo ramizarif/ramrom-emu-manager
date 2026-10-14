@@ -52,6 +52,13 @@ class LibraryTest {
         assertEquals("psx", ps1.folderName)
     }
 
+    @Test fun emulatorDataBesideGamesIsNotAGame() {
+        // PPSSPP set to keep its memory stick in the games folder (seen on the Thor).
+        val games = lib(null, "$r/nds/Game.nds", "$r/nds/PSP/SAVEDATA/ULUS10336DATA0/CCFF7DAT.BIN",
+            "$r/nds/PSP/SYSTEM/ppsspp.ini", "$r/nds/PSP/SAVEDATA/ (1).nomedia").single().games
+        assertEquals(listOf("Game"), games.map { it.title })
+    }
+
     @Test fun emptyFoldersAreLeftOut() = assertTrue(lib(null, "$r/nds/.keep").isEmpty())
 
     @Test fun dumpTagsLeaveTheTitle() {

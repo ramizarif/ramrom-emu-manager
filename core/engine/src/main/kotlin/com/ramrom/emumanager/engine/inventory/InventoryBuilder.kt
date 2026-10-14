@@ -90,7 +90,9 @@ class InventoryBuilder(
             val kept = mutableListOf<String>()
             for (f in files.listFiles(path)) {
                 val name = f.substringAfterLast('/')
-                if (name.startsWith('.') || isCompanion(name)) continue
+                if (name.startsWith('.') || name.endsWith(".nomedia") || isCompanion(name)) continue
+                // An emulator's own data kept beside the games (PPSSPP's PSP/ memory stick): saves, not games.
+                if (f.split('/').dropLast(1).any { it in DATA_DIRS }) continue
                 kept += f
                 val ext = name.substringAfterLast('.', "").lowercase()
                 when {
@@ -203,6 +205,7 @@ class InventoryBuilder(
     }
 
     private companion object {
+        val DATA_DIRS = setOf("PSP")
         val COMPANIONS = setOf("sav", "ml1", "srm", "sta", "dsv", "txt", "nfo", "jpg", "png", "m3u", "ramrom-part")
     }
 }

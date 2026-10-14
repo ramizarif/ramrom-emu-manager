@@ -10,6 +10,21 @@ object SwitchTitleId {
     private val TAG = Regex("""\[(01[0-9A-Fa-f]{14})]""")
     private val TICKET = Regex("""^(01[0-9a-fA-F]{14})[0-9a-fA-F]{16}\.tik$""")
 
+    private val ADDON_WORDS = Regex("""(?i)(^|[^a-z])(update|upd|dlc)([^a-z]|$)""")
+    private val VERSION = Regex("""(?i)\[v([0-9]+)]""")
+
+    /**
+     * An update or DLC rather than a game, judged from the name: the words, a `[v…]` tag above
+     * zero, or a title ID that isn't a base game's (bases end in 000). Emulators install these
+     * into their own storage; in the games folder a frontend lists them as games.
+     */
+    fun isAddOn(fileName: String): Boolean {
+        val name = fileName.substringAfterLast('/')
+        if (ADDON_WORDS.containsMatchIn(name.substringBeforeLast('.'))) return true
+        if (VERSION.find(name)?.groupValues?.get(1)?.toLongOrNull()?.let { it > 0 } == true) return true
+        return TAG.find(name)?.groupValues?.get(1)?.let { !it.endsWith("000") } == true
+    }
+
     fun read(fileName: String, reader: ByteReader?): String? =
         reader?.let(::fromNsp) ?: TAG.find(fileName)?.groupValues?.get(1)?.let(::base)
 

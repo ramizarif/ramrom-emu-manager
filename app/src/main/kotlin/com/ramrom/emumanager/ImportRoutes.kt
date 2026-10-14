@@ -44,11 +44,13 @@ fun ImportRoute(app: EmuApplication, nav: Navigator) {
     val scanning by session.scanning.collectAsState()
     val suggestions by session.suggestions.collectAsState()
     var canRead by remember { mutableStateOf(session.canReadFiles()) }
-    LifecycleResumeEffect(Unit) { canRead = session.canReadFiles(); onPauseOrDispose { } }
+    // Every return (from the folder picker, a file manager) looks again: folders come and go.
+    var visits by remember { mutableStateOf(0) }
+    LifecycleResumeEffect(Unit) { canRead = session.canReadFiles(); visits++; onPauseOrDispose { } }
     // A fresh visit looks in Downloads; coming back keeps the user's choices.
     LaunchedEffect(canRead) { if (canRead && draft == null && !scanning) session.scan(session.downloads) }
     // Meanwhile, look for other folders with games so an empty Downloads isn't a dead end.
-    LaunchedEffect(canRead) { if (canRead && suggestions == null) session.findSources() }
+    LaunchedEffect(canRead, visits) { if (canRead) session.findSources() }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         val path = uri?.let(::treePath) ?: return@rememberLauncherForActivityResult
         val name = path.substringAfterLast('/')
@@ -83,8 +85,9 @@ fun ImportProgressRoute(app: EmuApplication, nav: Navigator) {
     val j = job ?: run { LaunchedEffect(Unit) { nav.pop() }; return }
     val health = app.health.report.collectAsState().value
     val esde = remember(health) { frontendLaunch(context, app.knowledge.getBundle(), health?.plan, health) }
+    val frontends = remember(health) { app.knowledge.getBundle()?.let { b -> health?.plan?.frontends(b)?.map { it.name } }.orEmpty() }
     ImportProgressScreen(
-        j, esde?.name,
+        j, esde?.name, frontends,
         onCancel = app.imports::cancel,
         onOpenEsde = { esde?.let { context.startActivity(it.intent) } },
         onLibrary = { app.imports.dismiss(); nav.reset(Route.Main(Section.Library)) },

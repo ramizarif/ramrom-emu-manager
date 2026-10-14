@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -317,11 +318,25 @@ fun AccessLostBanner(onReconnect: () -> Unit) {
 @Composable
 fun ColumnScope.ReconnectSheetContent(setup: ShizukuSetup, onOpenShizuku: () -> Unit) {
     val focus = com.ramrom.emumanager.ui.input.initialFocus()
+    val context = LocalContext.current
+    // Android turns Wireless debugging off after a restart too, and Shizuku's Start needs it.
+    val debuggingOff = !setup.running && setup.wirelessDebugging == false
     BasicText("Wake me back up", style = EmuType.Headline2)
-    CheckItem("Wi-Fi on", CheckState.Done)
-    CheckItem("Start Shizuku", if (setup.running) CheckState.Done else CheckState.Now, detail = if (setup.running) null else "about 20 s")
+    CheckItem(
+        "Wireless debugging on",
+        when { setup.running || setup.wirelessDebugging == true -> CheckState.Done; debuggingOff -> CheckState.Now; else -> CheckState.Todo },
+        detail = if (debuggingOff) "Developer options, under Debugging. Needs Wi-Fi." else null,
+    )
+    CheckItem("Start Shizuku", when { setup.running -> CheckState.Done; debuggingOff -> CheckState.Todo; else -> CheckState.Now }, detail = if (setup.running || debuggingOff) null else "about 20 s")
     CheckItem("Check access", if (setup.running) CheckState.Now else CheckState.Todo)
-    Row { EmuButton("Open Shizuku", onOpenShizuku, kind = ButtonKind.Go, focusRequester = focus) }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (debuggingOff) {
+            EmuButton("Open Developer options", { open(context, Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }, kind = ButtonKind.Go, focusRequester = focus)
+            EmuButton("Open Shizuku", onOpenShizuku, small = true)
+        } else {
+            EmuButton("Open Shizuku", onOpenShizuku, kind = ButtonKind.Go, focusRequester = focus)
+        }
+    }
 }
 
 /** S38 Access panel. */

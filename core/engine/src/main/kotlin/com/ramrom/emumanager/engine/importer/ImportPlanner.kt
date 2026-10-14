@@ -80,6 +80,8 @@ class ImportPlanner(
         if (ImportCandidate.Flag.Encrypted in flags) problems += ImportProblem(ImportProblem.Kind.Encrypted, "This 3DS game is encrypted, so Azahar may not open it.")
         if (systemId == null) problems += ImportProblem(ImportProblem.Kind.NoSystem,
             if (ImportCandidate.Flag.ArcadeSet in flags) "Looks like an arcade set. Pick Arcade or Neo Geo and it stays zipped." else "Pick a system for this one.")
+        if (systemId == "switch" && !c.isArchive && SwitchTitleId.isAddOn(c.primary.path)) problems += ImportProblem(ImportProblem.Kind.AddOn,
+            "Looks like an update or DLC, not a game. Install it inside your Switch emulator instead; in the games folder it would show up as a game of its own.")
         if (systemId != null && setUp != null && systemId !in setUp) problems += ImportProblem(ImportProblem.Kind.NotSetUp, "${systemName(systemId)} isn't in your setup yet, so nothing will open it.")
 
         val action = when {

@@ -76,8 +76,11 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
                 val opensIn = current ?: custom ?: frontend.defaultLabels[s.systemId] ?: "ES-DE's default"
                 // Labels without "(Standalone)" are RetroArch cores; "in Dolphin" alone would read as fine.
                 val opensInApp = if ("(Standalone)" in opensIn || opensIn == "ES-DE's default") opensIn.removeSuffix(" (Standalone)") else "RetroArch ($opensIn)"
+                // Still a warning with no games yet (it's part of setting up), but it says it can wait.
+                val noGames = inventory.romFolders.filter { it.systemId == s.systemId }.sumOf { it.gameCount } == 0
                 issues += HealthIssue("esde_choice_${s.systemId}", IssueSeverity.WARNING, "ES-DE opens ${name(s.systemId)} games in $opensInApp",
-                    "Your plan plays them in ${emu.name}. ES-DE needs to be told once, per system.",
+                    "Your plan plays them in ${emu.name}. ES-DE needs to be told once, per system." +
+                        if (noGames) " No ${name(s.systemId)} games yet, so it can wait." else "",
                     listOf("Now: $opensIn", "Should be: $wanted", "File: ES-DE/gamelists/$folder/gamelist.xml"),
                     FixAction.ConfigureInEsde(s.systemId), s.systemId)
             }

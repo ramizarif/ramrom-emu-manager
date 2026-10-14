@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.rememberScrollState
@@ -58,10 +59,13 @@ fun GuidedScaffold(
     task: @Composable ColumnScope.() -> Unit,
 ) {
     // Content scrolls if it must; the action row stays pinned and reachable (UX-RULES §1).
-    val pane = @Composable { m: Modifier ->
+    val actionRow = @Composable { m: Modifier ->
+        Row(m, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically, content = actions)
+    }
+    val pane = @Composable { m: Modifier, withActions: Boolean ->
         Column(m) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), content = task)
-            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically, content = actions)
+            if (withActions) actionRow(Modifier.padding(top = 12.dp))
         }
     }
     val size = LocalSizeClass.current
@@ -69,14 +73,22 @@ fun GuidedScaffold(
         banner?.invoke()
         val scene = @Composable { m: Modifier -> Scene(handheld, if (listHeavy && size != SizeClass.Wide) null else bubble, m) }
         when (size) {
-            SizeClass.Wide -> Row(Modifier.weight(1f)) {
-                pane(Modifier.weight(if (listHeavy) .56f else .46f).fillMaxHeight().padding(start = 32.dp, end = 24.dp, top = 24.dp, bottom = 12.dp))
-                scene(Modifier.weight(if (listHeavy) .44f else .54f).fillMaxHeight())
+            SizeClass.Wide -> BoxWithConstraints(Modifier.weight(1f)) {
+                // Short wide screens (a 1080p handheld at high density) leave a list only a row or
+                // two; the buttons move under the handheld so the list gets the full height.
+                val actionsAside = listHeavy && maxHeight < 420.dp
+                Row(Modifier.fillMaxSize()) {
+                    pane(Modifier.weight(if (listHeavy) .56f else .46f).fillMaxHeight().padding(start = 32.dp, end = 24.dp, top = 24.dp, bottom = 12.dp), !actionsAside)
+                    if (actionsAside) Column(Modifier.weight(.44f).fillMaxHeight()) {
+                        scene(Modifier.weight(1f).fillMaxWidth())
+                        actionRow(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp))
+                    } else scene(Modifier.weight(if (listHeavy) .44f else .54f).fillMaxHeight())
+                }
             }
             else -> Column(Modifier.weight(1f)) {
                 val band = when { listHeavy -> 112.dp; size == SizeClass.Phone -> 230.dp; else -> 205.dp }
                 scene(Modifier.fillMaxWidth().height(band))
-                pane(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 26.dp, vertical = 14.dp))
+                pane(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 26.dp, vertical = 14.dp), true)
             }
         }
         HintBar(hints)

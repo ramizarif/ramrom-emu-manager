@@ -359,7 +359,6 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         onAddSystem = { d.addSystem(it); toast = "${d.systemName(it)} added to your plan" },
                         onDone = { nav.pop() },
                     )
-                    Box(Modifier.fillMaxSize()) { Toast(toast) }
                 }
                 is Route.PlanBios -> draft?.let { d ->
                     val bundle = app.knowledge.getBundle()
@@ -435,7 +434,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         },
                         onConnect = { nav.push(Route.Access(r)) },
                     )
-                }; Toast(toast) }
+                } }
                 is Route.Main -> MainScreen(
                     r.section, onSection = nav::switchSection,
                     onOpenPlan = openPlanFile,
@@ -470,7 +469,6 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         Sheet(reconnectOpen && mode == AccessMode.Disconnected, onDismiss = { reconnectOpen = false }) {
                             ReconnectSheetContent(setup, onOpenShizuku = openShizuku)
                         }
-                        Toast(toast)
                     },
                 )
                 Route.Wizard -> activeRun?.let { run -> WizardRoute(run, nav, onFinished = { complete ->
@@ -509,6 +507,8 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                 Route.ImportProgress -> ImportProgressRoute(app, nav)
                 Route.About -> AboutScreen("${BuildConfig.VERSION_NAME} · debug")
             }
+            // One toast layer over every screen, so a message survives the screen that sent it closing.
+            Toast(toast)
         }
     }
 }

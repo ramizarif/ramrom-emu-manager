@@ -206,7 +206,7 @@ private fun ItemSheet(item: ImportItem, systems: List<Pair<String, String>>, nam
 
 /** S24 Import progress and results. */
 @Composable
-fun ImportProgressScreen(job: ImportJob, frontendName: String?, onCancel: () -> Unit, onOpenEsde: () -> Unit, onLibrary: () -> Unit, onClose: () -> Unit) {
+fun ImportProgressScreen(job: ImportJob, frontendName: String?, frontends: List<String>, onCancel: () -> Unit, onOpenEsde: () -> Unit, onLibrary: () -> Unit, onClose: () -> Unit) {
     val focus = initialFocus(job.finished)
     ScreenKeys(start = if (job.finished) onLibrary else null)
     PageScaffold(
@@ -223,7 +223,10 @@ fun ImportProgressScreen(job: ImportJob, frontendName: String?, onCancel: () -> 
             EmuButton("Cancel", onCancel, kind = ButtonKind.Ghost, focusRequester = focus)
         } else {
             BasicText(listOfNotNull("$done game${if (done == 1) "" else "s"} added", if (failed > 0) "$failed didn't work" else null, if (skipped > 0) "$skipped skipped" else null).joinToString("  ·  "), style = EmuType.Headline2)
-            if (done > 0) InlineAlert("Restart ${frontendName ?: "your frontend"} to see them", "Frontends read your game folders when they start.", AlertKind.Done) {
+            // Every frontend in the plan needs the restart, not just the one the button opens.
+            val restart = when { frontends.size > 1 -> "your frontends"; else -> frontends.firstOrNull() ?: frontendName ?: "your frontend" }
+            val readers = if (frontends.size > 1) frontends.dropLast(1).joinToString(", ") + " and " + frontends.last() else "Frontends"
+            if (done > 0) InlineAlert("Restart $restart to see them", "$readers read your game folders when they start.", AlertKind.Done) {
                 if (frontendName != null) EmuButton("Open $frontendName", onOpenEsde, small = true)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
