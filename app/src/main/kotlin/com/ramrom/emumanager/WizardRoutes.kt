@@ -123,7 +123,15 @@ fun GuidedRoute(run: ActiveRun, stepId: String, nav: Navigator) {
             if (intent != null && context.tryStart(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) {
                 away = true
                 // Our own settings pages need no chip: the user is one toggle from coming back.
-                if (copy.action != GuidedAction.OwnAllFiles) StepChip.show(context, copy.title, copy.value, copy.valueLabel)
+                if (copy.action != GuidedAction.OwnAllFiles) StepChip.show(context, copy.title, copy.value, copy.valueLabel, autoReturn = copy.verifiable)
+                // A controller can't reach the chip: for a step we can check, watch for it and come back by ourselves.
+                if (copy.verifiable) scope.launch {
+                    repeat(300) {
+                        delay(2000)
+                        if (!away) return@launch
+                        if (runCatching { run.executor.verify(step) }.getOrDefault(false)) { StepChip.back(context); return@launch }
+                    }
+                }
             } else run.runner.recheck(stepId)
         }
         Unit

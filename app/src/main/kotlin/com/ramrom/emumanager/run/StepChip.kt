@@ -35,10 +35,11 @@ object StepChip {
 
     fun canOverlay(context: Context) = Settings.canDrawOverlays(context)
 
-    fun show(context: Context, title: String, value: String?, valueLabel: String) {
+    /** [autoReturn]: we can tell when the step is done and come back by ourselves, so a controller needs no tap. */
+    fun show(context: Context, title: String, value: String?, valueLabel: String, autoReturn: Boolean = false) {
         hide(context)
         val app = context.applicationContext
-        if (canOverlay(app)) runCatching { overlay(app, title, value, valueLabel) }.onFailure { notify(app, title, value) }
+        if (canOverlay(app)) runCatching { overlay(app, title, value, valueLabel, autoReturn) }.onFailure { notify(app, title, value) }
         else notify(app, title, value)
     }
 
@@ -56,7 +57,7 @@ object StepChip {
      * Bring our task forward. The chip's visible window is what lets a background app do this, so
      * it stays up until the switch has happened.
      */
-    private fun back(context: Context) {
+    fun back(context: Context) {
         val moved = runCatching { context.getSystemService(android.app.ActivityManager::class.java).appTasks.firstOrNull()?.moveToFront() != null }.getOrDefault(false)
         if (!moved) context.startActivity(backIntent(context))
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ hide(context) }, 400)
@@ -77,7 +78,7 @@ object StepChip {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun overlay(context: Context, title: String, value: String?, valueLabel: String) {
+    private fun overlay(context: Context, title: String, value: String?, valueLabel: String, autoReturn: Boolean) {
         val wm = context.getSystemService(WindowManager::class.java)
         fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), context.resources.displayMetrics).toInt()
         fun round(color: Int, radius: Int) = GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
@@ -113,6 +114,9 @@ object StepChip {
                 background = round(0x22FFFFFF, 8); setPadding(dp(10), dp(6), dp(10), dp(6)); maxWidth = dp(300)
             })
         }
+        if (autoReturn) body.addView(TextView(context).apply {
+            text = "We'll bring you back when it's done"; setTextColor(0xFFFFFFFF.toInt()); textSize = 12f; setPadding(0, dp(8), 0, 0); maxWidth = dp(300)
+        })
         body.addView(TextView(context).apply { text = "Drag me if I'm in the way"; setTextColor(soft); textSize = 10f; setPadding(0, dp(8), 0, 0) })
         body.addView(TextView(context).apply {
             text = "Back to setup"; setTextColor(ink); textSize = 14f; typeface = Typeface.DEFAULT_BOLD
