@@ -63,6 +63,11 @@ data class Inventory(
     val orphanedMedia: List<com.ramrom.emumanager.engine.inventory.OrphanedMedia> = emptyList(),
     /** False when folder grants couldn't be read (needs elevated dumpsys): grant rules stay quiet. */
     val grantsKnown: Boolean = false,
+    /**
+     * Folder picks an earlier run confirmed (step ids). Used only while [grantsKnown] is false
+     * (limited mode can't read other apps' grants), so switching modes doesn't ask for them again.
+     */
+    val confirmedSteps: Set<String> = emptySet(),
     /** Folder grants as Android lists them, by package: shows where a frontend points (Cocoon at Roms, not ROMs). */
     val grantPaths: Map<String, List<String>> = emptyMap(),
     /** Systems whose BIOS lives where we can't look (Android/data without Shizuku). */

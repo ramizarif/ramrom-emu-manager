@@ -123,7 +123,9 @@ class PlanCompiler {
         // Frontends that read the games through all-files access show an empty library without it.
         for (f in frontends.filter { it.declaresAllFilesAccess }) {
             val auto = Capability.SET_APPOP in capabilities
-            val done = inventory.appPermissions.firstOrNull { it.packageId in f.packages }?.grantedManageExternalStorage == true
+            val perms = inventory.appPermissions.firstOrNull { it.packageId in f.packages }
+            // With Shizuku the same step allows usage access too; without it, that stays the app's own ask.
+            val done = perms?.grantedManageExternalStorage == true && (!f.usageAccess || !auto || perms.grantedUsageAccess)
             add(Step(id("allfiles", f.id), StepType.GrantAllFilesAccess, f.id, listOf(ready.getValue(f.id)),
                 if (auto) Executor.Auto else Executor.Guided,
                 capabilityNeeded = if (auto) Capability.SET_APPOP else null,
@@ -187,7 +189,8 @@ class PlanCompiler {
         // Phase 8: folder picks the user does inside each emulator (Android's folder picker can't be automated).
         for (e in emulators) {
             if (e.folderPick?.needed != true) continue
-            val granted = e.id in inventory.grantedFolderTrees || systemsOf[e.id].orEmpty().any { it in inventory.grantedFolderTrees }
+            val granted = e.id in inventory.grantedFolderTrees || systemsOf[e.id].orEmpty().any { it in inventory.grantedFolderTrees } ||
+                !inventory.grantsKnown && id("folder_pick", e.id) in inventory.confirmedSteps
             add(Step(id("folder_pick", e.id), StepType.GuidedFolderPick, e.id, listOf(ready.getValue(e.id)) + folderIds, Executor.Guided,
                 handsOnSeconds = if (granted) 0 else TimeConstants.GUIDED_FOLDER_PICK_HANDS_ON,
                 status = if (granted) StepStatus.AlreadyDone else StepStatus.Pending,
@@ -197,7 +200,8 @@ class PlanCompiler {
         // Other frontends are pointed at the games folder inside the app, through Android's picker.
         for (f in frontends) {
             if (f.id == esde?.id || !f.gamesFolderGrant) continue
-            val granted = inventory.folderGrants.any { g -> g.packageId in f.packages && g.granted && g.systemId.isEmpty() }
+            val granted = inventory.folderGrants.any { g -> g.packageId in f.packages && g.granted && g.systemId.isEmpty() } ||
+                !inventory.grantsKnown && id("folder_pick", f.id) in inventory.confirmedSteps
             add(Step(id("folder_pick", f.id), StepType.GuidedFolderPick, f.id, listOf(ready.getValue(f.id)) + folderIds, Executor.Guided,
                 handsOnSeconds = if (granted) 0 else TimeConstants.GUIDED_FOLDER_PICK_HANDS_ON,
                 status = if (granted) StepStatus.AlreadyDone else StepStatus.Pending,

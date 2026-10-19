@@ -407,6 +407,17 @@ class PlanCompilerTest {
         assertTrue(PlanCompiler().compile(plan, bundle, inv, Capability.entries.toSet()).steps.none { it.type is StepType.WriteFrontendConfig })
     }
 
+    @Test
+    fun limitedModeTrustsPicksAnEarlierRunConfirmed() {
+        val plan = Plan(null, "sd8gen2", "cocoon", listOf(Plan.PlanSystem("wii", "dolphin")), null, listOf("cocoon"))
+        fun pick(inv: Inventory) = PlanCompiler().compile(plan, bundle, inv, emptySet()).steps.single { it.id == "folder_pick_cocoon" }.status
+        val base = Inventory(installedPackages = setOf("rip.moth.cocoonshell"))
+        assertEquals(StepStatus.Pending, pick(base))
+        assertEquals(StepStatus.AlreadyDone, pick(base.copy(confirmedSteps = setOf("folder_pick_cocoon"))))
+        // Where grants can be read, they decide: a pick that was undone since is asked for again.
+        assertEquals(StepStatus.Pending, pick(base.copy(grantsKnown = true, confirmedSteps = setOf("folder_pick_cocoon"))))
+    }
+
     private fun isDAGValid(compiled: CompiledPlan): Boolean {
         val visited = mutableSetOf<String>()
         val recursionStack = mutableSetOf<String>()

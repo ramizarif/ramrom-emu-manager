@@ -140,8 +140,15 @@ fun ImportScreen(
         }
         val (inList, out) = plan.items.partition { it.included }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (inList.isNotEmpty()) SectionLabel("Importing", inList.size)
-            inList.forEach { ItemRow(it, name) { open = it.id } }
+            // A multi-disc game is one row: its discs share the playlist's folder.
+            val byGame = inList.groupBy { i -> plan.playlists.firstOrNull { it.dir == i.destDir }?.dir ?: i.id }.values
+            if (inList.isNotEmpty()) SectionLabel("Importing", byGame.size)
+            byGame.forEach { discs ->
+                val first = discs.first()
+                if (discs.size == 1) ItemRow(first, name) { open = first.id }
+                else ItemRow(first.copy(title = first.destDir!!.substringAfterLast('/').removeSuffix(".m3u")), name, discs = discs.size,
+                    size = discs.sumOf { it.candidate.sizeBytes }) { open = first.id }
+            }
             if (out.isNotEmpty()) SectionLabel("Left out", out.size)
             out.forEach { ItemRow(it, name) { open = it.id } }
         }
@@ -162,11 +169,11 @@ private fun OtherSources(list: List<SuggestedSource>, label: String, onUse: (Sug
 }
 
 @Composable
-private fun ItemRow(item: ImportItem, name: (String?) -> String, onClick: () -> Unit) {
+private fun ItemRow(item: ImportItem, name: (String?) -> String, discs: Int = 1, size: Long = item.candidate.sizeBytes, onClick: () -> Unit) {
     val confidence = when (item.candidate.confidence) { Confidence.Sure -> null; Confidence.Likely -> "probably"; Confidence.Unknown -> null }
     val where = item.destDir?.substringAfter("/ROMs/")?.let { "ROMs/$it" }
     val detail = item.problems.firstOrNull { it.kind != ImportProblem.Kind.NotSetUp || item.problems.size == 1 }?.text
-        ?: listOfNotNull(item.systemId?.let { listOfNotNull(name(it), confidence).joinToString(", ") }, where, bytes(item.candidate.sizeBytes), item.action.word()).joinToString("  ·  ")
+        ?: listOfNotNull(item.systemId?.let { listOfNotNull(name(it), confidence).joinToString(", ") }, discs.takeIf { it > 1 }?.let { "$it discs" }, where, bytes(size), item.action.word()).joinToString("  ·  ")
     ListRow(item.title, detail = detail, onClick = onClick) {
         when {
             !item.included && item.problems.any { it.kind == ImportProblem.Kind.Bios } -> Tag("BIOS", TagKind.Neutral)

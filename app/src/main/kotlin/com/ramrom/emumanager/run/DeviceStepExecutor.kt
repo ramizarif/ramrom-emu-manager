@@ -192,7 +192,11 @@ class DeviceStepExecutor(
     private suspend fun grantAllFiles(pkg: String): StepResult {
         val uid = pm.getApplicationInfo(pkg, 0).uid
         return when (val r = access.access.setAppOp(pkg, uid, "MANAGE_EXTERNAL_STORAGE", AppOpMode.ALLOW)) {
-            is AccessResult.Ok -> StepResult.Ok
+            is AccessResult.Ok -> {
+                // Cocoon tracks playtime and opens Usage access over the game without it; allow it here too.
+                if (bundle.frontends.any { pkg in it.packages && it.usageAccess }) access.access.setAppOp(pkg, uid, "GET_USAGE_STATS", AppOpMode.ALLOW)
+                StepResult.Ok
+            }
             else -> StepResult.NeedsUser("Turn on \"Allow access to manage all files\" for this app in Settings.")
         }
     }

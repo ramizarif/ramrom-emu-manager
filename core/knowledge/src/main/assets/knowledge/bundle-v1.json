@@ -1241,6 +1241,7 @@
       },
       "gamesFolderGrant": true,
       "folderSetting": "Settings › Library & data › Default Games Folder",
+      "usageAccess": true,
       "declaresAllFilesAccess": true,
       "emulatorChoiceInApp": "In Cocoon, open each system's settings and pick its Player (the emulator that opens its games).",
       "firstRunSteps": [

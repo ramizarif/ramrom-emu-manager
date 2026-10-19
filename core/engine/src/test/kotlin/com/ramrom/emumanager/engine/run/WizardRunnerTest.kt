@@ -7,6 +7,7 @@ import com.ramrom.emumanager.engine.StepStatus
 import com.ramrom.emumanager.engine.StepType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.TestScope
@@ -70,6 +71,16 @@ class WizardRunnerTest {
         val r = WizardRunner(CompiledPlan((1..5).map { auto("s$it") }), exec, InMemoryRunStore(), "run", parallelism = 2)
         r.start(runnerScope()); advanceUntilIdle()
         assertEquals(2, exec.maxRunning)
+        assertTrue(r.state.value.isComplete)
+    }
+
+    @Test fun stepsWaitingForASlotAreNotStarted() = runTest {
+        val exec = FakeExecutor(workMs = 1000)
+        val r = WizardRunner(CompiledPlan((1..3).map { auto("s$it") }), exec, InMemoryRunStore(), "run", parallelism = 1)
+        r.start(runnerScope()); advanceTimeBy(500)
+        val running = (1..3).map { status(r, "s$it") as StepRunStatus.Running }
+        assertEquals(1, running.count { it.started })
+        advanceUntilIdle()
         assertTrue(r.state.value.isComplete)
     }
 
@@ -173,6 +184,23 @@ class WizardRunnerTest {
         val r = WizardRunner(plan, exec, store, "run")
         r.start(runnerScope()); advanceUntilIdle()
         assertEquals(listOf("b"), exec.started)
+        assertTrue(r.state.value.isComplete)
+    }
+
+    @Test fun aRunRebuiltWithShizukuKeepsProgressAndStopsAskingWhatItCanDo() = runTest {
+        val store = InMemoryRunStore()
+        val limited = CompiledPlan(listOf(guided("pick"), Step("perm", StepType.GrantAllFilesAccess, "cocoon", emptyList(), Executor.Guided)))
+        store.saveSnapshot(RunSnapshot("run", limited, 0, mapOf(
+            "pick" to StepSnapshot("pick", StepRunStatus.NeedsYou("Pick the folder")),
+            "perm" to StepSnapshot("perm", StepRunStatus.NeedsYou("Turn it on"))), false))
+        // Recompiled with Shizuku: the pick turns out to be done, the permission is now automatic.
+        val elevated = CompiledPlan(listOf(guided("pick").copy(status = StepStatus.AlreadyDone),
+            Step("perm", StepType.GrantAllFilesAccess, "cocoon", emptyList(), Executor.Auto)))
+        val exec = FakeExecutor()
+        val r = WizardRunner(elevated, exec, store, "run")
+        r.start(runnerScope()); advanceUntilIdle()
+        assertEquals(StepRunStatus.AlreadyDone, status(r, "pick"))
+        assertEquals(listOf("perm"), exec.started)
         assertTrue(r.state.value.isComplete)
     }
 

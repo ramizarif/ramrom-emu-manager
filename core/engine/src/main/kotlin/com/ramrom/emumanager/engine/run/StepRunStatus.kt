@@ -3,7 +3,8 @@ package com.ramrom.emumanager.engine.run
 /** Where one step is in a run. S12 groups these into Needs you / Running and up next / Done. */
 sealed class StepRunStatus {
     data object Pending : StepRunStatus()
-    data class Running(val progress: Float = 0f) : StepRunStatus()
+    /** [started] false: scheduled but waiting for a free slot (or for another step on the same app). */
+    data class Running(val progress: Float = 0f, val started: Boolean = true) : StepRunStatus()
     /** Checking the device after a crash or an "I did it"; resolves to Done or back to Pending/NeedsYou. */
     data object Verifying : StepRunStatus()
     data object Done : StepRunStatus()

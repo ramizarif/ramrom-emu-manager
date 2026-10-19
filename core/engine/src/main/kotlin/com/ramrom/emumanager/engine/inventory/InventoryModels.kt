@@ -52,6 +52,8 @@ data class AppPermissionState(
     val packageId: String,
     val declaresManageExternalStorage: Boolean = false,
     val grantedManageExternalStorage: Boolean = false,
+    /** Usage access (playtime), for apps that ask for it. */
+    val grantedUsageAccess: Boolean = false,
     /** Runtime permissions the bundle lists for the app that aren't granted. */
     val missingPermissions: List<String> = emptyList(),
 )

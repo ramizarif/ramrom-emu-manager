@@ -8,6 +8,7 @@ data class DeviceFacts(
     /** Bundle apps that are installed, by package. */
     val installed: Map<String, InstalledApp> = emptyMap(),
     val allFilesAccess: Map<String, Boolean> = emptyMap(),
+    val usageAccess: Map<String, Boolean> = emptyMap(),
     /** Granted runtime permissions per package (only the ones the bundle lists need be present). */
     val grantedPermissions: Map<String, Set<String>> = emptyMap(),
     /** Absolute folder paths each package holds a tree grant for; null when they can't be read. */
@@ -175,6 +176,7 @@ class InventoryBuilder(
             packageId = pkg,
             declaresManageExternalStorage = emu?.declaresAllFilesAccess ?: bundle.frontends.any { pkg in it.packages && it.declaresAllFilesAccess },
             grantedManageExternalStorage = facts.allFilesAccess[pkg] ?: false,
+            grantedUsageAccess = facts.usageAccess[pkg] ?: false,
             missingPermissions = emu?.permissions.orEmpty().filter { it !in facts.grantedPermissions[pkg].orEmpty() },
         )
     }

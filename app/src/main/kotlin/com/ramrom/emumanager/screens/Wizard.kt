@@ -134,7 +134,7 @@ fun WizardScreen(
                 ).joinToString("  ·  "),
                 style = EmuType.Hint,
             )
-            if (!state.isComplete) BasicText("Keeps running if you leave this screen.", style = EmuType.Hint.copy(color = EmuColors.InkFaint))
+            if (!state.isComplete && state.isRunning) BasicText("Keeps running if you leave this screen.", style = EmuType.Hint.copy(color = EmuColors.InkFaint))
             Spacer(Modifier.height(14.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (needs.isNotEmpty()) {
@@ -164,7 +164,7 @@ fun WizardScreen(
                         is StepRunStatus.Failed -> "It didn't work: ${s.reason}"
                         StepRunStatus.Skipped -> "You skipped this. Anything that needed it is waiting."
                         is StepRunStatus.Blocked -> "Waiting on a step you skipped: ${r.blockedBy ?: s.by}."
-                        is StepRunStatus.Running -> "Running now."
+                        is StepRunStatus.Running -> if (s.started) "Running now." else "Up next. It starts when a slot frees up."
                         StepRunStatus.Pending -> "Starts when the steps before it finish."
                         else -> statusWord(s)
                     },
@@ -203,7 +203,7 @@ private fun StepRow(r: WizardRow, onClick: () -> Unit) {
         onClick = onClick,
     ) {
         when (val s = r.status) {
-            is StepRunStatus.Running -> Column(Modifier.width(90.dp), horizontalAlignment = Alignment.End) {
+            is StepRunStatus.Running -> if (!s.started) Tag("Up next", TagKind.Neutral) else Column(Modifier.width(90.dp), horizontalAlignment = Alignment.End) {
                 BasicText(if (s.progress > 0f) "${(s.progress * 100).toInt()}%" else "Working", style = EmuType.Hint)
                 ProgressBar(s.progress)
             }

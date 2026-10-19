@@ -19,7 +19,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.ramrom.emumanager.engine.run.StepRunStatus
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -59,6 +61,22 @@ class SetupRuns(private val app: EmuApplication) {
             planFile.writeText(text)
         }
         return launch(runId, plan, bios, bundle)
+    }
+
+    /**
+     * Rebuild the open run for the access there is now (Shizuku connected or lost mid-run). Same run
+     * id, so progress carries over step by step; see WizardRunner's restore.
+     */
+    suspend fun reloadForAccess() {
+        val run = _active.value ?: return
+        val bundle = run.bundle
+        val record = withContext(Dispatchers.IO) {
+            recordFile.takeIf { it.exists() }?.let { f -> runCatching { json.decodeFromString(RunRecord.serializer(), f.readText()) }.getOrNull() }
+        } ?: return
+        if (record.runId != run.runner.runId) return
+        _active.value = null
+        run.scope.cancel()
+        launch(record.runId, record.plan(), record.biosCopies(), bundle)
     }
 
     /** Pick up a run the process lost. No-op when there isn't one or it's already loaded. */
@@ -111,13 +129,24 @@ class SetupRuns(private val app: EmuApplication) {
     }
 
     private suspend fun launch(runId: String, plan: Plan, bios: Map<String, BiosCopy>, bundle: KnowledgeBundle): ActiveRun {
+        val confirmed = app.getSharedPreferences(CONFIRMED, Context.MODE_PRIVATE)
         val inventory = runCatching { DeviceInventory(app, bundle, app.access).scan() }.getOrElse { inventory(app, bundle) }
+            .let { it.copy(confirmedSteps = confirmed.getStringSet(CONFIRMED, emptySet()).orEmpty()) }
         val compiled = PlanCompiler().compile(plan, bundle, inventory, app.access.capabilities.value)
         val executor = DeviceStepExecutor(app, bundle, app.access, AppInstaller(app, app.access), bios,
             settings = app.settings, deviceId = plan.targetDeviceId, chipFamily = plan.chipFamily, systems = plan.systems)
         val runner = WizardRunner(compiled, executor, JsonRunStore(dir, compiled), runId)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         runner.start(scope)
+        // Remember folder picks seen done, for a later run that can't see them (limited mode).
+        val picks = compiled.steps.filter { it.type == com.ramrom.emumanager.engine.StepType.GuidedFolderPick }.map { it.id }.toSet()
+        scope.launch {
+            runner.state.collect { s ->
+                val done = s.stepProgress.filter { (id, p) -> id in picks && (p.status == StepRunStatus.Done || p.status == StepRunStatus.AlreadyDone) }.keys
+                val have = confirmed.getStringSet(CONFIRMED, emptySet()).orEmpty()
+                if (!have.containsAll(done)) confirmed.edit().putStringSet(CONFIRMED, have + done).apply()
+            }
+        }
         return ActiveRun(compiled, runner, executor, bundle, scope).also {
             _active.value = it
             SetupRunService.start(app)
@@ -125,6 +154,7 @@ class SetupRuns(private val app: EmuApplication) {
     }
 
     companion object {
+        private const val CONFIRMED = "confirmed_steps"
         /** What's already here, so the compiler doesn't plan work that's done. */
         fun inventory(context: Context, bundle: KnowledgeBundle): Inventory {
             val pm = context.packageManager

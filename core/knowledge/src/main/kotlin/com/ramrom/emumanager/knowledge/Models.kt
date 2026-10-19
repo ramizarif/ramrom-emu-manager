@@ -261,6 +261,8 @@ data class FrontendProfile(
     val gamesFolderGrant: Boolean = false,
     /** Where the app keeps its games folder after first run, as its menus name it; empty if unknown. */
     val folderSetting: String = "",
+    /** Tracks playtime through Android's usage access, and opens that setting over a game without it (Cocoon). */
+    val usageAccess: Boolean = false,
     /** Reads the games through "All files access" (Cocoon, iiSU): without it the library is empty. */
     val declaresAllFilesAccess: Boolean = false,
     /**

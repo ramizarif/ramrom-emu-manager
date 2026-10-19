@@ -60,6 +60,10 @@ class WizardRunner(
                 val saved = snapshot?.steps?.get(s.id)
                 val status = when {
                     saved == null -> initial(s)
+                    // Recompiled with more access (Shizuku came back): what it now sees done is done,
+                    // and what it can now do itself stops waiting on the user.
+                    !saved.status.isSettled && s.status == StepStatus.AlreadyDone -> StepRunStatus.AlreadyDone
+                    saved.status is StepRunStatus.NeedsYou && s.executor == Executor.Auto -> StepRunStatus.Pending
                     // Caught mid-flight by a crash: ask the device what actually happened.
                     saved.status is StepRunStatus.Running || saved.status is StepRunStatus.Verifying -> StepRunStatus.Verifying.also { restored += s.id }
                     else -> saved.status
@@ -146,7 +150,7 @@ class WizardRunner(
                 val ready = plan.steps.filter(::isReady)
                 ready.forEach { s ->
                     // Guided steps don't need a slot: they wait on the user, not the device.
-                    set(s.id, if (s.executor == Executor.Guided) StepRunStatus.NeedsYou(s.userFacingText) else StepRunStatus.Running())
+                    set(s.id, if (s.executor == Executor.Guided) StepRunStatus.NeedsYou(s.userFacingText) else StepRunStatus.Running(started = false))
                 }
                 updateRunning()
                 persist()
@@ -161,7 +165,10 @@ class WizardRunner(
     private suspend fun run(step: Step) {
         val appLock = lock.withLock { appLocks.getOrPut(step.subject) { Mutex() } }
         val outcome = slots.withPermit {
-            appLock.withLock { attempt(step) }
+            appLock.withLock {
+                lock.withLock { if (status(step.id) is StepRunStatus.Running) { set(step.id, StepRunStatus.Running()); persist() } }
+                attempt(step)
+            }
         }
         lock.withLock {
             set(step.id, outcome.first, attempts = outcome.second, error = (outcome.first as? StepRunStatus.Failed)?.reason)

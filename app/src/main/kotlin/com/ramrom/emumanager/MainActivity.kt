@@ -193,6 +193,12 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     BackHandler(enabled = nav.canPop || reconnectOpen || pickerOpen || otherPickerOpen || draft?.changing != null) { when { draft?.changing != null -> draft?.changing = null; otherPickerOpen -> otherPickerOpen = false; pickerOpen -> pickerOpen = false; reconnectOpen -> reconnectOpen = false; else -> nav.pop() } }
 
     val activeRun by app.runs.active.collectAsState()
+    // Access changed during a run (Shizuku connected, or lost): rebuild it for what we can do now.
+    val runMode = remember { arrayOf<AccessMode?>(null) }
+    LaunchedEffect(mode) {
+        val was = runMode[0]; runMode[0] = mode
+        if (was != null && (was == AccessMode.Elevated) != (mode == AccessMode.Elevated) && activeRun != null) app.runs.reloadForAccess()
+    }
     val runState by remember(activeRun) { activeRun?.runner?.state ?: kotlinx.coroutines.flow.MutableStateFlow(null) }.collectAsState()
     // S17: health of the saved plan, refreshed whenever Home comes back to the front.
     val healthReport by app.health.report.collectAsState()

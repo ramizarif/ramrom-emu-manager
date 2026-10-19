@@ -35,6 +35,10 @@ class DeviceInventory(private val context: Context, private val bundle: Knowledg
                 val uid = runCatching { pm.getApplicationInfo(pkg, 0).uid }.getOrNull()
                 uid != null && ops.unsafeCheckOpNoThrow("android:manage_external_storage", uid, pkg) == AppOpsManager.MODE_ALLOWED
             },
+            usageAccess = installed.keys.associateWith { pkg ->
+                val uid = runCatching { pm.getApplicationInfo(pkg, 0).uid }.getOrNull()
+                uid != null && ops.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, uid, pkg) == AppOpsManager.MODE_ALLOWED
+            },
             grantedPermissions = installed.keys.associateWith { pkg ->
                 // A permission this build doesn't ask for can't be granted, so it isn't missing (the Thor's Dolphin and notifications).
                 val asks = runCatching { pm.getPackageInfo(pkg, PackageManager.GET_PERMISSIONS).requestedPermissions?.toSet() }.getOrNull()
