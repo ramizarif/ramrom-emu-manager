@@ -41,6 +41,7 @@ data class SetupScore(val done: Int, val total: Int, val missing: List<Missing>)
                 item(here, null, "${f.name} installed")
                 if (f.id == KnowledgeBundle.ESDE) { if (here) item(!open("frontend_first_run"), null, "${f.name} opened once") }
                 else if (f.gamesFolderGrant) item(here && !open("frontend_folder_${f.id}"), null, "${f.name} pointed at your games")
+                if (f.declaresAllFilesAccess) item(here && !open("all_files_${f.id}"), null, "${f.name} can read your games")
             }
             val frontend = plan.esde(bundle)
             val fe = frontend?.name ?: "ES-DE"

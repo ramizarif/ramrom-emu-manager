@@ -173,7 +173,7 @@ class InventoryBuilder(
         val emu = bundle.emulators.firstOrNull { pkg in it.packages }
         AppPermissionState(
             packageId = pkg,
-            declaresManageExternalStorage = emu?.declaresAllFilesAccess ?: false,
+            declaresManageExternalStorage = emu?.declaresAllFilesAccess ?: bundle.frontends.any { pkg in it.packages && it.declaresAllFilesAccess },
             grantedManageExternalStorage = facts.allFilesAccess[pkg] ?: false,
             missingPermissions = emu?.permissions.orEmpty().filter { it !in facts.grantedPermissions[pkg].orEmpty() },
         )

@@ -120,6 +120,18 @@ class PlanCompiler {
             }
         }
 
+        // Frontends that read the games through all-files access show an empty library without it.
+        for (f in frontends.filter { it.declaresAllFilesAccess }) {
+            val auto = Capability.SET_APPOP in capabilities
+            val done = inventory.appPermissions.firstOrNull { it.packageId in f.packages }?.grantedManageExternalStorage == true
+            add(Step(id("allfiles", f.id), StepType.GrantAllFilesAccess, f.id, listOf(ready.getValue(f.id)),
+                if (auto) Executor.Auto else Executor.Guided,
+                capabilityNeeded = if (auto) Capability.SET_APPOP else null,
+                estimatedSeconds = if (auto && !done) TimeConstants.CONFIG_WRITE_MACHINE else 0,
+                handsOnSeconds = if (auto || done) 0 else TimeConstants.GUIDED_ALL_FILES_ACCESS_HANDS_ON,
+                status = if (done) StepStatus.AlreadyDone else StepStatus.Pending))
+        }
+
         // Phase 4: ROM folders, named the way the frontend expects. Shared storage, so limited mode can do it.
         val folderIds = mutableListOf<String>()
         if (layout != null) {

@@ -161,6 +161,14 @@ class HealthCheckerTest {
         val score = SetupScore.of(multi, run(listOf("/storage/emulated/0/Games")), testBundle)
         assertTrue(score.missing.any { it.what == "Cocoon pointed at your games" })
         assertFalse(score.missing.any { it.what.startsWith("iiSU") })
+        // iiSU reads the games through all-files access; without it its library is empty (seen on the emulator).
+        val noFiles = run(listOf("/storage/emulated/0/ROMs")).let { _ ->
+            HealthChecker(testBundle).check(multi, inv(esdeSettings, installed = all + cocoon + "com.iisulauncher") {
+                copy(folderGrants = mapOf(cocoon to listOf("/storage/emulated/0/ROMs")), allFilesAccess = allFilesAccess + ("com.iisulauncher" to false))
+            })
+        }
+        assertTrue(noFiles.any { it.id == "all_files_iisu" && it.fix == FixAction.GrantAllFilesAccess("com.iisulauncher") })
+        assertTrue(SetupScore.of(multi, noFiles, testBundle).missing.any { it.what == "iiSU can read your games" })
     }
 
     @Test fun switchNeedsKeysToBeReady() {

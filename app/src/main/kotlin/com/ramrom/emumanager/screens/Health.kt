@@ -98,7 +98,7 @@ fun HealthScreen(
             if (report.frontends.isNotEmpty()) {
                 SectionLabel("Frontends", report.frontends.size)
                 report.frontends.forEach { f ->
-                    ListRow(f.name, detail = f.top?.title ?: "Installed and finding your games", onClick = f.top?.let { t -> { onOpenIssue(t) } }) {
+                    ListRow(f.name, detail = f.top?.title ?: if (f.folderKnown) "Installed and finding your games" else "Installed. Check your games show up in it", onClick = f.top?.let { t -> { onOpenIssue(t) } }) {
                         when {
                             f.ready -> Tag("Ready", TagKind.Done)
                             f.top?.severity == IssueSeverity.BLOCKER -> Tag("Missing", TagKind.Blocked)

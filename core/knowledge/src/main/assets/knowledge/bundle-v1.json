@@ -1240,11 +1240,13 @@
         "gamelists": "/storage/emulated/0/Cocoon-Media/gamelists"
       },
       "gamesFolderGrant": true,
+      "folderSetting": "Settings › Library & data › Default Games Folder",
+      "declaresAllFilesAccess": true,
       "emulatorChoiceInApp": "In Cocoon, open each system's settings and pick its Player (the emulator that opens its games).",
       "firstRunSteps": [
         "Open Cocoon and go through its first screens",
         "For Data folder, tap Create new folder, name it Cocoon-Media, and use it",
-        "At ROM folder, tap Select directory, pick ROMs and allow access"
+        "At ROM folder, tap Select directory, pick ROMs and allow access", "When it says platforms found, open it and keep them all"
       ],
       "systemFolders": {
         "switch": "switch",
@@ -1296,6 +1298,7 @@
         "mediaRoot": "/storage/emulated/0/iiSU-Media"
       },
       "gamesFolderGrant": false,
+      "declaresAllFilesAccess": true,
       "emulatorChoiceInApp": "In iiSU, set which emulator opens each system.",
       "firstRunSteps": [
         "Open iiSU and tap Start",

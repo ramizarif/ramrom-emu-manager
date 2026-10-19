@@ -41,6 +41,13 @@ class HealthChecker(private val bundle: KnowledgeBundle) {
             val here = f.packages.any { it in installed }
             if (!here) { issues += HealthIssue("frontend_missing_${f.id}", IssueSeverity.BLOCKER, "${f.name} isn't installed",
                 "It's a frontend in your plan: your games show up there.", emptyList(), FixAction.InstallApp(f.id)); continue }
+            if (f.declaresAllFilesAccess) {
+                val pkg = f.packages.first { it in installed }
+                val perms = inventory.appPermissions.firstOrNull { it.packageId == pkg }
+                if (perms != null && !perms.grantedManageExternalStorage) issues += HealthIssue("all_files_${f.id}", IssueSeverity.WARNING,
+                    "${f.name} can't see your games", "It needs \"Allow access to manage all files\" to read your games folder. Without it, its library stays empty.",
+                    listOf("App: $pkg"), FixAction.GrantAllFilesAccess(pkg))
+            }
             // Pointed at the games? Frontends that read a picked folder show it in their grants. Only
             // judged once we can read grants, and not for ES-DE, whose first run covers it.
             if (f.id == frontend?.id || !f.gamesFolderGrant || !inventory.grantsKnown) continue

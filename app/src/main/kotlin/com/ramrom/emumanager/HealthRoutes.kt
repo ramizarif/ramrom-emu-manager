@@ -133,8 +133,11 @@ private fun fixFor(issue: HealthIssue, context: Context, app: EmuApplication, el
             val pkg = (bundle?.frontends?.firstOrNull { it.id == f.appId }?.packages ?: bundle?.emulators?.firstOrNull { it.id == f.appId }?.packages).orEmpty()
             val launch = pkg.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
             // A frontend's games folder is its own setting; anything else is a first run to finish.
-            if (issue.id.startsWith("frontend_folder_")) launch?.let { IssueFix("Open it", { context.tryStart(it) }, value = "Pick this folder" to "ROMs",
-                note = "Find where it asks for your games folder, choose ROMs and allow access. Then come back.") }
+            if (issue.id.startsWith("frontend_folder_")) launch?.let {
+                val where = bundle?.frontends?.firstOrNull { fe -> issue.id == "frontend_folder_${fe.id}" }?.folderSetting.orEmpty()
+                IssueFix("Open it", { context.tryStart(it) }, value = "Pick this folder" to "ROMs",
+                    note = if (where.isNotEmpty()) "In it, go to $where, choose ROMs and allow access. Then come back."
+                        else "Find where it asks for your games folder, choose ROMs and allow access. Then come back.") }
             else if (issue.id.startsWith("keys_missing_")) launch?.let { IssueFix("Open it", { context.tryStart(it) },
                 note = "Install keys picks a prod.keys file you dumped from your own console. Come back once it's in and we'll check again.") }
             else launch?.let { IssueFix("Open it", { context.tryStart(it) }, note = "Come back when it's done its first-run screens.") }

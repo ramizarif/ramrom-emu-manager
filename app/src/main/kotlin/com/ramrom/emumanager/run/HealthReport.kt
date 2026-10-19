@@ -14,7 +14,7 @@ data class SystemHealth(val systemId: String, val name: String, val emulatorName
 }
 
 /** One chosen frontend on S14: installed and pointed at the games, or what's in the way. */
-data class FrontendHealth(val id: String, val name: String, val top: HealthIssue?) {
+data class FrontendHealth(val id: String, val name: String, val top: HealthIssue?, val folderKnown: Boolean = true) {
     val ready get() = top == null
 }
 
@@ -57,8 +57,9 @@ data class HealthReport(
                     mine.none(SetupScore::affectsSetup))
             }
             val frontends = plan.frontends(bundle).map { f ->
-                val ids = setOfNotNull("frontend_missing_${f.id}", "frontend_folder_${f.id}", "frontend_first_run".takeIf { f.id == KnowledgeBundle.ESDE })
-                FrontendHealth(f.id, f.name.ifEmpty { f.id }, issues.filter { it.id in ids && SetupScore.affectsSetup(it) }.minByOrNull { it.severity.ordinal })
+                val ids = setOfNotNull("frontend_missing_${f.id}", "frontend_folder_${f.id}", "all_files_${f.id}", "frontend_first_run".takeIf { f.id == KnowledgeBundle.ESDE })
+                FrontendHealth(f.id, f.name.ifEmpty { f.id }, issues.filter { it.id in ids && SetupScore.affectsSetup(it) }.minByOrNull { it.severity.ordinal },
+                    folderKnown = f.id == KnowledgeBundle.ESDE || f.gamesFolderGrant)
             }
             return HealthReport(plan, issues, systems, com.ramrom.emumanager.engine.health.SetupScore.of(plan, issues, bundle), frontends)
         }

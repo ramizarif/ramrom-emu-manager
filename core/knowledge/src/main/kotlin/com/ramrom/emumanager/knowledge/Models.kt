@@ -259,6 +259,10 @@ data class FrontendProfile(
      * folder it's pointed at (Cocoon, RetroHrai!). ES-DE does too; iiSU so far doesn't say.
      */
     val gamesFolderGrant: Boolean = false,
+    /** Where the app keeps its games folder after first run, as its menus name it; empty if unknown. */
+    val folderSetting: String = "",
+    /** Reads the games through "All files access" (Cocoon, iiSU): without it the library is empty. */
+    val declaresAllFilesAccess: Boolean = false,
     /**
      * Each system's emulator is chosen inside the app, in storage we can't reach: the user does it,
      * guided. Empty when RamROM writes it (ES-DE's gamelists).
