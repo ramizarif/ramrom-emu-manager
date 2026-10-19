@@ -64,6 +64,8 @@ fun MainScreen(
     onStartSetup: () -> Unit,
     onAbout: () -> Unit,
     onHistory: () -> Unit = {},
+    onSaveReport: () -> Unit = {},
+    onNotificationSettings: () -> Unit = {},
     /** A setup run in progress: (done, total, things waiting for the user). */
     run: Triple<Int, Int, Int>? = null,
     /** Set once the device has a plan (set up or adopted); null shows the first-run empty state. */
@@ -97,7 +99,7 @@ fun MainScreen(
             Section.Wishlist -> EmptyState(Face.Happy, "Your wishlist is empty", "Add games you want to play. We'll tell you how they run here, and spot them when they land in your library.")
             Section.Customize -> EmptyState(Face.Happy, "Make it yours", "Themes, colours and game art for ES-DE are coming here. Other frontends keep these in their own settings for now.")
             Section.Apps -> if (apps != null) apps() else EmptyState(Face.Look, "No apps set up yet", "Emulators you add during setup are listed here with their versions and updates.")
-            Section.Settings -> SettingsBody(accessPanel, onAbout, onHistory, onOpenPlan)
+            Section.Settings -> SettingsBody(accessPanel, onAbout, onHistory, onOpenPlan, onSaveReport, onNotificationSettings, onApps = { onSection(Section.Apps) })
         }
     }
 }
@@ -153,7 +155,10 @@ private enum class SettingsPane(val title: String) { Device("Device"), Access("A
 
 /** S38 skeleton: sections on the left, the chosen one on the right (Wide); elsewhere a pane replaces the list. */
 @Composable
-private fun ColumnScope.SettingsBody(accessPanel: @Composable ColumnScope.() -> Unit, onAbout: () -> Unit, onHistory: () -> Unit, onOpenPlan: () -> Unit) {
+private fun ColumnScope.SettingsBody(
+    accessPanel: @Composable ColumnScope.() -> Unit, onAbout: () -> Unit, onHistory: () -> Unit, onOpenPlan: () -> Unit,
+    onSaveReport: () -> Unit, onNotificationSettings: () -> Unit, onApps: () -> Unit,
+) {
     val wide = LocalSizeClass.current == SizeClass.Wide
     // Wide always shows a pane; narrower screens show one only once it's picked (it had no way to open).
     var picked by remember { mutableStateOf<SettingsPane?>(null) }
@@ -164,7 +169,19 @@ private fun ColumnScope.SettingsBody(accessPanel: @Composable ColumnScope.() -> 
             BasicText("Set this device up from a plan made on another one, or restore one you exported.", style = EmuType.Body)
             EmuButton("Open a plan file", onOpenPlan, small = true)
         }
-        else -> BasicText("Arrives with its milestone.", style = EmuType.Body)
+        SettingsPane.Updates -> {
+            BasicText("Your emulators and frontends are checked for updates on the Apps tab, from the same place each one was installed from.", style = EmuType.Body)
+            EmuButton("Go to Apps", onApps, small = true)
+        }
+        SettingsPane.Notifications -> {
+            BasicText("RamROM only notifies you while a setup run or an import is going, so you can leave the app and come back.", style = EmuType.Body)
+            EmuButton("Notification settings", onNotificationSettings, small = true)
+        }
+        SettingsPane.Report -> {
+            BasicText("Save a report and send it along with what went wrong. It has the app's log, your device model and Android version, your setup's health and which apps are installed. Game file names are left out. Nothing is sent by the app itself.", style = EmuType.Body)
+            EmuButton("Save a report", onSaveReport, small = true)
+        }
+        else -> Unit
     }
     if (!wide && pane != null) {
         ListRow("‹  Settings", onClick = { picked = null })
@@ -189,7 +206,7 @@ private fun ColumnScope.SettingsBody(accessPanel: @Composable ColumnScope.() -> 
 
 /** S40 stub: version, ground rules, data sources, not-affiliated note. */
 @Composable
-fun AboutScreen(version: String) {
+fun AboutScreen(version: String, onLicenses: () -> Unit) {
     PageScaffold("About", hints = listOf("B" to "Back")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             LivingHandheld(HandheldState(awake = true, face = Face.Happy), Modifier.size(150.dp, 108.dp))
@@ -204,6 +221,7 @@ fun AboutScreen(version: String) {
         ListRow("Fonts", detail = "Bricolage Grotesque, Figtree, Geist Mono · SIL Open Font License")
         ListRow("Data sources", detail = "ES-DE documentation (MIT) · No-Intro and Redump metadata")
         ListRow("Community reports", detail = "Links to EmuReady, with thanks")
+        ListRow("Open-source licences", detail = "The libraries inside this app and their licences", onClick = onLicenses) { BasicText("›", style = EmuType.Body) }
         Spacer(Modifier.height(4.dp))
         BasicText("Not affiliated with Nintendo, Sony, ES-DE or any emulator project. Names are used only to say what works with what.", style = EmuType.Body)
         Row { Tag("No analytics, no uploads", TagKind.Done) }

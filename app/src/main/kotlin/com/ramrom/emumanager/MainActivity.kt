@@ -164,6 +164,14 @@ private fun EmuNav(app: EmuApplication, start: Route) {
             .onFailure { app.log.e("plan", "export failed", it); toast = "Couldn't save the plan" }
     }
     val openPlanFile = { pickPlan.launch(arrayOf("*/*")) }
+    val saveReport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching { val text = problemReport(app); context.contentResolver.openOutputStream(uri)!!.use { it.write(text.encodeToByteArray()) } }
+                .onSuccess { toast = "Report saved" }
+                .onFailure { app.log.e("report", "save failed", it); toast = "Couldn't save the report" }
+        }
+    }
     var biosScanning by remember { mutableStateOf(false) }
     var biosError by remember { mutableStateOf<String?>(null) }
     val scope2 = rememberCoroutineScope()
@@ -461,6 +469,11 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                     },
                     onAbout = { nav.push(Route.About) },
                     onHistory = { nav.push(Route.ChangeHistory()) },
+                    onSaveReport = { saveReport.launch("ramrom-report.txt") },
+                    onNotificationSettings = {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName))
+                    },
                     run = runSummary,
                     home = homeStatus,
                     library = { LibrarySection(app, onOpen = { nav.push(Route.LibrarySystem(it)) }, onImport = openImporter, onOpenGame = { sys, base -> nav.push(Route.GameDetail(sys, base)) }) },
@@ -511,7 +524,9 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                 is Route.Guided -> activeRun?.let { run -> GuidedRoute(run, r.stepId, nav) } ?: LaunchedEffect(Unit) { nav.pop() }
                 Route.ImportGames -> ImportRoute(app, nav)
                 Route.ImportProgress -> ImportProgressRoute(app, nav)
-                Route.About -> AboutScreen("${BuildConfig.VERSION_NAME} · debug")
+                Route.About -> AboutScreen("${BuildConfig.VERSION_NAME}${if (BuildConfig.DEBUG) " · debug" else ""}", onLicenses = { nav.push(Route.Licenses) })
+                Route.Licenses -> com.ramrom.emumanager.screens.LicensesScreen(onOpen = { f, t -> nav.push(Route.LicenseText(f, t)) })
+                is Route.LicenseText -> com.ramrom.emumanager.screens.LicenseTextScreen(r.file, r.title)
             }
             // One toast layer over every screen, so a message survives the screen that sent it closing.
             Toast(toast)

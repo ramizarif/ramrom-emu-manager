@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins { id("com.android.application"); kotlin("android"); kotlin("plugin.serialization") }
 
 android {
@@ -14,6 +16,28 @@ android {
     kotlinOptions { jvmTarget = "11" }
     buildFeatures { compose = true; buildConfig = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
+
+    // Release builds are signed with a key that never enters the repo: keystore.properties (git-ignored)
+    // names the file and passwords. Without it, release builds come out unsigned.
+    val keys = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
+        Properties().apply { f.inputStream().use { load(it) } }
+    }
+    signingConfigs {
+        if (keys != null) create("release") {
+            storeFile = rootProject.file(keys.getProperty("storeFile"))
+            storePassword = keys.getProperty("storePassword")
+            keyAlias = keys.getProperty("keyAlias")
+            keyPassword = keys.getProperty("keyPassword")
+        }
+    }
+    buildTypes {
+        release {
+            if (keys != null) signingConfig = signingConfigs.getByName("release")
+            // Shrinking stays off for the beta: Shizuku's binder, serialization and 7-Zip's JNI would
+            // each need keep rules, and a crash only in release builds is the worst kind.
+            isMinifyEnabled = false
+        }
+    }
 }
 
 dependencies {

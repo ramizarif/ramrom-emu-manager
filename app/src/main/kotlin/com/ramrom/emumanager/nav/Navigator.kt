@@ -39,6 +39,9 @@ sealed interface Route {
     data class Issue(val issueId: String) : Route
     data class Main(val section: Section) : Route
     data object About : Route
+    /** S40: the open-source software inside the app, and each licence's full text. */
+    data object Licenses : Route
+    data class LicenseText(val file: String, val title: String) : Route
 }
 
 /** A plain back stack. B pops; reaching the root lets Android handle back (leave the app). */
