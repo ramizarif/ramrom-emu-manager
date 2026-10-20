@@ -62,5 +62,7 @@ See [RELEASING.md](RELEASING.md) for the release checklist.
 
 ## Licence
 
-Not chosen yet. Third-party software and its licences are listed in the app under
-Settings › About › Open-source licences.
+GNU General Public License version 3 or later ([LICENSE](LICENSE)), with an additional permission
+to link 7-Zip, whose RAR code carries the unRAR restriction ([LICENSE-EXCEPTION](LICENSE-EXCEPTION)).
+Third-party software and its licences are listed in the app under Settings › About › Open-source
+licences.

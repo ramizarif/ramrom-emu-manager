@@ -28,7 +28,9 @@ private val COMPONENTS = listOf(
 @Composable
 fun LicensesScreen(onOpen: (file: String, title: String) -> Unit) {
     PageScaffold("Open-source licences", hints = listOf("A" to "Read", "B" to "Back")) {
-        BasicText("RamROM Emu Manager is built with this software. Thanks to everyone who made it.", style = EmuType.Body)
+        BasicText("RamROM Emu Manager is free software, and it's built with this software. Thanks to everyone who made it.", style = EmuType.Body)
+        SectionLabel("This app", 1)
+        ListRow("RamROM Emu Manager", detail = "GNU GPL 3.0 or later, with a 7-Zip exception", onClick = { onOpen("ramrom-gpl-3.0.txt", "GNU GPL 3.0") }) { BasicText("›", style = EmuType.Body) }
         SectionLabel("Inside this app", COMPONENTS.size)
         COMPONENTS.forEach { c -> ListRow(c.name, detail = "${c.what}  ·  ${c.license}", onClick = { onOpen(c.file, c.license) }) { BasicText("›", style = EmuType.Body) } }
     }

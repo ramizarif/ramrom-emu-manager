@@ -2,7 +2,8 @@
 
 ## Before the first public release
 
-- [ ] Choose the app's licence (PLAN §9, deferred to M6) and add `LICENSE`.
+- [x] Licence: GPL-3.0-or-later with a 7-Zip/unRAR linking exception (`LICENSE`, `LICENSE-EXCEPTION`).
+- [ ] Before taking outside contributions, decide on a CLA (keeps relicensing, e.g. a Play build, possible).
 - [ ] Create the release key once and back it up somewhere safe outside this machine. Losing it
       means existing installs can't update; Obtainium and Android both check the signature.
       ```
@@ -26,7 +27,8 @@
    signatures differ) and run: onboarding, Health, Import, Settings › About › Open-source licences.
 5. Tag `v<versionName>` and create a GitHub release with the APK attached as
    `RamROM-Emu-Manager-<versionName>.apk`, so one regex matches every release.
-6. Release notes: what changed, in plain words. Never mention where to get games, BIOS or keys.
+6. GPL: the release's tag is its Corresponding Source; the repository stays public.
+7. Release notes: what changed, in plain words. Never mention where to get games, BIOS or keys.
 
 ## Obtainium
 
