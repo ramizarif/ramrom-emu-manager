@@ -13,8 +13,8 @@
       Then write `keystore.properties` at the repo root (see README).
 - [ ] LGPL: 7-Zip-JBinding and 7-Zip are linked as unmodified native libraries. Each release's
       notes link their source (github.com/omicronapps/7-Zip-JBinding-4Android, 7-zip.org).
-- [ ] Replace `app/src/main/assets/licenses/7-zip.txt` with the License.txt from 7-Zip 16.02 (the
-      version 7-Zip-JBinding bundles). The current file is from today's 7-Zip; same terms, newer text.
+- [x] `app/src/main/assets/licenses/7-zip.txt` is DOC/License.txt from the 7-Zip 16.02 source, the
+      version 7-Zip-JBinding bundles.
 - [ ] Public GitHub repository for releases (Obtainium reads GitHub releases).
 
 ## Every release

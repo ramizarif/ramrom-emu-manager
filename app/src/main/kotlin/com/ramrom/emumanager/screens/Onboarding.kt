@@ -151,8 +151,9 @@ fun ChoosePathScreen(existing: ExistingSetup?, restoreUnlocked: Boolean, onOpenP
             if (found) { adopt(Modifier.focusRequester(focus)); setUp(Modifier) } else { setUp(Modifier.focusRequester(focus)); adopt(Modifier) }
             OptionCard("Plan for another device", "Make a plan here, send it to your handheld.", { onPick(SetupPath.PlanOther) },
                 icon = { TileIcon("→", EmuColors.Tangerine, 38.dp) })
-            OptionCard("Restore from backup", null, { onPick(SetupPath.Restore) }, dimmed = !restoreUnlocked,
-                icon = { TileIcon("↺", EmuColors.InkSoft, 38.dp) }) { if (!restoreUnlocked) Tag("Unlock", TagKind.Lock) }
+            // Backups aren't built yet; the card comes back with them rather than selling a promise.
+            if (restoreUnlocked) OptionCard("Restore from backup", null, { onPick(SetupPath.Restore) },
+                icon = { TileIcon("↺", EmuColors.InkSoft, 38.dp) })
             EmuButton("I have a plan file", onOpenPlanFile, small = true, kind = ButtonKind.Ghost)
         }
     }

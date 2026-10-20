@@ -41,7 +41,7 @@ class DiagnosticsExporter(
     fun exportDiagnostics(): String {
         val sb = StringBuilder()
         sb.append("=== RamROM Emu Manager Diagnostics ===\n")
-        sb.append("Exported: ${System.currentTimeMillis()}\n")
+        sb.append("Exported: ${java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)}\n")
         sb.append("includeGameFileNames: $includeGameFileNames\n\n")
 
         // Include log files

@@ -82,7 +82,7 @@ fun MainScreen(
     banner: (@Composable () -> Unit)? = null,
     overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
 ) {
-    val sections = Section.entries
+    val sections = Section.tabs
     val i = sections.indexOf(section)
     ScreenKeys(
         l1 = { onSection(sections[(i - 1 + sections.size) % sections.size]) },

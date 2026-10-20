@@ -57,12 +57,14 @@ import com.ramrom.emumanager.ui.handheld.HandheldState
 import com.ramrom.emumanager.ui.handheld.HandheldTile
 import com.ramrom.emumanager.ui.input.KeyRouter
 import com.ramrom.emumanager.ui.input.LocalKeyRouter
-import com.ramrom.emumanager.ui.input.controllerKeys
 import com.ramrom.emumanager.ui.layout.Section
 import com.ramrom.emumanager.ui.layout.Sheet
 import com.ramrom.emumanager.ui.theme.EmuTheme
 
 class MainActivity : ComponentActivity() {
+    /** Screens register their controller actions here (ScreenKeys). */
+    private val keys = KeyRouter()
+
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         // Android starts in touch mode and returns to it on any tap; there nothing holds focus, and
         // gamepad buttons (unlike the d-pad) don't leave it, so A would do nothing. Any key leaves
@@ -74,6 +76,9 @@ class MainActivity : ComponentActivity() {
             // the shoulders mean the same thing whatever is focused, so they go through.
             if (event.keyCode in CONFIRM_KEYS) return true
         }
+        // Start, X, Y and the shoulders go to the screen here, before focus is involved: after going
+        // back from another screen nothing holds focus yet, and Compose would never see them.
+        if (event.action == android.view.KeyEvent.ACTION_DOWN && keys.dispatch(event.keyCode)) return true
         return super.dispatchKeyEvent(event)
     }
 
@@ -87,7 +92,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handle(intent)
-        setContent { EmuTheme { EmuApp() } }
+        setContent { EmuTheme { EmuApp(keys) } }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -101,25 +106,24 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun EmuApp() {
+fun EmuApp(keys: KeyRouter) {
     val context = LocalContext.current
     val app = context.applicationContext as EmuApplication
     // Returning users land on Home; first run starts at Welcome.
     val firstRunDone by produceState<Boolean?>(null) { value = app.appState.state.first().firstRunDone }
     when (firstRunDone) {
         null -> Box(Modifier.fillMaxSize().background(EmuColors.Canvas))
-        else -> EmuNav(app, if (firstRunDone == true) Route.Main(Section.Home) else Route.Welcome)
+        else -> EmuNav(app, keys, if (firstRunDone == true) Route.Main(Section.Home) else Route.Welcome)
     }
 }
 
 @Composable
-private fun EmuNav(app: EmuApplication, start: Route) {
+private fun EmuNav(app: EmuApplication, router: KeyRouter, start: Route) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val nav = remember { Navigator(start) }
     /** Leaving onboarding for a section marks the first run done. */
     val finishOnboarding = { r: Route -> scope.launch { app.appState.markFirstRunDone() }; nav.reset(r) }
-    val router = remember { KeyRouter() }
     var device by remember { mutableStateOf(Detection.deviceSummary(context, app.knowledge)) }
     var pickerOpen by remember { mutableStateOf(false) }
     val knownDevices = remember {
@@ -276,10 +280,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
     }
 
     CompositionLocalProvider(LocalKeyRouter provides router) {
-        Box(
-            Modifier.fillMaxSize()
-                .controllerKeys(router)
-        ) {
+        Box(Modifier.fillMaxSize()) {
             when (val r = nav.current) {
                 Route.Welcome -> WelcomeScreen(onWake = { nav.push(Route.Device) })
                 Route.Device -> Box(Modifier.fillMaxSize()) {
@@ -318,7 +319,7 @@ private fun EmuNav(app: EmuApplication, start: Route) {
                         }
                     }
                 }
-                is Route.Access -> AccessScreen(app.access, installShizuku = { p -> com.ramrom.emumanager.install.AppInstaller(app, app.access).installShizuku(p) }, onDone = {
+                is Route.Access -> AccessScreen(app.access, installShizuku = { p -> com.ramrom.emumanager.install.AppInstaller(app, app.access).installShizuku(p) }, journey = r.next !is Route.Main && r.next != Route.Health, onDone = {
                     when (val next = r.next) {
                         is Route.Main -> finishOnboarding(next)
                         // Replace the access step so B from S06 goes back to S03, not to S04.

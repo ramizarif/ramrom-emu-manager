@@ -83,7 +83,13 @@ internal fun accessStep(s: ShizukuSetup, connecting: Boolean, connected: Boolean
  * couldn't, or null once it's on.
  */
 @Composable
-fun AccessScreen(manager: AccessManager, installShizuku: (suspend ((Float) -> Unit) -> String?)? = null, onDone: () -> Unit) {
+fun AccessScreen(
+    manager: AccessManager,
+    installShizuku: (suspend ((Float) -> Unit) -> String?)? = null,
+    /** Part of first-run setup. From Settings or Health it's a single errand, with no step count. */
+    journey: Boolean = true,
+    onDone: () -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val setup by manager.setup.collectAsState()
@@ -175,8 +181,10 @@ fun AccessScreen(manager: AccessManager, installShizuku: (suspend ((Float) -> Un
             if (step != AccessStep.Connected && step != AccessStep.Start) EmuButton("Use limited mode", { limitedView = true }, kind = if (step == AccessStep.Denied) ButtonKind.Secondary else ButtonKind.Ghost)
         },
     ) {
-        JourneyTrack(1, 5, "Step 1 of 5 · Connect")
-        Spacer(Modifier.height(12.dp))
+        if (journey) {
+            JourneyTrack(1, 5, "Step 1 of 5 · Connect")
+            Spacer(Modifier.height(12.dp))
+        }
         BasicText(
             when (step) { AccessStep.Connected -> "You're connected"; AccessStep.Denied -> "Access wasn't allowed"; else -> "Let it make changes for you" },
             style = EmuType.Headline,

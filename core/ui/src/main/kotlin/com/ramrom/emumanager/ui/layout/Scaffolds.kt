@@ -55,7 +55,14 @@ import com.ramrom.emumanager.ui.theme.LocalSizeClass
 import com.ramrom.emumanager.ui.theme.SizeClass
 
 /** Top-level sections switched with L1/R1 (SCREENS.md navigation map). */
-enum class Section(val title: String) { Home("Home"), Library("Library"), Wishlist("Wishlist"), Customize("Customize"), Apps("Apps"), Settings("Settings") }
+enum class Section(val title: String, val built: Boolean = true) {
+    Home("Home"), Library("Library"), Wishlist("Wishlist", built = false), Customize("Customize", built = false), Apps("Apps"), Settings("Settings");
+
+    companion object {
+        /** The tabs L1/R1 move between. Sections not built yet stay out of the beta. */
+        val tabs get() = entries.filter { it.built }
+    }
+}
 
 @Composable
 private fun Glyph(text: String, dark: Boolean = false) = BasicText(
@@ -76,7 +83,7 @@ fun SectionBar(current: Section, onSelect: (Section) -> Unit, modifier: Modifier
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Glyph("L1")
-        Section.entries.filter { !compact || it == current }.forEach { s ->
+        Section.tabs.filter { !compact || it == current }.forEach { s ->
             val on = s == current
             BasicText(
                 if (compact) s.title + " ▾" else s.title,

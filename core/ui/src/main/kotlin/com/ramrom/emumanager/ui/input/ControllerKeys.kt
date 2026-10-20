@@ -7,17 +7,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.nativeKeyCode
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.type
 
 /**
  * Controller buttons beyond A (select) and B (back), per UX-RULES §1: X secondary, Y search,
  * L1/R1 sections, Start the screen's main action. The topmost registered screen wins, so a sheet
- * can take over Start while it is open.
+ * can take over Start while it is open. The activity feeds it every key-down, whatever has focus.
  */
 class KeyRouter {
     internal class Entry(val handlers: Map<Int, () -> Unit>)
@@ -70,9 +64,4 @@ fun ScreenKeys(
         })
     }
     DisposableEffect(entry) { router.push(entry); onDispose { router.remove(entry) } }
-}
-
-/** Root modifier: routes controller key-downs to the topmost registered screen. */
-fun Modifier.controllerKeys(router: KeyRouter): Modifier = onPreviewKeyEvent { e ->
-    e.type == KeyEventType.KeyDown && router.dispatch(e.key.nativeKeyCode)
 }
