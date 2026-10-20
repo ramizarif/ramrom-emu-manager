@@ -70,20 +70,36 @@ class ImportSession(private val app: EmuApplication) {
     fun canReadFiles() = Environment.isExternalStorageManager()
 
     suspend fun scan(source: ImportSourceDir) {
-        val bundle = app.knowledge.getBundle() ?: return
         _scanning.value = true
-        try {
-            val candidates = withContext(Dispatchers.IO) {
-                val files = listSources(File(source.path))
-                ImportClassifier(bundle, DeviceImportProbe()).scan(files)
-            }
-            // F30: move out of Downloads (it's a holding area), copy from anywhere else.
-            val options = ImportOptions(move = source.isDownloads, deleteArchives = source.isDownloads)
-            val planned = app.runs.lastPlan()?.systems
-            val setUp = planned?.map { it.systemId }?.toSet()
-            _draft.value = replan(ImportDraft(source, candidates, options = options, plan = ImportPlan(emptyList(), emptyList(), options), freeBytes = 0,
-                setUp = setUp, setUpEmulators = planned.orEmpty().associate { it.systemId to it.emulatorId }))
-        } finally { _scanning.value = false }
+        try { read(source)?.let { _draft.value = replan(it) } } finally { _scanning.value = false }
+    }
+
+    /**
+     * Look at the same folder again, quietly: files come and go while the user is away (a download
+     * finishes, a file manager moves something). Their choices stay for files that are still there.
+     */
+    suspend fun refresh() {
+        val was = _draft.value ?: return
+        if (_scanning.value) return
+        val fresh = read(was.source) ?: return
+        // The user picked another folder meanwhile: that scan wins.
+        if (_draft.value?.source != was.source) return
+        val now = _draft.value ?: return
+        _draft.value = replan(fresh.copy(systemOverrides = now.systemOverrides, includeOverrides = now.includeOverrides, options = now.options))
+    }
+
+    private suspend fun read(source: ImportSourceDir): ImportDraft? {
+        val bundle = app.knowledge.getBundle() ?: return null
+        val candidates = withContext(Dispatchers.IO) {
+            val files = listSources(File(source.path))
+            ImportClassifier(bundle, DeviceImportProbe()).scan(files)
+        }
+        // F30: move out of Downloads (it's a holding area), copy from anywhere else.
+        val options = ImportOptions(move = source.isDownloads, deleteArchives = source.isDownloads)
+        val planned = app.runs.lastPlan()?.systems
+        val setUp = planned?.map { it.systemId }?.toSet()
+        return ImportDraft(source, candidates, options = options, plan = ImportPlan(emptyList(), emptyList(), options), freeBytes = 0,
+            setUp = setUp, setUpEmulators = planned.orEmpty().associate { it.systemId to it.emulatorId })
     }
 
     /** Look for folders with games, by name only, so the user confirms one instead of hunting. */

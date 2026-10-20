@@ -47,8 +47,10 @@ fun ImportRoute(app: EmuApplication, nav: Navigator) {
     // Every return (from the folder picker, a file manager) looks again: folders come and go.
     var visits by remember { mutableStateOf(0) }
     LifecycleResumeEffect(Unit) { canRead = session.canReadFiles(); visits++; onPauseOrDispose { } }
-    // A fresh visit looks in Downloads; coming back keeps the user's choices.
+    // A fresh visit looks in Downloads; coming back looks at the same folder again and keeps the
+    // user's choices, so a download that finished meanwhile shows up.
     LaunchedEffect(canRead) { if (canRead && draft == null && !scanning) session.scan(session.downloads) }
+    LaunchedEffect(visits) { if (visits > 0 && canRead) session.refresh() }
     // Meanwhile, look for other folders with games so an empty Downloads isn't a dead end.
     LaunchedEffect(canRead, visits) { if (canRead) session.findSources() }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
