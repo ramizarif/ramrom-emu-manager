@@ -21,7 +21,7 @@ class InventoryBuilderTest {
         assertEquals(setOf("nds", "switch"), inv.existingFolders)
     }
 
-    /** [device] a `.cia` sat in `nds/` on Ramiz's Thor. */
+    /** [device] a `.cia` sat in `nds/` on a real Thor. */
     @Test fun findsFilesInTheWrongFolder() {
         val inv = InventoryBuilder(testBundle, FakeFiles("$r/nds/Style Savvy.cia", "$r/nds/Mario.nds")).build(DeviceFacts())
         assertEquals(listOf(StrayFile("Style Savvy.cia", "n3ds")), inv.romFolders.first { it.systemId == "nds" }.strays)
