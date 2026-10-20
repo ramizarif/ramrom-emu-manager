@@ -63,7 +63,7 @@ driven with a controller.
   <img src="docs/screenshots/library.jpg" width="49%" alt="Library: games grouped by system with how well each runs">
 </p>
 
-Wishlist and Customize (themes and game art) show up in the app, but aren't built yet.
+Coming later: a wishlist, and themes and game art for ES-DE.
 
 ## What it supports
 
