@@ -185,6 +185,9 @@ Access* to install without prompts.
 **Something else.** Open an [issue](../../issues) and attach the report from *Settings › Report a
 problem*.
 
+**Questions, or want to say how it went?** Use [Discussions](../../discussions). The
+[beta feedback thread](../../discussions/1) is the best place to tell us how setup went on your device.
+
 ## Build it yourself
 
 **You need:**
@@ -258,7 +261,7 @@ package name or folder, or adding a BIOS checksum usually only means changing th
 
 ## Contributing
 
-Bug reports, device reports and pull requests are welcome. Please read
+Bug reports, device reports, [feedback](../../discussions) and pull requests are welcome. Please read
 [CONTRIBUTING.md](CONTRIBUTING.md) first. It covers:
 - testing on an emulator;
 - the knowledge file;

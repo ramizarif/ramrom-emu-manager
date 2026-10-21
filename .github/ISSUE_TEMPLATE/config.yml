@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Feedback and questions
+    url: https://github.com/ramizarif/ramrom-emu-manager/discussions
+    about: How setup went, what confused you, ideas. Bugs go in a bug report.
