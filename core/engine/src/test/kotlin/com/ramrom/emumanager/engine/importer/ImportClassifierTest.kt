@@ -98,7 +98,7 @@ class ImportClassifierTest {
     }
 
     @Test fun unreadableArchiveFallsBackToItsName() {
-        val c = one(FakeProbe(), f("Zelda [NSP].rar"))
+        val c = one(FakeProbe(), f("My Backup [NSP].rar"))
         assertTrue(Flag.Unreadable in c.flags)
         assertEquals("switch", c.systemId); assertEquals(Confidence.Likely, c.confidence)
     }
